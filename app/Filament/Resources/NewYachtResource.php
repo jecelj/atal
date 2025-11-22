@@ -60,14 +60,33 @@ class NewYachtResource extends Resource
                             Forms\Components\TextInput::make('slug')
                                 ->required(),
                         ]),
-                    Forms\Components\Translatable::make([
-                        Forms\Components\TextInput::make('name')
-                            ->required()
-                            ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(fn(Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
-                    ])
-                        ->locales(fn() => \App\Models\Language::pluck('code')->toArray()),
+                    Forms\Components\Tabs::make('Name')
+                        ->tabs(function () {
+                            $languages = \App\Models\Language::orderBy('is_default', 'desc')->get();
+                            $tabs = [];
+
+                            foreach ($languages as $language) {
+                                $isDefault = $language->is_default;
+                                $label = $language->name . ($isDefault ? ' (Default)' : '');
+
+                                $tabs[] = Forms\Components\Tabs\Tab::make($label)
+                                    ->schema([
+                                        Forms\Components\TextInput::make("name.{$language->code}")
+                                            ->label('Name')
+                                            ->required($isDefault)
+                                            ->maxLength(255)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(function (Forms\Set $set, $state) use ($isDefault) {
+                                                if ($isDefault) {
+                                                    $set('slug', \Illuminate\Support\Str::slug($state));
+                                                }
+                                            }),
+                                    ]);
+                            }
+
+                            return $tabs;
+                        })
+                        ->columnSpanFull(),
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
