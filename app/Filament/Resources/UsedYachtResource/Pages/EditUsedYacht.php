@@ -102,4 +102,26 @@ class EditUsedYacht extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function getFormActions(): array
+    {
+        return [
+            $this->getSaveFormAction(),
+            Actions\Action::make('saveAndPublish')
+                ->label('Save and Publish')
+                ->icon('heroicon-m-check-circle')
+                ->color('success')
+                ->action(function () {
+                    $this->form->getState();
+                    $this->data['state'] = 'published';
+                    $this->save();
+
+                    \Filament\Notifications\Notification::make()
+                        ->success()
+                        ->title('Yacht published successfully')
+                        ->send();
+                }),
+            $this->getCancelFormAction(),
+        ];
+    }
 }
