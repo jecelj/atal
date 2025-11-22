@@ -176,13 +176,18 @@ class SyncController extends Controller
                 // Gallery fields should return media URLs
                 $mediaItems = $yacht->getMedia($config->field_key);
                 $value = $mediaItems->map(fn($m) => $m->getUrl())->toArray();
-            } elseif ($config->field_type === 'image' && is_numeric($value)) {
-                // Image fields should return media URL
+            } elseif (($config->field_type === 'image' || $config->field_type === 'file') && is_numeric($value)) {
+                // Image and File fields should return media URL
                 $media = $yacht->getMedia($config->field_key)->first();
                 $value = $media ? $media->getUrl() : '';
             }
 
             $fields[$config->field_key] = $value;
+        }
+
+        // Add debug info to the first field (hacky but effective for debugging)
+        if (!empty($fields)) {
+            $fields['_debug_configured_fields'] = $configs->pluck('field_key')->toArray();
         }
 
         return $fields;
