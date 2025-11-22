@@ -200,9 +200,10 @@ class SyncController extends Controller
                 $languages = Language::all();
                 $translations = [];
 
+                // Brand name is not translatable, use same name for all languages
                 foreach ($languages as $language) {
                     $translations[$language->code] = [
-                        'name' => $brand->getTranslation('name', $language->code),
+                        'name' => $brand->name,
                     ];
                 }
 
@@ -229,9 +230,10 @@ class SyncController extends Controller
                 $languages = Language::all();
                 $translations = [];
 
+                // Model name is not translatable, use same name for all languages
                 foreach ($languages as $language) {
                     $translations[$language->code] = [
-                        'name' => $model->getTranslation('name', $language->code),
+                        'name' => $model->name,
                     ];
                 }
 
