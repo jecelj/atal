@@ -163,23 +163,24 @@ class SyncController extends Controller
         foreach ($configs as $config) {
             $value = null;
 
-            if ($config->is_multilingual) {
-                // Get value for specific language
-                $value = $customFields[$config->field_key][$lang] ?? '';
-            } else {
-                // Get non-multilingual value
-                $value = $customFields[$config->field_key] ?? '';
-            }
-
-            // Handle special field types (originals are now WebP)
-            if ($config->field_type === 'gallery' && is_array($value)) {
-                // Gallery fields should return media URLs
+            // Handle media field types - ALWAYS fetch from media table
+            if ($config->field_type === 'gallery') {
+                // Gallery fields ALWAYS return media URLs from media table
                 $mediaItems = $yacht->getMedia($config->field_key);
                 $value = $mediaItems->map(fn($m) => $m->getUrl())->toArray();
-            } elseif (($config->field_type === 'image' || $config->field_type === 'file') && is_numeric($value)) {
-                // Image and File fields should return media URL
+            } elseif ($config->field_type === 'image' || $config->field_type === 'file') {
+                // Image/File fields ALWAYS return media URL from media table
                 $media = $yacht->getMedia($config->field_key)->first();
                 $value = $media ? $media->getUrl() : '';
+            } else {
+                // Regular fields - get from custom_fields JSON
+                if ($config->is_multilingual) {
+                    // Get value for specific language
+                    $value = $customFields[$config->field_key][$lang] ?? '';
+                } else {
+                    // Get non-multilingual value
+                    $value = $customFields[$config->field_key] ?? '';
+                }
             }
 
             $fields[$config->field_key] = $value;
