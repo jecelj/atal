@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Redirect all requests to the public folder
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# SECURITY: Prevent access to sensitive files
+<FilesMatch "^\.env|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|README\.md|artisan">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
