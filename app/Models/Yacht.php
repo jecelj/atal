@@ -94,5 +94,9 @@ class Yacht extends Model implements HasMedia
         $this->addMediaCollection('pdf_presentation')
             ->singleFile()
             ->acceptsMimeTypes(['application/pdf']);
+
+        $this->addMediaCollection('pdf_brochure')
+            ->singleFile()
+            ->acceptsMimeTypes(['application/pdf']);
     }
 }
