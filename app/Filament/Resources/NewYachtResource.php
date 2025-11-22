@@ -60,11 +60,14 @@ class NewYachtResource extends Resource
                             Forms\Components\TextInput::make('slug')
                                 ->required(),
                         ]),
-                    Forms\Components\TextInput::make('name')
-                        ->required()
-                        ->maxLength(255)
-                        ->live(onBlur: true)
-                        ->afterStateUpdated(fn(Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
+                    Forms\Components\Translatable::make([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->maxLength(255)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn(Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
+                    ])
+                        ->locales(fn() => \App\Models\Language::pluck('code')->toArray()),
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
