@@ -69,19 +69,32 @@ class NewYachtResource extends Resource
                                 $isDefault = $language->is_default;
                                 $label = $language->name . ($isDefault ? ' (Default)' : '');
 
-                                $tabs[] = Forms\Components\Tabs\Tab::make($label)
-                                    ->schema([
-                                        Forms\Components\TextInput::make("name.{$language->code}")
-                                            ->label('Name')
-                                            ->required($isDefault)
-                                            ->maxLength(255)
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(function (Forms\Set $set, $state) use ($isDefault) {
-                                                if ($isDefault) {
-                                                    $set('slug', \Illuminate\Support\Str::slug($state));
+                                $field = Forms\Components\TextInput::make("name.{$language->code}")
+                                    ->label('Name')
+                                    ->required($isDefault)
+                                    ->maxLength(255)
+                                    ->live(onBlur: true);
+
+                                // If this is the default language, auto-fill other languages when typing
+                                if ($isDefault) {
+                                    $field->afterStateUpdated(function (Forms\Set $set, $state, Forms\Get $get) use ($languages) {
+                                        // Update slug
+                                        $set('slug', \Illuminate\Support\Str::slug($state));
+
+                                        // Auto-fill other languages if they're empty
+                                        foreach ($languages as $lang) {
+                                            if (!$lang->is_default) {
+                                                $currentValue = $get("name.{$lang->code}");
+                                                if (empty($currentValue)) {
+                                                    $set("name.{$lang->code}", $state);
                                                 }
-                                            }),
-                                    ]);
+                                            }
+                                        }
+                                    });
+                                }
+
+                                $tabs[] = Forms\Components\Tabs\Tab::make($label)
+                                    ->schema([$field]);
                             }
 
                             return $tabs;
