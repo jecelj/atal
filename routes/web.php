@@ -2,4 +2,5 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Filament handles all routes including root path
+// Redirect root to admin panel
+Route::redirect('/', '/admin');
