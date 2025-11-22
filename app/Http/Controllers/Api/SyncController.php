@@ -125,6 +125,7 @@ class SyncController extends Controller
         return [
             'id' => $yacht->id,
             'type' => $yacht instanceof NewYacht ? 'new' : 'used',
+            'state' => $yacht->state,
             'source_id' => 'yacht-' . $yacht->id,
             'brand' => [
                 'id' => $yacht->brand->id,
