@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\NewYachtResource\Pages;
 
 use App\Filament\Resources\NewYachtResource;
+use App\Settings\ApiSettings;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Http;
@@ -24,7 +25,7 @@ class ListNewYachts extends ListRecords
                 ->modalDescription('This will sync all published yachts to WordPress sites configured in your settings.')
                 ->action(function () {
                     $sites = config('wordpress.sites');
-                    $apiKey = config('wordpress.api_key');
+                    $apiKey = app(ApiSettings::class)->sync_api_key;
 
                     if (empty($apiKey)) {
                         \Filament\Notifications\Notification::make()
