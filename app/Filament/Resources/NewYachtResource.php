@@ -69,6 +69,14 @@ class NewYachtResource extends Resource
                         ->required()
                         ->maxLength(255)
                         ->unique(ignoreRecord: true),
+                    Forms\Components\Select::make('state')
+                        ->options([
+                            'draft' => 'Draft',
+                            'published' => 'Published',
+                            'disabled' => 'Disabled',
+                        ])
+                        ->default('draft')
+                        ->required(),
                 ])->columns(2),
         ];
 
@@ -492,6 +500,18 @@ class NewYachtResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('year')
                     ->sortable(),
+                Tables\Columns\ToggleColumn::make('state')
+                    ->onColor('success')
+                    ->offColor('danger')
+                    ->onIcon('heroicon-m-check')
+                    ->offIcon('heroicon-m-x-mark')
+                    ->state(fn($record) => $record->state === 'published')
+                    ->afterStateUpdated(function ($record, $state) {
+                        $record->update([
+                            'state' => $state ? 'published' : 'draft'
+                        ]);
+                    })
+                    ->label('Published'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

@@ -19,6 +19,7 @@ class Yacht extends Model implements HasMedia
 
     protected $fillable = [
         'type',
+        'state',
         'brand_id',
         'yacht_model_id',
         'name',
