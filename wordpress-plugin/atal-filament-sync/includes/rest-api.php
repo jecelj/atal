@@ -45,9 +45,18 @@ function atal_sync_rest_import($request)
     $type = $request->get_param('type');
     $data = $request->get_param('data');
 
+    // Debug logging
+    atal_log("REST API Import called. Type: " . ($type ?? 'NULL') . " | Has data: " . (!empty($data) ? 'YES' : 'NO'));
+
+    if (!empty($data)) {
+        atal_log("Data keys: " . implode(', ', array_keys($data)));
+    }
+
     if ($type === 'news' && !empty($data)) {
+        atal_log("Calling atal_import_news()");
         $result = atal_import_news($data);
     } else {
+        atal_log("Calling atal_import_yachts() - type: " . ($type ?? 'NULL'));
         // Default to yacht import (pull mode)
         $result = atal_import_yachts();
     }
