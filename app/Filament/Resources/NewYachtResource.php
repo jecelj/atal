@@ -17,12 +17,14 @@ class NewYachtResource extends Resource
 {
     protected static ?string $model = NewYacht::class;
 
+    protected static ?string $navigationGroup = 'Content';
+
+    protected static ?int $navigationSort = 1;
+
     public static function getNavigationIcon(): string|\Illuminate\Contracts\Support\Htmlable|null
     {
         return view('filament.icons.yacht');
     }
-
-    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {

@@ -31,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->navigationGroups([
+                'Content',
                 'Sync Sites',
                 'Master Data',
                 'Configuration',

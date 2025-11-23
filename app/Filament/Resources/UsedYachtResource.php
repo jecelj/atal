@@ -17,12 +17,14 @@ class UsedYachtResource extends Resource
 {
     protected static ?string $model = UsedYacht::class;
 
+    protected static ?string $navigationGroup = 'Content';
+
+    protected static ?int $navigationSort = 2;
+
     public static function getNavigationIcon(): string|\Illuminate\Contracts\Support\Htmlable|null
     {
         return view('filament.icons.yacht');
     }
-
-    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
