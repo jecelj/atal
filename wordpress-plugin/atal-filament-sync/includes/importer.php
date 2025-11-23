@@ -97,6 +97,16 @@ function atal_import_single_yacht($yacht_data)
     }
 
     $available_langs = array_keys($yacht_data['translations']);
+
+    // Filter languages based on active site languages
+    $active_languages = atal_get_active_languages();
+    $available_langs = array_intersect($available_langs, $active_languages);
+
+    if (empty($available_langs)) {
+        atal_log("No matching languages found for this site. Active: " . implode(', ', $active_languages));
+        return false;
+    }
+
     atal_log("Available languages: " . implode(', ', $available_langs));
 
     // Get field definitions to know which fields are images/files
@@ -504,6 +514,15 @@ function atal_import_news($data)
     // Get available languages from the data
     $languages = array_keys($titles);
 
+    // Filter languages based on active site languages
+    $active_languages = atal_get_active_languages();
+    $languages = array_intersect($languages, $active_languages);
+
+    if (empty($languages)) {
+        atal_log("No matching languages found for this site. Active: " . implode(', ', $active_languages));
+        return ['error' => 'No matching languages found'];
+    }
+
     foreach ($languages as $lang) {
         atal_log("Processing News ($lang): $slug");
 
@@ -631,4 +650,22 @@ function atal_import_news($data)
         'imported' => $imported,
         'errors' => [],
     ];
+}
+
+/**
+ * Get active languages on the site
+ * 
+ * @return array List of language codes (slugs)
+ */
+function atal_get_active_languages()
+{
+    if (function_exists('pll_languages_list')) {
+        return pll_languages_list(['fields' => 'slug']);
+    }
+
+    // Fallback to site locale (first 2 chars)
+    $locale = get_locale();
+    $lang_code = substr($locale, 0, 2);
+
+    return [$lang_code];
 }
