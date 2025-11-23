@@ -367,7 +367,7 @@ class NewsResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')
-                    ->formatStateUsing(fn($state) => is_array($state) ? ($state['en'] ?? reset($state)) : $state)
+                    ->getStateUsing(fn($record) => is_array($record->title) ? ($record->title['en'] ?? reset($record->title)) : $record->title)
                     ->searchable(query: function (Builder $query, string $search) {
                         return $query->where('title', 'like', "%{$search}%");
                     }),
