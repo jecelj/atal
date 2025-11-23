@@ -1,0 +1,69 @@
+<?php
+/**
+ * REST API Endpoint
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+add_action('rest_api_init', 'atal_sync_register_rest_routes');
+
+function atal_sync_register_rest_routes()
+{
+    register_rest_route('atal-sync/v1', '/import', [
+        'methods' => 'POST',
+        'callback' => 'atal_sync_rest_import',
+        'permission_callback' => 'atal_sync_rest_permission',
+    ]);
+
+    register_rest_route('atal-sync/v1', '/status', [
+        'methods' => 'GET',
+        'callback' => 'atal_sync_rest_status',
+        'permission_callback' => '__return_true',
+    ]);
+}
+
+function atal_sync_rest_permission($request)
+{
+    $api_key = $request->get_header('X-API-Key');
+    $stored_key = get_option('atal_sync_api_key');
+
+    if (empty($stored_key)) {
+        return new WP_Error('not_configured', 'API key not configured', ['status' => 500]);
+    }
+
+    if ($api_key !== $stored_key) {
+        return new WP_Error('forbidden', 'Invalid API key', ['status' => 403]);
+    }
+
+    return true;
+}
+
+function atal_sync_rest_import($request)
+{
+    $result = atal_import_yachts();
+
+    if (isset($result['error'])) {
+        return new WP_Error('import_failed', $result['error'], ['status' => 500]);
+    }
+
+    return new WP_REST_Response([
+        'success' => true,
+        'imported' => $result['imported'],
+        'errors' => $result['errors'] ?? [],
+    ], 200);
+}
+
+function atal_sync_rest_status($request)
+{
+    $api_url = get_option('atal_sync_api_url');
+    $api_key = get_option('atal_sync_api_key');
+
+    return new WP_REST_Response([
+        'configured' => !empty($api_url) && !empty($api_key),
+        'api_url' => $api_url,
+        'polylang_active' => function_exists('pll_languages_list'),
+        'scf_active' => function_exists('SCF'),
+    ], 200);
+}
