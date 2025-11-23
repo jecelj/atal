@@ -120,7 +120,30 @@ class WordPressSyncService
                     $headers['X-API-Key'] = $apiKey;
                 }
 
-                $customFields = $news->custom_fields ?? [];
+                // Get custom fields with proper Media Library URLs
+                $customFields = [];
+                $newsCustomFields = $news->custom_fields ?? [];
+
+                // Get field configurations to know which fields are images/galleries
+                $fieldConfigs = \App\Models\FormFieldConfiguration::forNews()->get();
+
+                foreach ($fieldConfigs as $config) {
+                    $value = null;
+
+                    // Handle media field types - fetch from media table
+                    if ($config->field_type === 'gallery') {
+                        $mediaItems = $news->getMedia($config->field_key);
+                        $value = $mediaItems->map(fn($m) => $m->getUrl())->toArray();
+                    } elseif ($config->field_type === 'image' || $config->field_type === 'file') {
+                        $media = $news->getMedia($config->field_key)->first();
+                        $value = $media ? $media->getUrl() : '';
+                    } else {
+                        // Regular fields - get from custom_fields JSON
+                        $value = $newsCustomFields[$config->field_key] ?? '';
+                    }
+
+                    $customFields[$config->field_key] = $value;
+                }
 
                 // Get featured image URL from Media Library if available
                 $featuredImageUrl = null;
