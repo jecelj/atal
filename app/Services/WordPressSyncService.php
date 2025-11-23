@@ -14,7 +14,7 @@ class WordPressSyncService
             Log::info("Starting sync for site: {$site->name}");
 
             // Use site-specific API key, or fall back to global API key
-            $apiKey = $site->api_key ?: app(\App\Settings\GeneralSettings::class)->api_key;
+            $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
 
             $headers = [];
             if ($apiKey) {

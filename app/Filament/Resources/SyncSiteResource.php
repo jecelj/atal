@@ -100,8 +100,8 @@ class SyncSiteResource extends Resource
                     ->modalContent(function (SyncSite $record) {
                         $sessionKey = 'sync_progress_' . uniqid();
 
-                        // Dispatch the job for this specific site
-                        \App\Jobs\SyncSitesJob::dispatch($record->id, $sessionKey);
+                        // Dispatch the job synchronously (no queue worker needed)
+                        \App\Jobs\SyncSitesJob::dispatchSync($record->id, $sessionKey);
 
                         // Return the Livewire component
                         return view('components.sync-modal-content', [

@@ -27,8 +27,8 @@ class ManageSyncSites extends ManageRecords
                 ->modalContent(function () {
                     $sessionKey = 'sync_progress_' . uniqid();
 
-                    // Dispatch the job
-                    \App\Jobs\SyncSitesJob::dispatch(null, $sessionKey);
+                    // Dispatch the job synchronously (no queue worker needed)
+                    \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey);
 
                     // Return the Livewire component
                     return view('components.sync-modal-content', [
