@@ -122,6 +122,14 @@ class WordPressSyncService
 
                 $customFields = $news->custom_fields ?? [];
 
+                // Get featured image URL from Media Library if available
+                $featuredImageUrl = null;
+                if ($news->hasMedia('featured_image')) {
+                    $featuredImageUrl = $news->getFirstMediaUrl('featured_image');
+                } elseif ($news->featured_image) {
+                    $featuredImageUrl = url('storage/' . $news->featured_image);
+                }
+
                 $payload = [
                     'type' => 'news',
                     'data' => [
@@ -130,7 +138,7 @@ class WordPressSyncService
                         'content' => $news->content,
                         'excerpt' => $news->excerpt,
                         'published_at' => $news->published_at ? $news->published_at->toIso8601String() : null,
-                        'featured_image' => $news->featured_image ? url('storage/' . $news->featured_image) : null,
+                        'featured_image' => $featuredImageUrl,
                         'custom_fields' => $customFields,
                     ],
                 ];
