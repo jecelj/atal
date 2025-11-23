@@ -482,3 +482,144 @@ function atal_import_models()
 {
     return ['imported' => 0]; // Placeholder
 }
+
+function atal_import_news($data)
+{
+    atal_log("Starting News Import: " . ($data['slug'] ?? 'unknown'));
+
+    if (empty($data['slug']) || empty($data['title'])) {
+        return ['error' => 'Missing slug or title'];
+    }
+
+    $slug = $data['slug'];
+    $titles = $data['title'];
+    $contents = $data['content'] ?? [];
+    $excerpts = $data['excerpt'] ?? [];
+    $published_at = $data['published_at'];
+    $featured_image_url = $data['featured_image'];
+
+    $translation_ids = [];
+    $imported = 0;
+
+    // Get available languages from the data
+    $languages = array_keys($titles);
+
+    foreach ($languages as $lang) {
+        atal_log("Processing News ($lang): $slug");
+
+        // Check if post already exists
+        $existing_posts = get_posts([
+            'post_type' => 'news',
+            'meta_key' => '_atal_news_slug',
+            'meta_value' => $slug,
+            'posts_per_page' => -1,
+            'post_status' => 'any',
+        ]);
+
+        $post_id = 0;
+
+        foreach ($existing_posts as $p) {
+            $p_lang = function_exists('pll_get_post_language') ? pll_get_post_language($p->ID) : 'en';
+            if ($p_lang === $lang) {
+                $post_id = $p->ID;
+                break;
+            }
+        }
+
+        $post_data = [
+            'post_title' => $titles[$lang] ?? '',
+            'post_content' => $contents[$lang] ?? '',
+            'post_excerpt' => $excerpts[$lang] ?? '',
+            'post_status' => 'publish',
+            'post_type' => 'news',
+            'post_date' => $published_at ? date('Y-m-d H:i:s', strtotime($published_at)) : date('Y-m-d H:i:s'),
+            'post_name' => $slug, // WordPress will handle duplicates by appending suffix if needed, but we want to keep it clean
+        ];
+
+        if ($post_id) {
+            // Update
+            $post_data['ID'] = $post_id;
+            wp_update_post($post_data);
+            atal_log("Updated News ID: $post_id");
+        } else {
+            // Create
+            $post_id = wp_insert_post($post_data);
+            if (is_wp_error($post_id)) {
+                atal_log("Error creating news: " . $post_id->get_error_message());
+                continue;
+            }
+            update_post_meta($post_id, '_atal_news_slug', $slug);
+            atal_log("Created News ID: $post_id");
+            $imported++;
+        }
+
+        // Set Language
+        if (function_exists('pll_set_post_language')) {
+            pll_set_post_language($post_id, $lang);
+        }
+
+        // Set Featured Image
+        if ($featured_image_url) {
+            $attachment_id = atal_import_image($featured_image_url, $post_id);
+            if ($attachment_id) {
+                set_post_thumbnail($post_id, $attachment_id);
+            }
+        }
+
+        // Handle Custom Fields
+        if (!empty($data['custom_fields'])) {
+            // Get field definitions to know types
+            $field_groups = get_option('atal_sync_field_definitions');
+            $field_types = [];
+            if (!empty($field_groups)) {
+                foreach ($field_groups as $group) {
+                    foreach ($group['fields'] as $field) {
+                        $field_types[$field['name']] = $field['type'];
+                    }
+                }
+            }
+
+            foreach ($data['custom_fields'] as $key => $value) {
+                // Skip if value is empty
+                if (empty($value)) {
+                    if (function_exists('update_field')) {
+                        update_field($key, $value, $post_id);
+                    }
+                    continue;
+                }
+
+                $type = $field_types[$key] ?? 'text';
+
+                if (function_exists('update_field')) {
+                    if ($type === 'image' || $type === 'file') {
+                        if (is_string($value) && !empty($value) && parse_url($value, PHP_URL_SCHEME)) {
+                            $attachment_id = atal_import_image($value, $post_id);
+                            if ($attachment_id) {
+                                update_field($key, $attachment_id, $post_id);
+                            }
+                        }
+                    } elseif ($type === 'gallery') {
+                        if (is_array($value)) {
+                            $gallery_ids = atal_import_gallery($value, $post_id);
+                            update_field($key, $gallery_ids, $post_id);
+                        }
+                    } else {
+                        update_field($key, $value, $post_id);
+                    }
+                }
+            }
+        }
+
+        $translation_ids[$lang] = $post_id;
+    }
+
+    // Link translations
+    if (function_exists('pll_save_post_translations') && count($translation_ids) > 1) {
+        pll_save_post_translations($translation_ids);
+    }
+
+    return [
+        'imported' => $imported,
+        'errors' => [],
+    ];
+}

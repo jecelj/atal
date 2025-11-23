@@ -2,117 +2,86 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\UsedYachtResource\Pages;
-use App\Filament\Resources\UsedYachtResource\RelationManagers;
-use App\Models\UsedYacht;
+use App\Filament\Resources\NewsResource\Pages;
+use App\Models\News;
+use App\Models\Language;
+use App\Models\SyncSite;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use FilamentTiptapEditor\TiptapEditor;
+use FilamentTiptapEditor\Enums\TiptapOutput;
 
-class UsedYachtResource extends Resource
+class NewsResource extends Resource
 {
-    protected static ?string $model = UsedYacht::class;
+    protected static ?string $model = News::class;
 
-    public static function getNavigationIcon(): string|\Illuminate\Contracts\Support\Htmlable|null
-    {
-        return view('filament.icons.yacht');
-    }
+    protected static ?string $navigationIcon = 'heroicon-o-newspaper';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = 'Content';
 
     public static function form(Form $form): Form
     {
         $baseFields = [
-            Forms\Components\Section::make('Basic Information')
+            Forms\Components\Section::make('Content')
                 ->schema([
-                    Forms\Components\Select::make('brand_id')
-                        ->relationship('brand', 'name')
-                        ->live()
-                        ->afterStateUpdated(fn(Forms\Set $set) => $set('yacht_model_id', null))
-                        ->required()
-                        ->searchable()
-                        ->preload()
-                        ->createOptionForm([
-                            Forms\Components\TextInput::make('name')
-                                ->required()
-                                ->live(onBlur: true)
-                                ->afterStateUpdated(fn(Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
-                            Forms\Components\TextInput::make('slug')
-                                ->required(),
-                        ]),
-                    Forms\Components\Select::make('yacht_model_id')
-                        ->relationship('yachtModel', 'name', modifyQueryUsing: fn(Builder $query, Forms\Get $get) => $query->where('brand_id', $get('brand_id')))
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->createOptionForm([
-                            Forms\Components\Select::make('brand_id')
-                                ->relationship('brand', 'name')
-                                ->required(),
-                            Forms\Components\TextInput::make('name')
-                                ->required()
-                                ->live(onBlur: true)
-                                ->afterStateUpdated(fn(Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
-                            Forms\Components\TextInput::make('slug')
-                                ->required(),
-                        ]),
-                    Forms\Components\Tabs::make('Name')
+                    Forms\Components\Tabs::make('Translations')
                         ->tabs(function () {
-                            $languages = \App\Models\Language::orderBy('is_default', 'desc')->get();
+                            $languages = Language::orderBy('is_default', 'desc')->get();
                             $tabs = [];
 
                             foreach ($languages as $language) {
                                 $isDefault = $language->is_default;
                                 $label = $language->name . ($isDefault ? ' (Default)' : '');
+                                $code = $language->code;
 
-                                $field = Forms\Components\TextInput::make("name.{$language->code}")
-                                    ->label('Name')
+                                $titleField = Forms\Components\TextInput::make("title.{$code}")
+                                    ->label('Title')
                                     ->required($isDefault)
-                                    ->maxLength(255)
-                                    ->live(onBlur: true);
-
-                                // If this is the default language, auto-fill other languages when typing
-                                if ($isDefault) {
-                                    $field->afterStateUpdated(function (Forms\Set $set, $state, Forms\Get $get) use ($languages) {
-                                        // Update slug
-                                        $set('slug', \Illuminate\Support\Str::slug($state));
-
-                                        // Auto-fill other languages if they're empty
-                                        foreach ($languages as $lang) {
-                                            if (!$lang->is_default) {
-                                                $currentValue = $get("name.{$lang->code}");
-                                                if (empty($currentValue)) {
-                                                    $set("name.{$lang->code}", $state);
-                                                }
-                                            }
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Forms\Set $set, $state) use ($isDefault) {
+                                        if ($isDefault) {
+                                            $set('slug', \Illuminate\Support\Str::slug($state));
                                         }
                                     });
+
+                                if (!$isDefault) {
+                                    $titleField->suffixAction(self::getTranslateAction('title', $code));
                                 }
 
                                 $tabs[] = Forms\Components\Tabs\Tab::make($label)
-                                    ->schema([$field]);
+                                    ->schema([
+                                        $titleField,
+                                    ]);
                             }
 
                             return $tabs;
                         })
                         ->columnSpanFull(),
+
                     Forms\Components\TextInput::make('slug')
                         ->required()
-                        ->maxLength(255)
                         ->unique(ignoreRecord: true),
-                    Forms\Components\Select::make('state')
-                        ->options([
-                            'draft' => 'Draft',
-                            'published' => 'Published',
-                            'disabled' => 'Disabled',
-                        ])
-                        ->default('draft')
-                        ->required(),
-                ])->columns(2),
+                ])->columnSpan(2),
+
+            Forms\Components\Section::make('Settings')
+                ->schema([
+                    Forms\Components\Toggle::make('is_active')
+                        ->default(true),
+
+                    Forms\Components\DatePicker::make('published_at')
+                        ->default(now()),
+
+                    Forms\Components\CheckboxList::make('syncSites')
+                        ->relationship('syncSites', 'name')
+                        ->label('Sync to Sites')
+                        ->helperText('Select which sites this news item should be synced to.')
+                        ->columns(1)
+                        ->gridDirection('row'),
+                ])->columnSpan(1),
         ];
 
         // Add dynamic custom fields grouped by sections
@@ -122,13 +91,13 @@ class UsedYachtResource extends Resource
             $baseFields[] = $section;
         }
 
-        return $form->schema($baseFields);
+        return $form->schema($baseFields)->columns(3);
     }
 
     protected static function getCustomFieldsSchema(): array
     {
         $sections = [];
-        $configurations = \App\Models\FormFieldConfiguration::forUsedYachts()->ordered()->get();
+        $configurations = \App\Models\FormFieldConfiguration::forNews()->ordered()->get();
 
         // Group fields by their group name
         $groupedFields = $configurations->groupBy('group');
@@ -146,7 +115,8 @@ class UsedYachtResource extends Resource
             if (!empty($sectionFields)) {
                 $sections[] = Forms\Components\Section::make($groupName ?: 'Additional Information')
                     ->schema($sectionFields)
-                    ->columns(2);
+                    ->columns(2)
+                    ->columnSpan(2); // Span 2 columns to match Content section
             }
         }
 
@@ -206,30 +176,9 @@ class UsedYachtResource extends Resource
             'text' => Forms\Components\TextInput::make($fieldKey),
             'textarea' => Forms\Components\Textarea::make($fieldKey)
                 ->rows(4),
-            'richtext' => \FilamentTiptapEditor\TiptapEditor::make($fieldKey)
-                ->output(\FilamentTiptapEditor\Enums\TiptapOutput::Html)
-                ->tools([
-                    'heading',
-                    'bullet-list',
-                    'ordered-list',
-                    'checked-list',
-                    'blockquote',
-                    'hr',
-                    'bold',
-                    'italic',
-                    'strike',
-                    'underline',
-                    'superscript',
-                    'subscript',
-                    'link',
-                    'media',
-                    'table',
-                    'grid-builder',
-                    'details',
-                    'code',
-                    'code-block',
-                    'source',
-                ]),
+            'richtext' => TiptapEditor::make($fieldKey)
+                ->output(TiptapOutput::Html)
+                ->columnSpanFull(),
             'number' => Forms\Components\TextInput::make($fieldKey)
                 ->numeric(),
             'date' => Forms\Components\DatePicker::make($fieldKey),
@@ -242,45 +191,7 @@ class UsedYachtResource extends Resource
                 ->maxSize(5120)
                 ->imagePreviewHeight('250')
                 ->panelLayout('compact')
-                ->extraAttributes(['class' => 'single-element'])
-                ->getUploadedFileNameForStorageUsing(function ($file, Forms\Get $get) {
-                        // Get the yacht data from the form
-                        $brandId = $get('brand_id');
-                        $modelId = $get('yacht_model_id');
-                        $yachtName = $get('name');
-
-                        $brandSlug = 'unknown';
-                        $modelSlug = 'unknown';
-                        $nameSlug = '';
-
-                        if ($brandId) {
-                            $brand = \App\Models\Brand::find($brandId);
-                            $brandSlug = $brand ? \Illuminate\Support\Str::slug($brand->name) : 'unknown';
-                        }
-
-                        if ($modelId) {
-                            $yachtModel = \App\Models\YachtModel::find($modelId);
-                            $modelSlug = $yachtModel ? \Illuminate\Support\Str::slug($yachtModel->name) : 'unknown';
-                        }
-
-                        if ($yachtName) {
-                            // Extract name from translatable array (prefer English)
-                            $nameString = is_array($yachtName)
-                            ? ($yachtName['en'] ?? reset($yachtName) ?? '')
-                            : $yachtName;
-                            $nameSlug = \Illuminate\Support\Str::slug($nameString);
-                        }
-
-                        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $extension = $file->getClientOriginalExtension();
-
-                        // Build filename: brand-model-name-originalfilename or brand-model-originalfilename if no name
-                        $filename = $nameSlug
-                        ? "{$brandSlug}-{$modelSlug}-{$nameSlug}-{$originalName}"
-                        : "{$brandSlug}-{$modelSlug}-{$originalName}";
-
-                        return "{$filename}.{$extension}";
-                    }),
+                ->extraAttributes(['class' => 'single-element']),
             'gallery' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
                 ->image()
@@ -291,88 +202,12 @@ class UsedYachtResource extends Resource
                 ->maxFiles(50)
                 ->imagePreviewHeight('150')
                 ->panelLayout('grid')
-                ->columnSpanFull()
-                ->getUploadedFileNameForStorageUsing(function ($file, Forms\Get $get) {
-                        // Get the yacht data from the form
-                        $brandId = $get('brand_id');
-                        $modelId = $get('yacht_model_id');
-                        $yachtName = $get('name');
-
-                        $brandSlug = 'unknown';
-                        $modelSlug = 'unknown';
-                        $nameSlug = '';
-
-                        if ($brandId) {
-                            $brand = \App\Models\Brand::find($brandId);
-                            $brandSlug = $brand ? \Illuminate\Support\Str::slug($brand->name) : 'unknown';
-                        }
-
-                        if ($modelId) {
-                            $yachtModel = \App\Models\YachtModel::find($modelId);
-                            $modelSlug = $yachtModel ? \Illuminate\Support\Str::slug($yachtModel->name) : 'unknown';
-                        }
-
-                        if ($yachtName) {
-                            // Extract name from translatable array (prefer English)
-                            $nameString = is_array($yachtName)
-                            ? ($yachtName['en'] ?? reset($yachtName) ?? '')
-                            : $yachtName;
-                            $nameSlug = \Illuminate\Support\Str::slug($nameString);
-                        }
-
-                        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $extension = $file->getClientOriginalExtension();
-
-                        // Build filename: brand-model-name-originalfilename or brand-model-originalfilename if no name
-                        $filename = $nameSlug
-                        ? "{$brandSlug}-{$modelSlug}-{$nameSlug}-{$originalName}"
-                        : "{$brandSlug}-{$modelSlug}-{$originalName}";
-
-                        return "{$filename}.{$extension}";
-                    }),
+                ->columnSpanFull(),
             'file' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
                 ->maxSize(10240)
                 ->panelLayout('compact')
-                ->extraAttributes(['class' => 'single-element'])
-                ->getUploadedFileNameForStorageUsing(function ($file, Forms\Get $get) {
-                        // Get the yacht data from the form
-                        $brandId = $get('brand_id');
-                        $modelId = $get('yacht_model_id');
-                        $yachtName = $get('name');
-
-                        $brandSlug = 'unknown';
-                        $modelSlug = 'unknown';
-                        $nameSlug = '';
-
-                        if ($brandId) {
-                            $brand = \App\Models\Brand::find($brandId);
-                            $brandSlug = $brand ? \Illuminate\Support\Str::slug($brand->name) : 'unknown';
-                        }
-
-                        if ($modelId) {
-                            $yachtModel = \App\Models\YachtModel::find($modelId);
-                            $modelSlug = $yachtModel ? \Illuminate\Support\Str::slug($yachtModel->name) : 'unknown';
-                        }
-
-                        if ($yachtName) {
-                            // Extract name from translatable array (prefer English)
-                            $nameString = is_array($yachtName)
-                            ? ($yachtName['en'] ?? reset($yachtName) ?? '')
-                            : $yachtName;
-                            $nameSlug = \Illuminate\Support\Str::slug($nameString);
-                        }
-
-                        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $extension = $file->getClientOriginalExtension();
-
-                        // Build filename: brand-model-name-originalfilename or brand-model-originalfilename if no name
-                        $filename = $nameSlug
-                        ? "{$brandSlug}-{$modelSlug}-{$nameSlug}-{$originalName}"
-                        : "{$brandSlug}-{$modelSlug}-{$originalName}";
-
-                        return "{$filename}.{$extension}";
-                    }),
+                ->extraAttributes(['class' => 'single-element']),
             default => null,
         };
 
@@ -392,27 +227,21 @@ class UsedYachtResource extends Resource
 
         // Add translate button for text-based fields
         if ($translationConfig) {
-            if ($config->field_type === 'text') {
-                // TextInput supports suffixAction
+            if (in_array($config->field_type, ['text', 'textarea'])) {
+                // TextInput and Textarea support suffixAction
                 $field->suffixAction(
                     Forms\Components\Actions\Action::make('translate')
                         ->icon('heroicon-m-language')
                         ->requiresConfirmation(function (Forms\Get $get) use ($translationConfig) {
                             $targetPath = str_replace(".{$translationConfig['sourceLanguage']}", ".{$translationConfig['targetLanguage']}", $translationConfig['sourceField']);
                             $existingContent = $get($targetPath);
-                            // Check if content is truly empty (ignoring whitespace and HTML tags)
-                            return !empty($existingContent) && trim(strip_tags($existingContent)) !== '';
+                            return !empty($existingContent);
                         })
                         ->modalHeading('Overwrite existing translation?')
                         ->modalDescription('This field already contains text. Do you want to replace it with the automatic translation?')
                         ->modalSubmitActionLabel('Yes, translate')
                         ->action(function (Forms\Set $set, Forms\Get $get, $state) use ($translationConfig) {
                             $sourceText = $get($translationConfig['sourceField']);
-
-                            // Handle Tiptap JSON output
-                            if (is_array($sourceText)) {
-                                $sourceText = tiptap_converter()->asHTML($sourceText);
-                            }
 
                             if (empty($sourceText)) {
                                 \Filament\Notifications\Notification::make()
@@ -471,11 +300,6 @@ class UsedYachtResource extends Resource
                         ->action(function (Forms\Set $set, Forms\Get $get, $state) use ($translationConfig) {
                             $sourceText = $get($translationConfig['sourceField']);
 
-                            // Handle Tiptap JSON output
-                            if (is_array($sourceText)) {
-                                $sourceText = tiptap_converter()->asHTML($sourceText);
-                            }
-
                             if (empty($sourceText)) {
                                 \Filament\Notifications\Notification::make()
                                     ->warning()
@@ -483,6 +307,19 @@ class UsedYachtResource extends Resource
                                     ->body('Please fill in the default language field first.')
                                     ->send();
                                 return;
+                            }
+
+                            if (is_array($sourceText)) {
+                                try {
+                                    $sourceText = tiptap_converter()->asHTML($sourceText);
+                                } catch (\Exception $e) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->warning()
+                                        ->title('Content format not supported')
+                                        ->body('Could not convert editor content to HTML. Please save first.')
+                                        ->send();
+                                    return;
+                                }
                             }
 
                             try {
@@ -527,49 +364,117 @@ class UsedYachtResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('brand.name')
-                    ->sortable()
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('yachtModel.name')
-                    ->sortable()
-                    ->searchable()
-                    ->label('Model'),
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('price')
-                    ->money('EUR')
+                Tables\Columns\TextColumn::make('title')
+                    ->formatStateUsing(fn($state) => is_array($state) ? ($state['en'] ?? reset($state)) : $state)
+                    ->searchable(query: function (Builder $query, string $search) {
+                        return $query->where('title', 'like', "%{$search}%");
+                    }),
+
+                Tables\Columns\TextColumn::make('published_at')
+                    ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('year')
-                    ->sortable(),
-                Tables\Columns\ToggleColumn::make('state')
-                    ->onColor('success')
-                    ->offColor('danger')
-                    ->onIcon('heroicon-m-check')
-                    ->offIcon('heroicon-m-x-mark')
-                    ->state(fn($record) => $record->state === 'published')
-                    ->afterStateUpdated(function ($record, $state) {
-                        $record->update([
-                            'state' => $state ? 'published' : 'draft'
-                        ]);
-                    })
-                    ->label('Published'),
+
+                Tables\Columns\IconColumn::make('is_active')
+                    ->boolean(),
+
+                Tables\Columns\TextColumn::make('syncSites.name')
+                    ->badge()
+                    ->label('Synced To'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('brand')
-                    ->relationship('brand', 'name'),
+                //
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('sync')
+                    ->label('Sync Now')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(function (News $record) {
+                        $service = app(\App\Services\WordPressSyncService::class);
+                        $results = $service->syncNews($record);
+
+                        $successCount = collect($results)->where('success', true)->count();
+
+                        if ($successCount > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->success()
+                                ->title('Sync Completed')
+                                ->body("Synced to {$successCount} site(s)")
+                                ->send();
+                        } else {
+                            \Filament\Notifications\Notification::make()
+                                ->warning()
+                                ->title('Sync Failed')
+                                ->body('Could not sync to any sites.')
+                                ->send();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    protected static function getTranslateAction(string $field, string $targetLang, bool $isRichText = false)
+    {
+        $action = Forms\Components\Actions\Action::make('translate')
+            ->icon('heroicon-m-language')
+            ->requiresConfirmation(function (Forms\Get $get) use ($field, $targetLang) {
+                $existingContent = $get("{$field}.{$targetLang}");
+                return !empty($existingContent);
+            })
+            ->modalHeading('Overwrite existing translation?')
+            ->modalDescription('This field already contains text. Do you want to replace it with the automatic translation?')
+            ->modalSubmitActionLabel('Yes, translate')
+            ->action(function (Forms\Set $set, Forms\Get $get) use ($field, $targetLang, $isRichText) {
+                $defaultLang = Language::where('is_default', true)->first()->code;
+                $sourceText = $get("{$field}.{$defaultLang}");
+
+                if (empty($sourceText)) {
+                    \Filament\Notifications\Notification::make()
+                        ->warning()
+                        ->title('Missing Source')
+                        ->body('Please fill the default language first.')
+                        ->send();
+                    return;
+                }
+
+                try {
+                    $service = app(\App\Services\TranslationService::class);
+                    $translated = $service->translate($sourceText, $targetLang, $defaultLang);
+
+                    if ($translated) {
+                        $set("{$field}.{$targetLang}", $translated);
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title('Translated successfully')
+                            ->send();
+                    } else {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('Translation failed')
+                            ->body('Please check your OpenAI API key in settings.')
+                            ->send();
+                    }
+                } catch (\Exception $e) {
+                    \Filament\Notifications\Notification::make()
+                        ->danger()
+                        ->title('Translation error')
+                        ->body($e->getMessage())
+                        ->send();
+                }
+            });
+
+        return $action;
     }
 
     public static function getRelations(): array
@@ -582,9 +487,9 @@ class UsedYachtResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListUsedYachts::route('/'),
-            'create' => Pages\CreateUsedYacht::route('/create'),
-            'edit' => Pages\EditUsedYacht::route('/{record}/edit'),
+            'index' => Pages\ListNews::route('/'),
+            'create' => Pages\CreateNews::route('/create'),
+            'edit' => Pages\EditNews::route('/{record}/edit'),
         ];
     }
 }

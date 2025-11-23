@@ -240,6 +240,9 @@ class NewYachtResource extends Resource
                 ->image()
                 ->imageEditor()
                 ->maxSize(5120)
+                ->imagePreviewHeight('250')
+                ->panelLayout('compact')
+                ->extraAttributes(['class' => 'single-element'])
                 ->getUploadedFileNameForStorageUsing(function ($file, Forms\Get $get) {
                         // Get the yacht data from the form
                         $brandId = $get('brand_id');
@@ -330,6 +333,8 @@ class NewYachtResource extends Resource
             'file' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
                 ->maxSize(10240)
+                ->panelLayout('compact')
+                ->extraAttributes(['class' => 'single-element'])
                 ->getUploadedFileNameForStorageUsing(function ($file, Forms\Get $get) {
                         // Get the yacht data from the form
                         $brandId = $get('brand_id');
@@ -387,8 +392,8 @@ class NewYachtResource extends Resource
 
         // Add translate button for text-based fields
         if ($translationConfig) {
-            if (in_array($config->field_type, ['text', 'textarea'])) {
-                // TextInput and Textarea support suffixAction
+            if ($config->field_type === 'text') {
+                // TextInput supports suffixAction
                 $field->suffixAction(
                     Forms\Components\Actions\Action::make('translate')
                         ->icon('heroicon-m-language')
@@ -407,6 +412,63 @@ class NewYachtResource extends Resource
                             if (is_array($sourceText)) {
                                 $sourceText = tiptap_converter()->asHTML($sourceText);
                             }
+
+                            if (empty($sourceText)) {
+                                \Filament\Notifications\Notification::make()
+                                    ->warning()
+                                    ->title('No source text')
+                                    ->body('Please fill in the default language field first.')
+                                    ->send();
+                                return;
+                            }
+
+                            try {
+                                $translationService = app(\App\Services\TranslationService::class);
+                                $translated = $translationService->translate(
+                                    $sourceText,
+                                    $translationConfig['targetLanguage'],
+                                    $translationConfig['sourceLanguage']
+                                );
+
+                                if ($translated) {
+                                    $targetPath = str_replace(".{$translationConfig['sourceLanguage']}", ".{$translationConfig['targetLanguage']}", $translationConfig['sourceField']);
+                                    $set($targetPath, $translated);
+
+                                    \Filament\Notifications\Notification::make()
+                                        ->success()
+                                        ->title('Translated successfully')
+                                        ->send();
+                                } else {
+                                    \Filament\Notifications\Notification::make()
+                                        ->danger()
+                                        ->title('Translation failed')
+                                        ->body('Please check your OpenAI API key in settings.')
+                                        ->send();
+                                }
+                            } catch (\Exception $e) {
+                                \Filament\Notifications\Notification::make()
+                                    ->danger()
+                                    ->title('Translation error')
+                                    ->body($e->getMessage())
+                                    ->send();
+                            }
+                        })
+                );
+            } elseif ($config->field_type === 'textarea') {
+                // Textarea uses hintAction
+                $field->hintAction(
+                    Forms\Components\Actions\Action::make('translate')
+                        ->icon('heroicon-m-language')
+                        ->requiresConfirmation(function (Forms\Get $get) use ($translationConfig) {
+                            $targetPath = str_replace(".{$translationConfig['sourceLanguage']}", ".{$translationConfig['targetLanguage']}", $translationConfig['sourceField']);
+                            $existingContent = $get($targetPath);
+                            return !empty($existingContent);
+                        })
+                        ->modalHeading('Overwrite existing translation?')
+                        ->modalDescription('This field already contains text. Do you want to replace it with the automatic translation?')
+                        ->modalSubmitActionLabel('Yes, translate')
+                        ->action(function (Forms\Set $set, Forms\Get $get, $state) use ($translationConfig) {
+                            $sourceText = $get($translationConfig['sourceField']);
 
                             if (empty($sourceText)) {
                                 \Filament\Notifications\Notification::make()

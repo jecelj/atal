@@ -9,3 +9,35 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Fix for single image/file upload grid layout - override FilePond inline styles */
+/* This targets single file uploads (where there's only one li.filepond--item) */
+@media (min-width: 1024px) {
+
+    /* Very specific selector to override inline styles */
+    ul.filepond--list li.filepond--item:only-of-type[style] {
+        width: 100% !important;
+    }
+
+    /* Fallback: target any single filepond item */
+    ul.filepond--list:has(li.filepond--item:only-of-type) li.filepond--item {
+        width: 100% !important;
+    }
+
+    /* Single element class - multiple highly specific selectors to override inline styles */
+    .single-element .filepond--root ul.filepond--list li.filepond--item[style],
+    .single-element .filepond--root .filepond--list .filepond--item[style],
+    .fi-fo-file-upload.single-element ul.filepond--list li.filepond--item[style],
+    .fi-fo-file-upload.single-element .filepond--list .filepond--item[style] {
+        width: calc(100% - 0.5em) !important;
+    }
+
+    /* Additional fallbacks without style attribute */
+    .single-element .filepond--root ul.filepond--list li.filepond--item,
+    .single-element .filepond--root .filepond--list .filepond--item,
+    .fi-fo-file-upload.single-element ul.filepond--list li.filepond--item,
+    .fi-fo-file-upload.single-element .filepond--list .filepond--item,
+    .single-element .filepond--item {
+        width: calc(100% - 0.5em) !important;
+    }
+}

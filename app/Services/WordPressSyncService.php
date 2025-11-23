@@ -104,4 +104,60 @@ class WordPressSyncService
 
         return $results;
     }
+
+    public function syncNews(\App\Models\News $news): array
+    {
+        $sites = $news->syncSites()->where('is_active', true)->get();
+        $results = [];
+
+        foreach ($sites as $site) {
+            try {
+                // Use site-specific API key, or fall back to global API key
+                $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
+
+                $headers = [];
+                if ($apiKey) {
+                    $headers['X-API-Key'] = $apiKey;
+                }
+
+                $customFields = $news->custom_fields ?? [];
+
+                $payload = [
+                    'type' => 'news',
+                    'data' => [
+                        'slug' => $news->slug,
+                        'title' => $news->title,
+                        'content' => $news->content,
+                        'excerpt' => $news->excerpt,
+                        'published_at' => $news->published_at ? $news->published_at->toIso8601String() : null,
+                        'featured_image' => $news->featured_image ? url('storage/' . $news->featured_image) : null,
+                        'custom_fields' => $customFields,
+                    ],
+                ];
+
+                $response = Http::timeout(30)
+                    ->withHeaders($headers)
+                    ->post($site->url, $payload);
+
+                if ($response->successful()) {
+                    $results[$site->name] = [
+                        'success' => true,
+                        'message' => 'Synced successfully',
+                    ];
+                } else {
+                    $results[$site->name] = [
+                        'success' => false,
+                        'message' => 'Failed: ' . $response->body(),
+                    ];
+                }
+            } catch (\Exception $e) {
+                $results[$site->name] = [
+                    'success' => false,
+                    'message' => 'Exception: ' . $e->getMessage(),
+                ];
+            }
+        }
+
+        return $results;
+    }
 }

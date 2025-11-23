@@ -50,4 +50,24 @@ function atal_sync_register_cpts()
         'menu_icon' => 'dashicons-admin-multisite',
         'show_in_menu' => true,
     ]);
+
+    // News CPT
+    register_post_type('news', [
+        'labels' => [
+            'name' => __('News', 'atal-sync'),
+            'singular_name' => __('News', 'atal-sync'),
+            'add_new' => __('Add New', 'atal-sync'),
+            'add_new_item' => __('Add New News', 'atal-sync'),
+            'edit_item' => __('Edit News', 'atal-sync'),
+            'view_item' => __('View News', 'atal-sync'),
+            'search_items' => __('Search News', 'atal-sync'),
+        ],
+        'public' => true,
+        'has_archive' => true,
+        'show_in_rest' => true,
+        'supports' => ['title', 'editor', 'thumbnail', 'excerpt'],
+        'rewrite' => ['slug' => 'news'],
+        'menu_icon' => 'dashicons-megaphone',
+        'show_in_menu' => true,
+    ]);
 }

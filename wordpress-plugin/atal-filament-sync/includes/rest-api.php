@@ -42,7 +42,15 @@ function atal_sync_rest_permission($request)
 
 function atal_sync_rest_import($request)
 {
-    $result = atal_import_yachts();
+    $type = $request->get_param('type');
+    $data = $request->get_param('data');
+
+    if ($type === 'news' && !empty($data)) {
+        $result = atal_import_news($data);
+    } else {
+        // Default to yacht import (pull mode)
+        $result = atal_import_yachts();
+    }
 
     if (isset($result['error'])) {
         return new WP_Error('import_failed', $result['error'], ['status' => 500]);

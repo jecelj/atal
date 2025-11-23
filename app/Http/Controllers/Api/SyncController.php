@@ -264,7 +264,7 @@ class SyncController extends Controller
     {
         $fieldGroups = [];
 
-        foreach (['new_yacht', 'used_yacht'] as $entityType) {
+        foreach (['new_yacht', 'used_yacht', 'news'] as $entityType) {
             $configs = FormFieldConfiguration::where('entity_type', $entityType)
                 ->orderBy('order')
                 ->get();
@@ -281,7 +281,12 @@ class SyncController extends Controller
                 ];
             });
 
-            $postType = $entityType === 'new_yacht' ? 'new_yachts' : 'used_yachts';
+            $postType = match ($entityType) {
+                'new_yacht' => 'new_yachts',
+                'used_yacht' => 'used_yachts',
+                'news' => 'news',
+            };
+
             $fieldGroups[$postType] = [
                 'title' => ucfirst(str_replace('_', ' ', $entityType)) . ' Fields',
                 'fields' => $fields,
