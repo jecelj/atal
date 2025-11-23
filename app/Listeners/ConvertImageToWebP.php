@@ -10,6 +10,10 @@ class ConvertImageToWebP
 {
     public function handle(MediaHasBeenAddedEvent $event): void
     {
+        // Increase memory and time limit for image processing to prevent 500 errors
+        ini_set('memory_limit', '512M');
+        set_time_limit(300);
+
         $media = $event->media;
 
         Log::info("Listener: Processing media ID {$media->id} ({$media->file_name})");
@@ -68,7 +72,7 @@ class ConvertImageToWebP
             $media->save();
             Log::info("Listener: Successfully converted and saved {$media->id}");
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Listener: WebP conversion failed for ' . $media->id . ': ' . $e->getMessage());
         }
     }
