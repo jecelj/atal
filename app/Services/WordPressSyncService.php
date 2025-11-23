@@ -139,7 +139,15 @@ class WordPressSyncService
                         $value = $media ? $media->getUrl() : '';
                     } else {
                         // Regular fields - get from custom_fields JSON
-                        $value = $newsCustomFields[$config->field_key] ?? '';
+                        $fieldValue = $newsCustomFields[$config->field_key] ?? '';
+
+                        // If multilingual, keep the array structure (WordPress will handle it)
+                        // If not multilingual, use the value as-is
+                        if ($config->is_multilingual && is_array($fieldValue)) {
+                            $value = $fieldValue; // Keep array: ['en' => 'text', 'sl' => 'besedilo']
+                        } else {
+                            $value = $fieldValue;
+                        }
                     }
 
                     $customFields[$config->field_key] = $value;
