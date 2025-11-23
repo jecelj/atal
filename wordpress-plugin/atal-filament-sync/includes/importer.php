@@ -580,6 +580,11 @@ function atal_import_news($data)
             }
 
             foreach ($data['custom_fields'] as $key => $value) {
+                // If value is a multilingual array, extract the value for current language
+                if (is_array($value) && isset($value[$lang])) {
+                    $value = $value[$lang];
+                }
+
                 // Skip if value is empty
                 if (empty($value)) {
                     if (function_exists('update_field')) {
@@ -593,17 +598,21 @@ function atal_import_news($data)
                 if (function_exists('update_field')) {
                     if ($type === 'image' || $type === 'file') {
                         if (is_string($value) && !empty($value) && parse_url($value, PHP_URL_SCHEME)) {
+                            atal_log("Importing file/image for field: $key");
                             $attachment_id = atal_import_image($value, $post_id);
                             if ($attachment_id) {
+                                atal_log("File imported. Attachment ID: $attachment_id");
                                 update_field($key, $attachment_id, $post_id);
                             }
                         }
                     } elseif ($type === 'gallery') {
                         if (is_array($value)) {
+                            atal_log("Importing gallery for field: $key. Count: " . count($value));
                             $gallery_ids = atal_import_gallery($value, $post_id);
                             update_field($key, $gallery_ids, $post_id);
                         }
                     } else {
+                        atal_log("Updating field: $key | Type: $type | Value: " . (is_string($value) ? substr($value, 0, 50) : 'array'));
                         update_field($key, $value, $post_id);
                     }
                 }
