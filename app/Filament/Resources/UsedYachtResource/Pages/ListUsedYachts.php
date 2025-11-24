@@ -15,7 +15,7 @@ class ListUsedYachts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('Add Used Yacht'),
             Actions\Action::make('syncToWordPress')
                 ->label('Sync to WordPress')
                 ->icon('heroicon-o-arrow-path')
