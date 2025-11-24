@@ -16,15 +16,17 @@ class ConvertImageToWebP
 
         $media = $event->media;
 
-        Log::info("Listener: Processing media ID {$media->id} ({$media->file_name})");
+        Log::info("ConvertImageToWebP: Processing media ID {$media->id} ({$media->file_name}), mime: {$media->mime_type}");
 
         // Only process images
         if (!str_starts_with($media->mime_type, 'image/')) {
+            Log::info("ConvertImageToWebP: Skipping non-image file {$media->id}");
             return;
         }
 
         // Skip if already WebP
         if ($media->mime_type === 'image/webp') {
+            Log::info("ConvertImageToWebP: Skipping already WebP file {$media->id}");
             return;
         }
 
@@ -38,24 +40,42 @@ class ConvertImageToWebP
             }
 
             if (!$originalPath || !file_exists($originalPath)) {
-                Log::error("Listener: File not found for {$media->id} at {$originalPath}");
+                Log::error("ConvertImageToWebP: File not found for {$media->id} at {$originalPath}");
                 return;
             }
 
+            Log::info("ConvertImageToWebP: Original file path: {$originalPath}");
+
             // Create WebP version path
             $webpPath = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $originalPath);
-            Log::info("Listener: Converting {$media->id} to {$webpPath}");
+            Log::info("ConvertImageToWebP: Target WebP path: {$webpPath}");
 
-            // Convert to WebP using Spatie Image
-            Image::load($originalPath)
-                ->format('webp')
+            // Load image and check dimensions
+            $image = Image::load($originalPath);
+
+            // Get original dimensions
+            $width = $image->getWidth();
+            $height = $image->getHeight();
+            Log::info("ConvertImageToWebP: Original dimensions: {$width}x{$height}");
+
+            // Resize if width exceeds 2500px
+            if ($width > 2500) {
+                $newHeight = (int) round(($height / $width) * 2500);
+                Log::info("ConvertImageToWebP: Resizing to 2500x{$newHeight}");
+                $image->width(2500);
+            }
+
+            // Convert to WebP
+            $image->format('webp')
                 ->quality(80)
                 ->save($webpPath);
+
+            Log::info("ConvertImageToWebP: WebP file saved at {$webpPath}");
 
             // Delete original file
             if (file_exists($originalPath) && $originalPath !== $webpPath) {
                 unlink($originalPath);
-                Log::info("Listener: Deleted original file for {$media->id}");
+                Log::info("ConvertImageToWebP: Deleted original file {$originalPath}");
             }
 
             // Update media record with new file name and mime type
@@ -66,14 +86,16 @@ class ConvertImageToWebP
             // Update file size
             if (file_exists($webpPath)) {
                 $media->size = filesize($webpPath);
+                Log::info("ConvertImageToWebP: New file size: {$media->size} bytes");
             }
 
             // Save normally to trigger thumbnail generation!
             $media->save();
-            Log::info("Listener: Successfully converted and saved {$media->id}");
+            Log::info("ConvertImageToWebP: Successfully converted and saved media {$media->id}");
 
         } catch (\Throwable $e) {
-            Log::error('Listener: WebP conversion failed for ' . $media->id . ': ' . $e->getMessage());
+            Log::error('ConvertImageToWebP: Conversion failed for ' . $media->id . ': ' . $e->getMessage());
+            Log::error('ConvertImageToWebP: Stack trace: ' . $e->getTraceAsString());
         }
     }
 }
