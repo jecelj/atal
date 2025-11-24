@@ -30,6 +30,7 @@ function atal_sync_register_settings()
 {
     register_setting('atal_sync_settings', 'atal_sync_api_url');
     register_setting('atal_sync_settings', 'atal_sync_api_key');
+    register_setting('atal_sync_settings', 'atal_sync_allowed_languages');
 }
 
 // Main sync page
@@ -101,6 +102,18 @@ function atal_sync_page()
                             <input type="password" id="atal_sync_api_key" name="atal_sync_api_key"
                                 value="<?php echo esc_attr(get_option('atal_sync_api_key')); ?>" class="regular-text">
                             <p class="description">API key from Filament Configuration → API Settings</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="atal_sync_allowed_languages">Allowed Languages</label>
+                        </th>
+                        <td>
+                            <input type="text" id="atal_sync_allowed_languages" name="atal_sync_allowed_languages"
+                                value="<?php echo esc_attr(get_option('atal_sync_allowed_languages')); ?>"
+                                class="regular-text" placeholder="en,sl,de">
+                            <p class="description">Comma-separated list of language codes to sync (e.g., "en,sl"). Leave
+                                empty to auto-detect from Polylang.</p>
                         </td>
                     </tr>
                 </table>

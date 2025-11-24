@@ -659,6 +659,13 @@ function atal_import_news($data)
  */
 function atal_get_active_languages()
 {
+    // Check for manual override first
+    $allowed = get_option('atal_sync_allowed_languages');
+    if (!empty($allowed)) {
+        $langs = array_map('trim', explode(',', $allowed));
+        return array_filter($langs); // Remove empty values
+    }
+
     if (function_exists('pll_languages_list')) {
         return pll_languages_list(['fields' => 'slug']);
     }
