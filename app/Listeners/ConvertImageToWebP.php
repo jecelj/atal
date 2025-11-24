@@ -3,8 +3,9 @@
 namespace App\Listeners;
 
 use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
-use Spatie\Image\Image;
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 
 class ConvertImageToWebP
 {
@@ -50,25 +51,24 @@ class ConvertImageToWebP
             $webpPath = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $originalPath);
             Log::info("ConvertImageToWebP: Target WebP path: {$webpPath}");
 
-            // FORCE GD driver usage
-            $image = Image::useDriver('gd')->load($originalPath);
+            // Use Intervention Image with GD driver
+            $manager = new ImageManager(new GdDriver());
+            $image = $manager->read($originalPath);
 
             // Get original dimensions
-            $width = $image->getWidth();
-            $height = $image->getHeight();
+            $width = $image->width();
+            $height = $image->height();
             Log::info("ConvertImageToWebP: Original dimensions: {$width}x{$height}");
 
             // Resize if width exceeds 2500px
             if ($width > 2500) {
                 $newHeight = (int) round(($height / $width) * 2500);
                 Log::info("ConvertImageToWebP: Resizing to 2500x{$newHeight}");
-                $image->width(2500);
+                $image->scale(width: 2500);
             }
 
-            // Convert to WebP
-            $image->format('webp')
-                ->quality(80)
-                ->save($webpPath);
+            // Convert to WebP and save
+            $image->toWebp(quality: 80)->save($webpPath);
 
             Log::info("ConvertImageToWebP: WebP file saved at {$webpPath}");
 
