@@ -61,13 +61,16 @@ function atal_import_yachts()
 
     $imported = 0;
     $errors = [];
-
-    // Get Polylang languages - this is no longer needed here as it's handled per yacht in single_yacht function
-    // $languages = function_exists('pll_languages_list') ? pll_languages_list(['fields' => 'slug']) : ['en'];
+    $imported_source_ids = []; // Track which yachts we've seen from the API
 
     foreach ($data['yachts'] as $yacht_data) {
         try {
             atal_log("Processing yacht: " . ($yacht_data['id'] ?? 'unknown'));
+            $source_id = $yacht_data['source_id'] ?? null;
+            if ($source_id) {
+                $imported_source_ids[] = $source_id;
+            }
+
             $result = atal_import_single_yacht($yacht_data);
             if ($result) {
                 $imported++;
@@ -78,9 +81,15 @@ function atal_import_yachts()
         }
     }
 
+    // Cleanup: Delete WordPress posts for yachts that no longer exist in the API
+    atal_log("Starting cleanup of deleted yachts...");
+    $deleted_count = atal_cleanup_deleted_yachts($imported_source_ids);
+    atal_log("Cleanup complete. Deleted $deleted_count yachts.");
+
     return [
         'imported' => $imported,
         'errors' => $errors,
+        'deleted' => $deleted_count,
     ];
 }
 
@@ -92,10 +101,13 @@ function atal_import_single_yacht($yacht_data)
 
     atal_log("Yacht State: $state");
 
-    // Only import published yachts
-    if ($state !== 'published') {
-        atal_log("Skipping draft yacht");
-        return false;
+    // Determine WordPress post status based on Filament state
+    $post_status = 'draft'; // Default
+    if ($state === 'published') {
+        $post_status = 'publish';
+    } elseif ($state === 'draft' || $state === 'disabled') {
+        $post_status = 'draft';
+        atal_log("Yacht is draft/disabled - will be set to draft on WordPress");
     }
 
     $translation_ids = [];
@@ -261,7 +273,7 @@ function atal_import_single_yacht($yacht_data)
                 'ID' => $post_id,
                 'post_title' => $translation['title'],
                 'post_content' => $translation['description'] ?? '',
-                'post_status' => 'publish',
+                'post_status' => $post_status,
             ]);
         } else {
             // Create new post
@@ -270,7 +282,7 @@ function atal_import_single_yacht($yacht_data)
                 'post_type' => $post_type,
                 'post_title' => $translation['title'],
                 'post_content' => $translation['description'] ?? '',
-                'post_status' => 'publish',
+                'post_status' => $post_status,
             ]);
 
             if (is_wp_error($post_id)) {
@@ -842,4 +854,53 @@ function atal_get_active_languages()
     $lang_code = substr($locale, 0, 2);
 
     return [$lang_code];
+}
+
+function atal_cleanup_deleted_yachts($imported_source_ids)
+{
+    atal_log("Cleanup: Checking for yachts to delete...");
+
+    $deleted_count = 0;
+
+    // Get all yacht posts from both post types
+    $post_types = ['new_yachts', 'used_yachts'];
+
+    foreach ($post_types as $post_type) {
+        $all_yachts = get_posts([
+            'post_type' => $post_type,
+            'posts_per_page' => -1,
+            'post_status' => 'any',
+            'meta_query' => [
+                [
+                    'key' => '_atal_source_id',
+                    'compare' => 'EXISTS',
+                ],
+            ],
+        ]);
+
+        foreach ($all_yachts as $yacht) {
+            $source_id = get_post_meta($yacht->ID, '_atal_source_id', true);
+
+            // If this yacht's source_id is not in the imported list, delete it
+            if (!in_array($source_id, $imported_source_ids)) {
+                atal_log("Deleting yacht (source_id: $source_id, post_id: {$yacht->ID}) - no longer exists in API");
+
+                // Delete all translations if Polylang is active
+                if (function_exists('pll_get_post_translations')) {
+                    $translations = pll_get_post_translations($yacht->ID);
+                    foreach ($translations as $lang => $trans_id) {
+                        wp_delete_post($trans_id, true); // true = force delete (skip trash)
+                        atal_log("Deleted translation (lang: $lang, post_id: $trans_id)");
+                    }
+                } else {
+                    // No Polylang, just delete the post
+                    wp_delete_post($yacht->ID, true);
+                }
+
+                $deleted_count++;
+            }
+        }
+    }
+
+    return $deleted_count;
 }
