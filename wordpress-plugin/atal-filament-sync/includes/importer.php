@@ -510,15 +510,21 @@ function atal_import_image($url, $post_id)
 
 function atal_import_gallery($urls, $post_id)
 {
+    atal_log("Gallery import started. URLs count: " . count($urls));
+    atal_log("Gallery URLs order: " . json_encode($urls));
+
     $attachment_ids = [];
 
-    foreach ($urls as $url) {
+    foreach ($urls as $index => $url) {
+        atal_log("Importing gallery image #{$index}: {$url}");
         $attachment_id = atal_import_image($url, $post_id);
         if ($attachment_id) {
             $attachment_ids[] = $attachment_id;
+            atal_log("Gallery image #{$index} imported with ID: {$attachment_id}");
         }
     }
 
+    atal_log("Gallery import completed. Attachment IDs order: " . json_encode($attachment_ids));
     return $attachment_ids;
 }
 
