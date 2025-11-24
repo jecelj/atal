@@ -107,6 +107,98 @@ function atal_import_single_yacht($yacht_data)
         return false;
     }
 
+    // --- Brand and Model Filtering Logic ---
+    $allowed_brands = get_option('atal_sync_allowed_brands', []);
+    if (!is_array($allowed_brands))
+        $allowed_brands = [];
+
+    $allowed_models = get_option('atal_sync_allowed_models', []);
+    if (!is_array($allowed_models))
+        $allowed_models = [];
+
+    // Only filter if there are restrictions set
+    if (!empty($allowed_brands) || !empty($allowed_models)) {
+        $yacht_brand_id = $yacht_data['brand']['id'] ?? null;
+        $yacht_model_id = $yacht_data['model']['id'] ?? null;
+
+        $allow_import = false;
+
+        // 1. Check Model Allowlist
+        if ($yacht_model_id && in_array($yacht_model_id, $allowed_models)) {
+            $allow_import = true;
+            atal_log("Yacht allowed by Model ID: $yacht_model_id");
+        }
+        // 2. Check Brand Allowlist (only if model is NOT explicitly allowed/disallowed)
+        // Logic: If brand is allowed, allow ALL models of that brand UNLESS specific models are selected?
+        // No, the requirement was: "If brand is selected and no models, import all. If brand and model selected, import only model."
+        // This implies:
+        // - If model is in allowed_models -> ALLOW.
+        // - If brand is in allowed_brands AND NO models of this brand are in allowed_models -> ALLOW.
+        elseif ($yacht_brand_id && in_array($yacht_brand_id, $allowed_brands)) {
+            // Check if any models of this brand are in the allowed list
+            // We need to know which models belong to this brand to check this properly?
+            // Or simpler: If the user selected the Brand checkbox, they want the brand.
+            // If they ALSO selected specific models, they might want ONLY those models.
+            // Let's stick to the user's request: "If brand is marked and NOT models, import all from brand. If brand AND model marked, import only model."
+
+            // However, we don't easily know "if models of this brand are marked" without the full list of models.
+            // But we can infer: If the current model is NOT in allowed_models, but the brand IS in allowed_brands...
+            // Should we allow it?
+            // Case A: User selects Brand X. No models selected. -> Import everything from Brand X.
+            // Case B: User selects Brand X. Selects Model Y (of Brand X). -> Import ONLY Model Y.
+
+            // To support Case B, if we are here (Model not in allowed_models), we must check if ANY models are selected.
+            // But wait, if I select Brand A and Brand B (no models), I want all models from A and B.
+            // If I select Brand A and Model A1... I probably only want A1.
+
+            // Let's refine the logic:
+            // If model is explicitly allowed -> ALLOW.
+            // If brand is allowed... we need to check if "filtering by model" is active for this brand.
+            // Since we don't have the full map here easily, let's assume:
+            // If allowed_models is NOT EMPTY, we are in "strict model mode" for the brands that have models selected?
+            // This is getting complicated.
+
+            // Alternative interpretation of user request:
+            // "Checkbox for brands and models".
+            // If I check Brand, it selects the brand.
+            // If I check Model, it selects the model.
+
+            // Let's try this robust logic:
+            // 1. If `allowed_models` contains the yacht's model -> ALLOW.
+            // 2. If `allowed_brands` contains the yacht's brand...
+            //    AND the yacht's model is NOT in `allowed_models` (already checked above)...
+            //    We need to know if the user INTENDED to filter models for this brand.
+            //    We can check if ANY model in `allowed_models` belongs to this brand.
+            //    But we don't have that mapping here without fetching/caching it.
+
+            // Let's use the `atal_sync_available_data` option which we cached!
+            $cached_data = get_option('atal_sync_available_data', []);
+            $cached_models = $cached_data['models'] ?? [];
+
+            $models_of_this_brand_are_restricted = false;
+            foreach ($cached_models as $m) {
+                if (isset($m['brand_id']) && $m['brand_id'] == $yacht_brand_id) {
+                    if (in_array($m['id'], $allowed_models)) {
+                        $models_of_this_brand_are_restricted = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$models_of_this_brand_are_restricted) {
+                $allow_import = true;
+                atal_log("Yacht allowed by Brand ID: $yacht_brand_id (no specific models restricted)");
+            } else {
+                atal_log("Yacht skipped: Brand allowed, but specific models are selected for this brand.");
+            }
+        }
+
+        if (!$allow_import) {
+            atal_log("Skipping yacht {$yacht_data['id']} - Brand/Model not allowed.");
+            return false;
+        }
+    }
+
     atal_log("Available languages: " . implode(', ', $available_langs));
 
     // Get field definitions to know which fields are images/files

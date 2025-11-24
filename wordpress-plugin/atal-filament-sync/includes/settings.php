@@ -31,6 +31,8 @@ function atal_sync_register_settings()
     register_setting('atal_sync_settings', 'atal_sync_api_url');
     register_setting('atal_sync_settings', 'atal_sync_api_key');
     register_setting('atal_sync_settings', 'atal_sync_allowed_languages');
+    register_setting('atal_sync_settings', 'atal_sync_allowed_brands');
+    register_setting('atal_sync_settings', 'atal_sync_allowed_models');
 }
 
 // Main sync page
@@ -59,6 +61,8 @@ function atal_sync_page()
             'imported' => ($fields['imported'] ?? 0) + ($brands['imported'] ?? 0) + ($models['imported'] ?? 0) + ($yachts['imported'] ?? 0),
             'message' => 'Synced fields, brands, models, and yachts'
         ];
+    } elseif (isset($_POST['atal_sync_refresh']) && check_admin_referer('atal_sync_refresh_data')) {
+        $sync_result = atal_refresh_available_data();
     }
 
     if ($sync_result) {
@@ -69,6 +73,25 @@ function atal_sync_page()
             echo '<div class="notice notice-success"><p>' . esc_html($message) . '</p></div>';
         }
     }
+
+    // Get available data for checkboxes
+    $available_data = get_option('atal_sync_available_data', []);
+    $brands = $available_data['brands'] ?? [];
+    $models = $available_data['models'] ?? [];
+
+    // Group models by brand
+    $models_by_brand = [];
+    foreach ($models as $model) {
+        $models_by_brand[$model['brand_id']][] = $model;
+    }
+
+    $allowed_brands = get_option('atal_sync_allowed_brands', []);
+    if (!is_array($allowed_brands))
+        $allowed_brands = [];
+
+    $allowed_models = get_option('atal_sync_allowed_models', []);
+    if (!is_array($allowed_models))
+        $allowed_models = [];
 
     ?>
     <div class="wrap">
@@ -118,7 +141,52 @@ function atal_sync_page()
                     </tr>
                 </table>
 
+                <hr>
+
+                <h3>Content Filtering</h3>
+                <p class="description">Select which Brands and Models to import. If nothing is selected, everything will be
+                    imported.</p>
+
+                <?php if (empty($brands)): ?>
+                    <div class="notice notice-warning inline">
+                        <p>No brand data available. Please click "Refresh Data" below to fetch brands and models from the API.
+                        </p>
+                    </div>
+                <?php else: ?>
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #fff;">
+                        <?php foreach ($brands as $brand): ?>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-weight: bold;">
+                                    <input type="checkbox" name="atal_sync_allowed_brands[]"
+                                        value="<?php echo esc_attr($brand['id']); ?>" <?php checked(in_array($brand['id'], $allowed_brands)); ?>>
+                                    <?php echo esc_html($brand['translations']['en']['name'] ?? 'Unknown Brand'); ?>
+                                </label>
+
+                                <?php if (isset($models_by_brand[$brand['id']])): ?>
+                                    <div style="margin-left: 20px; margin-top: 5px;">
+                                        <?php foreach ($models_by_brand[$brand['id']] as $model): ?>
+                                            <label style="display: block; margin-bottom: 3px;">
+                                                <input type="checkbox" name="atal_sync_allowed_models[]"
+                                                    value="<?php echo esc_attr($model['id']); ?>" <?php checked(in_array($model['id'], $allowed_models)); ?>>
+                                                <?php echo esc_html($model['translations']['en']['name'] ?? 'Unknown Model'); ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php submit_button('Save Settings'); ?>
+            </form>
+
+            <form method="post" style="margin-top: 10px;">
+                <?php wp_nonce_field('atal_sync_refresh_data'); ?>
+                <button type="submit" name="atal_sync_refresh" class="button">
+                    <span class="dashicons dashicons-update" style="margin-top: 3px;"></span>
+                    Refresh Data (Brands & Models)
+                </button>
             </form>
         </div>
 
@@ -158,4 +226,53 @@ function atal_sync_page()
         </div>
     </div>
     <?php
+}
+
+function atal_refresh_available_data()
+{
+    $api_url = get_option('atal_sync_api_url');
+    $api_key = get_option('atal_sync_api_key');
+
+    if (empty($api_url) || empty($api_key)) {
+        return ['error' => 'API URL or Key missing'];
+    }
+
+    // Fetch Brands
+    $response_brands = wp_remote_get($api_url . '/brands', [
+        'headers' => ['Authorization' => 'Bearer ' . $api_key],
+        'timeout' => 30,
+    ]);
+
+    if (is_wp_error($response_brands)) {
+        return ['error' => 'Failed to fetch brands: ' . $response_brands->get_error_message()];
+    }
+
+    $brands_data = json_decode(wp_remote_retrieve_body($response_brands), true);
+
+    // Fetch Models
+    $response_models = wp_remote_get($api_url . '/models', [
+        'headers' => ['Authorization' => 'Bearer ' . $api_key],
+        'timeout' => 30,
+    ]);
+
+    if (is_wp_error($response_models)) {
+        return ['error' => 'Failed to fetch models: ' . $response_models->get_error_message()];
+    }
+
+    $models_data = json_decode(wp_remote_retrieve_body($response_models), true);
+
+    if (!isset($brands_data['brands']) || !isset($models_data['models'])) {
+        return ['error' => 'Invalid API response format'];
+    }
+
+    update_option('atal_sync_available_data', [
+        'brands' => $brands_data['brands'],
+        'models' => $models_data['models'],
+        'last_updated' => time(),
+    ]);
+
+    return [
+        'success' => true,
+        'message' => 'Successfully refreshed brands (' . count($brands_data['brands']) . ') and models (' . count($models_data['models']) . ').',
+    ];
 }
