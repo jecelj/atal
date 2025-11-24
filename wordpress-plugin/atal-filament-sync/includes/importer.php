@@ -577,7 +577,72 @@ function atal_get_or_create_term($name, $taxonomy, $lang, $parent_id = 0)
 
 function atal_import_brands()
 {
-    return ['imported' => 0]; // Placeholder
+    atal_log("Starting Brand Import...");
+
+    $api_url = get_option('atal_sync_api_url');
+    $api_key = get_option('atal_sync_api_key');
+
+    if (empty($api_url) || empty($api_key)) {
+        return ['error' => 'API URL or Key missing'];
+    }
+
+    $response = wp_remote_get($api_url . '/brands', [
+        'headers' => ['Authorization' => 'Bearer ' . $api_key],
+        'timeout' => 30,
+    ]);
+
+    if (is_wp_error($response)) {
+        return ['error' => $response->get_error_message()];
+    }
+
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+
+    if (!isset($data['brands'])) {
+        return ['error' => 'Invalid API response'];
+    }
+
+    $imported = 0;
+    $active_languages = atal_get_active_languages();
+
+    foreach ($data['brands'] as $brand) {
+        $brand_name = $brand['translations']['en']['name'] ?? $brand['slug']; // Fallback
+
+        // Import for each language
+        foreach ($active_languages as $lang) {
+            // Create/Update Term
+            $term_id = atal_get_or_create_term(
+                $brand_name,
+                'yacht_brand',
+                $lang,
+                0
+            );
+
+            if ($term_id) {
+                // Handle Logo Import
+                if (!empty($brand['logo'])) {
+                    $attachment_id = atal_import_image($brand['logo'], 0); // 0 = unattached
+                    if ($attachment_id) {
+                        // Save as term meta
+                        // Standard WP way for term meta (since 4.4)
+                        update_term_meta($term_id, 'brand_logo', $attachment_id);
+
+                        // Also try ACF way if available (usually saves to wp_options or term meta depending on version)
+                        if (function_exists('update_field')) {
+                            update_field('brand_logo', $attachment_id, 'yacht_brand_' . $term_id);
+                        }
+
+                        atal_log("Updated logo for brand '$brand_name' ($lang). Attachment ID: $attachment_id");
+                    }
+                }
+            }
+        }
+        $imported++;
+    }
+
+    return [
+        'imported' => $imported,
+        'message' => "Successfully synced $imported brands."
+    ];
 }
 
 function atal_import_models()

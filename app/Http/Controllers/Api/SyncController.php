@@ -217,6 +217,7 @@ class SyncController extends Controller
                 return [
                     'id' => $brand->id,
                     'slug' => Str::slug($brand->name),
+                    'logo' => $brand->logo ? url('storage/' . $brand->logo) : null,
                     'translations' => $translations,
                 ];
             }),
