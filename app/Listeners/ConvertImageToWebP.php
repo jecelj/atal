@@ -4,8 +4,6 @@ namespace App\Listeners;
 
 use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
 use Illuminate\Support\Facades\Log;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 
 class ConvertImageToWebP
 {
@@ -51,24 +49,39 @@ class ConvertImageToWebP
             $webpPath = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $originalPath);
             Log::info("ConvertImageToWebP: Target WebP path: {$webpPath}");
 
-            // Use Intervention Image with GD driver
-            $manager = new ImageManager(new GdDriver());
-            $image = $manager->read($originalPath);
+            // Load image using GD based on mime type
+            $image = match ($media->mime_type) {
+                'image/jpeg' => imagecreatefromjpeg($originalPath),
+                'image/png' => imagecreatefrompng($originalPath),
+                'image/gif' => imagecreatefromgif($originalPath),
+                default => null,
+            };
+
+            if (!$image) {
+                Log::error("ConvertImageToWebP: Failed to load image for {$media->id}");
+                return;
+            }
 
             // Get original dimensions
-            $width = $image->width();
-            $height = $image->height();
+            $width = imagesx($image);
+            $height = imagesy($image);
             Log::info("ConvertImageToWebP: Original dimensions: {$width}x{$height}");
 
             // Resize if width exceeds 2500px
             if ($width > 2500) {
+                $newWidth = 2500;
                 $newHeight = (int) round(($height / $width) * 2500);
-                Log::info("ConvertImageToWebP: Resizing to 2500x{$newHeight}");
-                $image->scale(width: 2500);
+                Log::info("ConvertImageToWebP: Resizing to {$newWidth}x{$newHeight}");
+
+                $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+                imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                imagedestroy($image);
+                $image = $resizedImage;
             }
 
             // Convert to WebP and save
-            $image->toWebp(quality: 80)->save($webpPath);
+            imagewebp($image, $webpPath, 80);
+            imagedestroy($image);
 
             Log::info("ConvertImageToWebP: WebP file saved at {$webpPath}");
 
