@@ -117,7 +117,12 @@ class SyncController extends Controller
                 if ($config->field_type === 'image') {
                     $media[$collectionName] = $yacht->getFirstMediaUrl($collectionName) ?: null;
                 } else {
-                    $media[$collectionName] = $yacht->getMedia($collectionName)->map(fn($m) => $m->getUrl())->toArray();
+                    // Sort by order_column to preserve user-defined order
+                    $media[$collectionName] = $yacht->getMedia($collectionName)
+                        ->sortBy('order_column')
+                        ->map(fn($m) => $m->getUrl())
+                        ->values()
+                        ->toArray();
                 }
             }
         }
