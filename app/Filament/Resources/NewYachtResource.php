@@ -241,7 +241,7 @@ class NewYachtResource extends Resource
                 ->collection($config->field_key)
                 ->image()
                 ->imageEditor()
-                ->maxSize(5120)
+                ->maxSize(20480)
                 ->imagePreviewHeight('250')
                 ->panelLayout('compact')
                 ->extraAttributes(['class' => 'single-element'])
@@ -289,7 +289,7 @@ class NewYachtResource extends Resource
                 ->imageEditor()
                 ->multiple()
                 ->reorderable()
-                ->maxSize(5120)
+                ->maxSize(20480)
                 ->maxFiles(50)
                 ->imagePreviewHeight('150')
                 ->panelLayout('grid')
@@ -334,7 +334,7 @@ class NewYachtResource extends Resource
                     }),
             'file' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
-                ->maxSize(10240)
+                ->maxSize(20480)
                 ->panelLayout('compact')
                 ->extraAttributes(['class' => 'single-element'])
                 ->getUploadedFileNameForStorageUsing(function ($file, Forms\Get $get) {
