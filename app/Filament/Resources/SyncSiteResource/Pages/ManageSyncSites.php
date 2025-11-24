@@ -36,7 +36,7 @@ class ManageSyncSites extends ManageRecords
                     ]);
                 })
                 ->action(fn() => null), // No action needed, job is dispatched in modalContent
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('Add Sync Site'),
         ];
     }
 
