@@ -525,7 +525,12 @@ function atal_import_gallery($urls, $post_id)
     }
 
     atal_log("Gallery import completed. Attachment IDs order: " . json_encode($attachment_ids));
-    return $attachment_ids;
+
+    // ACF Gallery field reverses the order, so we reverse it back
+    $reversed_ids = array_reverse($attachment_ids);
+    atal_log("Gallery IDs reversed for ACF: " . json_encode($reversed_ids));
+
+    return $reversed_ids;
 }
 
 function atal_get_or_create_term($name, $taxonomy, $lang, $parent_id = 0)
