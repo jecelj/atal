@@ -50,8 +50,8 @@ class ConvertImageToWebP
             $webpPath = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $originalPath);
             Log::info("ConvertImageToWebP: Target WebP path: {$webpPath}");
 
-            // Load image and check dimensions
-            $image = Image::load($originalPath);
+            // FORCE GD driver usage
+            $image = Image::useDriver('gd')->load($originalPath);
 
             // Get original dimensions
             $width = $image->getWidth();
