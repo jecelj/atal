@@ -19,6 +19,16 @@ function atal_import_yachts()
 {
     atal_log("Starting Yacht Import...");
 
+    // Always sync fields first to ensure ACF field definitions are up-to-date
+    atal_log("Syncing fields first...");
+    $fields_result = atal_import_fields();
+    if (isset($fields_result['error'])) {
+        atal_log("Field sync failed: " . $fields_result['error']);
+        // Continue anyway, but log the error
+    } else {
+        atal_log("Fields synced successfully: " . ($fields_result['imported'] ?? 0) . " fields");
+    }
+
     $api_url = get_option('atal_sync_api_url');
     $api_key = get_option('atal_sync_api_key');
 
