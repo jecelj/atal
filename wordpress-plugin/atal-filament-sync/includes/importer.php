@@ -17,7 +17,13 @@ function atal_log($message)
 
 function atal_import_yachts()
 {
+    // Increase PHP limits for large imports
+    @set_time_limit(300); // 5 minutes
+    @ini_set('memory_limit', '512M');
+    @ini_set('max_execution_time', '300');
+
     atal_log("Starting Yacht Import...");
+    atal_log("PHP limits set: max_execution_time=300s, memory_limit=512M");
 
     // Always sync fields first to ensure ACF field definitions are up-to-date
     atal_log("Syncing fields first...");
