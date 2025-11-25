@@ -14,3 +14,9 @@ Route::prefix('sync')->middleware('validate.api.key')->group(function () {
     Route::get('models', [\App\Http\Controllers\Api\SyncController::class, 'models']);
     Route::get('fields', [\App\Http\Controllers\Api\SyncController::class, 'fields']);
 });
+
+// Galeon Migration Import API (protected with API key)
+Route::prefix('import')->middleware('validate.api.key')->group(function () {
+    Route::get('test', [\App\Http\Controllers\Api\ImportController::class, 'test']);
+    Route::post('yacht', [\App\Http\Controllers\Api\ImportController::class, 'importYacht']);
+});
