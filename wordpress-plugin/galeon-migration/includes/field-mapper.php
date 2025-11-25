@@ -26,7 +26,7 @@ class Galeon_Field_Mapper
             'source_post_id' => $post->ID,
             'name' => $post->post_title,
             'slug' => $post->post_name,
-            'state' => 'new',
+            'state' => 'draft',
             'brand' => 'Galeon',
             'model' => $this->get_model_from_category($post->ID),
             'fields' => [],
