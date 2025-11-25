@@ -824,9 +824,19 @@ function atal_import_news($data)
                         // Handle repeater fields (e.g., video_url)
                         if (is_array($value)) {
                             atal_log("Updating repeater field: $key. Count: " . count($value));
-                            // ACF expects repeater data in same format as Filament
-                            // [['url' => '...'], ['url' => '...']]
-                            update_field($key, $value, $post_id);
+
+                            // ACF repeater requires specific format
+                            // First, delete existing repeater data
+                            delete_field($key, $post_id);
+
+                            // Then add each row
+                            foreach ($value as $index => $row) {
+                                // For video_url, row is ['url' => '...']
+                                // ACF expects: add_row($field_key, $row_data, $post_id)
+                                add_row($key, $row, $post_id);
+                            }
+
+                            atal_log("Repeater field $key updated with " . count($value) . " rows");
                         }
                     } else {
                         atal_log("Updating field: $key | Type: $type | Value: " . (is_string($value) ? substr($value, 0, 50) : 'array'));
