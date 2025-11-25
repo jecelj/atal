@@ -22,7 +22,7 @@ class TestGaleonImport extends Command
     {
         $this->info('Testing Galeon yacht import...');
 
-        // Real data for yacht 800 FLY (Post ID 907) - LIMITED GALLERIES FOR TEST
+        // Real data for yacht 800 FLY (Post ID 907) - FULL GALLERIES TEST
         $mockData = [
             'source_post_id' => 907,
             'name' => '800 FLY',
@@ -48,22 +48,39 @@ class TestGaleonImport extends Command
                     'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0046.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0068.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0100.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_00371.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0081.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0110.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0098.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0908.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0961.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0003.webp',
                 ],
                 'gallery_interrior' => [
                     'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6477-HDR.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6480-HDR.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6497-HDR.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6510-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6513-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6519-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6504-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6492-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6489-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6503-HDR.webp',
                 ],
                 'gallery_cockpit' => [
                     'https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4280.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4305.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4267.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4311.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4307.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4292.webp',
                 ],
                 'gallery_layout' => [
                     'https://galeonadriatic.com/wp-content/uploads/2025/06/498_Galeon-800-Fly-_Marketing-GA-01_2020-01-08_Upper-Deck-v2-HIGH-RES__MODYFIKACJA.webp',
                     'https://galeonadriatic.com/wp-content/uploads/2025/06/498_Galeon-800-Fly-_Marketing-GA-01_2020-01-08_Upper-Deck-HIGH-RES__MODYFIKACJA.webp',
                     'https://galeonadriatic.com/wp-content/uploads/2025/06/498_Galeon-800-Fly-_Marketing-GA-01_2020-01-08_Main-Deck-HIGH-RES__MODYFIKACJA.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/2025/06/498_Galeon-800-Fly-_Marketing-GA-01_2020-01-08_Lower-Deck-HIGH-RES_MODYFIKACJA.webp',
                 ],
             ],
             'skipped_fields' => [],
