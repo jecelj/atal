@@ -55,6 +55,7 @@ class ManageNewYachtFields extends Page
                                 'select' => 'Select',
                                 'image' => 'Image',
                                 'gallery' => 'Gallery',
+                                'repeater' => 'Repeater',
                                 'brand' => 'Brand (Relationship)',
                                 'model' => 'Model (Relationship)',
                                 'file' => 'File Upload',
