@@ -32,6 +32,7 @@ class GaleonMigrationService
             $yacht = NewYacht::updateOrCreate(
                 ['slug' => $data['slug']],
                 [
+                    'slug' => $data['slug'],
                     'name' => ['en' => $data['name']],
                     'brand_id' => $brand->id,
                     'yacht_model_id' => $model->id,
