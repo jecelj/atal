@@ -45,15 +45,28 @@ class TestGaleonImport extends Command
                 'gallery_exterior' => [
                     'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0336.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0413.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0398.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0446.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0449.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0455.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0322.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0344.webp',
                 ],
                 'gallery_interrior' => [
                     'https://galeonadriatic.com/wp-content/uploads/slider60/_MG_6203-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider60/_MG_6197-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider60/_MG_6212-HDR.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider60/_MG_6209-HDR.webp',
                 ],
                 'gallery_cockpit' => [
                     'https://galeonadriatic.com/wp-content/uploads/slider59/_MG_6260.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider59/_MG_6263.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider59/_MG_6262.webp',
                 ],
                 'gallery_layout' => [
                     'https://galeonadriatic.com/wp-content/uploads/2025/06/494-Galeon-440FLY-Coloured-GA-Fly-Deck-14.10.2022.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/2025/06/494-Galeon-440FLY-Coloured-GA-Main-Deck-14.10.2022.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/2025/06/494-Galeon-440FLY-Coloured-GA-3-Cabin-Std-V2-14.10.2022.webp',
                 ],
             ],
             'skipped_fields' => [],
