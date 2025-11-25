@@ -182,6 +182,7 @@ class GaleonMigrationService
 
         // Handle video URLs - store in custom_fields as repeater data
         if (!empty($media['video_url'])) {
+            // Get current custom_fields
             $customFields = $yacht->custom_fields ?? [];
 
             // Format for Filament Repeater: [['url' => '...'], ['url' => '...']]
@@ -196,6 +197,7 @@ class GaleonMigrationService
                 }
             }
 
+            // Store video URLs in custom_fields
             $customFields['video_url'] = $videoUrls;
             $yacht->custom_fields = $customFields;
             $yacht->save();

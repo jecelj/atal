@@ -15,7 +15,7 @@ class Yacht extends Model implements HasMedia
 {
     use HasFactory, HasTranslations, InteractsWithMedia;
 
-    public $translatable = ['name', 'description', 'specifications', 'custom_fields'];
+    public $translatable = ['name', 'description', 'specifications'];
 
     protected $fillable = [
         'type',

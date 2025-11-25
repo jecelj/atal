@@ -1,0 +1,42 @@
+{
+    "source_post_id": 907,
+    "name": "800 FLY",
+    "slug": "800-fly",
+    "state": "new",
+    "brand": "Galeon",
+    "model": "Flybridge",
+    "fields": {
+        "sub_titile": "<p>The Flagship</p>",
+        "full_description": "<div class=\"row\"><div class=\"col-5 col-push-1 text-first\"><p class=\"p1\">Thanks to many years of experience, passed down in our company from generation to generation, we have created the Galeon 800 FLY, which combines a sporty silhouette and impressive performance with a sense of space and luxury previously reserved only for megayachts. The subtle design that is noticeable at first glance, expressed in soft lines and rounded structural elements, we owe to unparalleled design masters from Tony Castro. Moreover, advanced navigation electronics and the latest technologies used on this fourth generation yacht ensure the safety and comfort of all passengers.</p></div><div class=\"col-5 col-push-1\"><p class=\"p1\">Structure elements made of carbon fiber allowed to increase the surface of the upper deck, so we can offer there not only a double helmsman's position, fully equipped bar, a comfortable sunbathing area, four tables that can be adapted to the needs of guests, but also two separate, huge, semicircular sofas between which we have integrated very stylishly the jacuzzi. On the main deck, we can enjoy the interiors that bring to mind the best apartments. A richly equipped galley with a refined kitchen island attracts attention. Next to the double helmsman's station you can find a comfortable sofa with a coffee table, and right next to it, a majestic table for 8 people. The tastefully decorated living room offers, apart from elegant sofas that tempt you to spend a longer time comfortably on them, also unusually large windows, a pull-out TV, a modern bar and a separate day toilet.</p></div></div>",
+        "specifications": "<table class=\"yacht-tech-table\"><tbody><tr><td class=\"name\">Length of the hull</td><td class=\"unit-si\">[m]</td><td class=\"value-si\">23,68</td><td class=\"unit-imperial\">[ft]</td><td class=\"value-imperial\">77'8\"</td></tr><tr><td class=\"name\">Length overall</td><td class=\"unit-si\">[m]</td><td class=\"value-si\">25,35</td><td class=\"unit-imperial\">[ft]</td><td class=\"value-imperial\">83'2\"</td></tr><tr><td class=\"name\">Beam of the hull</td><td class=\"unit-si\">[m]</td><td class=\"value-si\">5,79</td><td class=\"unit-imperial\">[ft]</td><td class=\"value-imperial\">18'12\"</td></tr><tr><td class=\"name\">Beam overall</td><td class=\"unit-si\">[m]</td><td class=\"value-si\">5,80</td><td class=\"unit-imperial\">[ft]</td><td class=\"value-imperial\">19'</td></tr><tr><td class=\"name\">Draft max. (canoe body)</td><td class=\"unit-si\">[m]</td><td class=\"value-si\">TBD</td><td class=\"unit-imperial\">[ft]</td><td class=\"value-imperial\">TBD</td></tr><tr><td class=\"name\">Fuel tank capacity</td><td class=\"unit-si\">[dm3]</td><td class=\"value-si\">TBD</td><td class=\"unit-imperial\">[US Gal]</td><td class=\"value-imperial\">TBD</td></tr><tr><td class=\"name\">Water tank capacity</td><td class=\"unit-si\">[dm3]</td><td class=\"value-si\">TBD</td><td class=\"unit-imperial\">[US Gal]</td><td class=\"value-imperial\">TBD</td></tr><tr><td class=\"name\">Mass of Light Craft Condition</td><td class=\"unit-si\">[kg]</td><td class=\"value-si\">TBD</td><td class=\"unit-imperial\">[lbs]</td><td class=\"value-imperial\">TBD</td></tr><tr><td class=\"name\">Maximum load</td><td class=\"unit-si\">[kg]</td><td class=\"value-si\">TBD</td><td class=\"unit-imperial\">[lbs]</td><td class=\"value-imperial\">TBD</td></tr><tr><td class=\"name\">Min. engine (-s) power</td><td class=\"unit-si\">[kW/HP]</td><td class=\"value-si\">2 x 1213 / 1650</td></tr><tr><td class=\"name\">Max. engine (-s) power</td><td class=\"unit-si\">[kW/HP]</td><td class=\"value-si\">2 x 1432 / 1920</td></tr><tr><td class=\"name\">Crew limit</td><td></td><td class=\"value-si\">18</td></tr><tr><td class=\"name\">Category</td><td></td><td class=\"value-si\">TBD</td></tr></tbody></table>",
+        "lenght": 25.35
+    },
+    "media": {
+        "cover_image": "https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0961.webp",
+        "grid_image": "https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0068.webp",
+        "grid_image_hover": "https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0046.webp",
+        "pdf_brochure": "https://galeonadriatic.com/wp-content/uploads/2025/06/Galeon-800fly-brochure-1.pdf",
+        "gallery_exterior": [
+            "https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0025.webp",
+            "https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0023.webp"
+        ],
+        "gallery_interrior": [
+            "https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6477-HDR.webp",
+            "https://galeonadriatic.com/wp-content/uploads/slider38/_MG_6480-HDR.webp"
+        ],
+        "gallery_cockpit": [
+            "https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4280.webp",
+            "https://galeonadriatic.com/wp-content/uploads/slider37/_MG_4305.webp"
+        ],
+        "video_url": [
+            "https://www.youtube.com/watch?v=PlHz0aGLs1M",
+            "https://www.youtube.com/watch?v=EDTV_6cDu18",
+            "https://www.youtube.com/watch?v=WiM6aFTj1W4"
+        ],
+        "gallery_layout": [
+            "https://galeonadriatic.com/wp-content/uploads/2025/06/498_Galeon-800-Fly-_Marketing-GA-01_2020-01-08_Upper-Deck-v2-HIGH-RES__MODYFIKACJA.webp",
+            "https://galeonadriatic.com/wp-content/uploads/2025/06/498_Galeon-800-Fly-_Marketing-GA-01_2020-01-08_Upper-Deck-HIGH-RES__MODYFIKACJA.webp"
+        ]
+    },
+    "skipped_fields": {}
+}
