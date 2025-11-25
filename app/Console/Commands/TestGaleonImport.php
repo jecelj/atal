@@ -22,11 +22,11 @@ class TestGaleonImport extends Command
     {
         $this->info('Testing Galeon yacht import...');
 
-        // Mock data for yacht 440 FLY
+        // Mock data for yacht 440 FLY - WITH REAL GALLERY URLS
         $mockData = [
             'source_post_id' => 837,
-            'name' => '440 FLY',
-            'slug' => '440-fly-test',
+            'name' => '440 FLY Real Test',
+            'slug' => '440-fly-real-galleries',
             'state' => 'new',
             'brand' => 'Galeon',
             'model' => 'Flybridge',
@@ -41,20 +41,19 @@ class TestGaleonImport extends Command
                 'grid_image' => 'https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0322.webp',
                 'grid_image_hover' => 'https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0310.webp',
                 'pdf_brochure' => 'https://galeonadriatic.com/wp-content/uploads/2025/06/Broszura-Galeon_440-5-1.pdf',
-                'video_url' => 'https://www.youtube.com/watch?v=example',
+                'video_url' => 'https://www.youtube.com/watch?v=Scx',
                 'gallery_exterior' => [
-                    'https://galeonadriatic.com/wp-content/uploads/slider/58/IMG_0814.webp',
-                    'https://galeonadriatic.com/wp-content/uploads/slider/58/IMG_0832.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0336.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider58/DJI_0413.webp',
                 ],
                 'gallery_interrior' => [
-                    'https://galeonadriatic.com/wp-content/uploads/slider/60/IMG_0898.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider60/_MG_6203-HDR.webp',
                 ],
                 'gallery_cockpit' => [
-                    'https://galeonadriatic.com/wp-content/uploads/slider/59/IMG_0731.webp',
+                    'https://galeonadriatic.com/wp-content/uploads/slider59/_MG_6260.webp',
                 ],
                 'gallery_layout' => [
                     'https://galeonadriatic.com/wp-content/uploads/2025/06/494-Galeon-440FLY-Coloured-GA-Fly-Deck-14.10.2022.webp',
-                    'https://galeonadriatic.com/wp-content/uploads/2025/06/494-Galeon-440FLY-Coloured-GA-Main-Deck-14.10.2022.webp',
                 ],
             ],
             'skipped_fields' => [],
