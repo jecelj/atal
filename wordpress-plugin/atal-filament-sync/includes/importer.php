@@ -825,15 +825,33 @@ function atal_import_news($data)
                         if (is_array($value)) {
                             atal_log("Updating repeater field: $key. Count: " . count($value));
 
-                            // ACF repeater requires specific format
-                            // First, delete existing repeater data
-                            delete_field($key, $post_id);
+                            // SCF/ACF repeater format in database:
+                            // video_url = 3 (count)
+                            // video_url_0_url = "..."
+                            // video_url_1_url = "..."
+                            // video_url_2_url = "..."
 
-                            // Then add each row
+                            // First, delete existing repeater data
+                            delete_post_meta($post_id, $key);
+
+                            // Delete all sub-field meta
+                            global $wpdb;
+                            $wpdb->query($wpdb->prepare(
+                                "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+                                $post_id,
+                                $wpdb->esc_like($key . '_') . '%'
+                            ));
+
+                            // Set the count
+                            update_post_meta($post_id, $key, count($value));
+
+                            // Add each row manually
                             foreach ($value as $index => $row) {
                                 // For video_url, row is ['url' => '...']
-                                // ACF expects: add_row($field_key, $row_data, $post_id)
-                                add_row($key, $row, $post_id);
+                                foreach ($row as $sub_field_name => $sub_field_value) {
+                                    $meta_key = "{$key}_{$index}_{$sub_field_name}";
+                                    update_post_meta($post_id, $meta_key, $sub_field_value);
+                                }
                             }
 
                             atal_log("Repeater field $key updated with " . count($value) . " rows");
