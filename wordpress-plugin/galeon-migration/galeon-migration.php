@@ -44,13 +44,27 @@ function galeon_migration_page()
 
         <div class="card" style="max-width: 800px;">
             <h2>Test Export - Single Yacht</h2>
-            <p>Export yacht ID 837 (440 FLY) for testing</p>
+            <p>Export a yacht by Post ID for testing</p>
 
             <form method="post" action="">
                 <?php wp_nonce_field('galeon_migration_export', 'galeon_migration_nonce'); ?>
                 <input type="hidden" name="action" value="test_export">
-                <p>
-                    <button type="submit" class="button button-primary">Export Yacht #837</button>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="post_id">Post ID</label>
+                        </th>
+                        <td>
+                            <input type="number" name="post_id" id="post_id" value="837" class="regular-text" required>
+                            <p class="description">Enter the WordPress Post ID of the yacht to export (default: 837 = 440
+                                FLY)</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <p class="submit">
+                    <button type="submit" class="button button-primary">Export Yacht</button>
                 </p>
             </form>
         </div>
@@ -58,7 +72,8 @@ function galeon_migration_page()
         <?php
         if (isset($_POST['action']) && $_POST['action'] === 'test_export') {
             if (check_admin_referer('galeon_migration_export', 'galeon_migration_nonce')) {
-                galeon_handle_test_export();
+                $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 837;
+                galeon_handle_test_export($post_id);
             }
         }
         ?>
@@ -66,12 +81,12 @@ function galeon_migration_page()
     <?php
 }
 
-function galeon_handle_test_export()
+function galeon_handle_test_export($post_id = 837)
 {
-    echo '<div class="notice notice-info"><p>Starting export...</p></div>';
+    echo '<div class="notice notice-info"><p>Starting export for Post ID: ' . esc_html($post_id) . '...</p></div>';
 
     $exporter = new Galeon_Export_Handler();
-    $result = $exporter->export_single_yacht(837);
+    $result = $exporter->export_single_yacht($post_id);
 
     if ($result['success']) {
         echo '<div class="notice notice-success"><p>Export successful!</p></div>';
