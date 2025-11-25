@@ -35,6 +35,9 @@ class SyncController extends Controller
             });
         }
 
+        // Only sync published yachts (exclude drafts)
+        $query->where('state', 'published');
+
         // Eager load relationships
         $yachts = $query->with(['brand', 'yachtModel', 'media'])->get();
 
