@@ -13,6 +13,7 @@ function atal_sync_register_scf_fields()
 {
     // Check if ACF/SCF function exists
     if (!function_exists('acf_add_local_field_group')) {
+        error_log('ATAL SYNC: acf_add_local_field_group function does NOT exist - SCF fields will not be registered');
         return;
     }
 
@@ -20,8 +21,11 @@ function atal_sync_register_scf_fields()
     $field_groups = get_option('atal_sync_field_definitions');
 
     if (empty($field_groups) || !is_array($field_groups)) {
+        error_log('ATAL SYNC: No field definitions found - run "Sync Field Definitions" first');
         return;
     }
+
+    error_log('ATAL SYNC: Registering ' . count($field_groups) . ' field groups');
 
     // Register field groups
     foreach ($field_groups as $post_type => $group_data) {
