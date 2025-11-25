@@ -69,7 +69,27 @@ function galeon_migration_page()
             </form>
         </div>
 
+        <div class="card" style="max-width: 800px; margin-top: 20px;">
+            <h2>Bulk Export - All Yachts</h2>
+            <p>Export all yachts from valid categories (Explorer, Flybridge, GTO, Hardtop, Skydeck)</p>
+
+            <form method="post" action="">
+                <?php wp_nonce_field('galeon_migration_export', 'galeon_migration_nonce'); ?>
+                <input type="hidden" name="action" value="bulk_export">
+
+                <p class="submit">
+                    <button type="submit" class="button button-primary">Export All Yachts</button>
+                </p>
+            </form>
+        </div>
+
         <?php
+        if (isset($_POST['action']) && $_POST['action'] === 'bulk_export') {
+            if (check_admin_referer('galeon_migration_export', 'galeon_migration_nonce')) {
+                galeon_handle_bulk_export();
+            }
+        }
+        
         if (isset($_POST['action']) && $_POST['action'] === 'test_export') {
             if (check_admin_referer('galeon_migration_export', 'galeon_migration_nonce')) {
                 $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 837;
@@ -124,5 +144,66 @@ function galeon_handle_test_export($post_id = 837)
         <?php
     } else {
         echo '<div class="notice notice-error"><p>Export failed: ' . esc_html($result['error']) . '</p></div>';
+    }
+}
+
+function galeon_handle_bulk_export()
+{
+    echo '<div class="notice notice-info"><p>Starting bulk export of all yachts...</p></div>';
+
+    $exporter = new Galeon_Export_Handler();
+    $result = $exporter->export_all_yachts();
+
+    if ($result['success']) {
+        $json_output = json_encode($result['yachts'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        ?>
+        <div class="notice notice-success">
+            <p>Bulk export successful!</p>
+            <ul>
+                <li>Total yachts found: <?php echo esc_html($result['total']); ?></li>
+                <li>Successfully exported: <?php echo esc_html($result['exported']); ?></li>
+                <li>Failed: <?php echo esc_html($result['failed']); ?></li>
+            </ul>
+        </div>
+        
+        <?php if (!empty($result['errors'])): ?>
+        <div class="notice notice-warning">
+            <p><strong>Failed exports:</strong></p>
+            <ul>
+                <?php foreach ($result['errors'] as $error): ?>
+                    <li><?php echo esc_html($error['title']); ?> (ID: <?php echo esc_html($error['id']); ?>) - <?php echo esc_html($error['error']); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
+        
+        <div style="margin-top: 20px;">
+            <button type="button" id="copy-bulk-json-btn" class="button button-primary" style="margin-bottom: 10px;">
+                📋 Copy All Yachts JSON to Clipboard
+            </button>
+            <span id="copy-bulk-status" style="margin-left: 10px; color: green; display: none;">✓ Copied!</span>
+        </div>
+        
+        <pre id="bulk-json-output" style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; max-height: 600px; overflow: auto;"><?php echo esc_html($json_output); ?></pre>
+        
+        <script>
+        document.getElementById('copy-bulk-json-btn').addEventListener('click', function() {
+            const jsonText = document.getElementById('bulk-json-output').textContent;
+            
+            navigator.clipboard.writeText(jsonText).then(function() {
+                const status = document.getElementById('copy-bulk-status');
+                status.style.display = 'inline';
+                
+                setTimeout(function() {
+                    status.style.display = 'none';
+                }, 2000);
+            }).catch(function(err) {
+                alert('Failed to copy: ' + err);
+            });
+        });
+        </script>
+        <?php
+    } else {
+        echo '<div class="notice notice-error"><p>Bulk export failed: ' . esc_html($result['error']) . '</p></div>';
     }
 }

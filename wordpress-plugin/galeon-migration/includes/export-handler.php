@@ -85,16 +85,81 @@ class Galeon_Export_Handler
     }
 
     /**
-     * Export all yachts (for later use)
+     * Export all yachts from valid categories
      * 
      * @return array Result with success status and data/error
      */
     public function export_all_yachts()
     {
-        // TODO: Implement after single yacht test is successful
+        global $wpdb;
+
+        $this->log("Starting bulk export of all yachts");
+
+        // Get all posts from valid categories
+        $valid_categories = ['flybridge', 'gto', 'hardtop', 'skydeck', 'explorer'];
+
+        $category_ids = [];
+        foreach ($valid_categories as $slug) {
+            $term = get_term_by('slug', $slug, 'category');
+            if ($term) {
+                $category_ids[] = $term->term_id;
+            }
+        }
+
+        if (empty($category_ids)) {
+            return [
+                'success' => false,
+                'error' => 'No valid categories found',
+            ];
+        }
+
+        // Get all published posts in these categories
+        $args = [
+            'post_type' => 'post',
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'category__in' => $category_ids,
+            'orderby' => 'title',
+            'order' => 'ASC',
+        ];
+
+        $posts = get_posts($args);
+
+        if (empty($posts)) {
+            return [
+                'success' => false,
+                'error' => 'No yachts found in valid categories',
+            ];
+        }
+
+        $this->log("Found " . count($posts) . " yachts to export");
+
+        $exported_yachts = [];
+        $failed_yachts = [];
+
+        foreach ($posts as $post) {
+            $result = $this->export_single_yacht($post->ID);
+
+            if ($result['success']) {
+                $exported_yachts[] = $result['data'];
+                $this->log("Exported: {$post->post_title} (ID: {$post->ID})");
+            } else {
+                $failed_yachts[] = [
+                    'id' => $post->ID,
+                    'title' => $post->post_title,
+                    'error' => $result['error'],
+                ];
+                $this->log("Failed to export: {$post->post_title} (ID: {$post->ID}) - {$result['error']}");
+            }
+        }
+
         return [
-            'success' => false,
-            'error' => 'Not implemented yet - use single yacht export for testing',
+            'success' => true,
+            'total' => count($posts),
+            'exported' => count($exported_yachts),
+            'failed' => count($failed_yachts),
+            'yachts' => $exported_yachts,
+            'errors' => $failed_yachts,
         ];
     }
 
