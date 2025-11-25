@@ -94,6 +94,8 @@ class GaleonMigrationService
      */
     protected function ensureModelExists($model_name, $brand_id)
     {
+        $slug = Str::slug($model_name);
+
         $model = YachtModel::firstOrCreate(
             [
                 'name' => $model_name,
@@ -101,6 +103,7 @@ class GaleonMigrationService
             ],
             [
                 'name' => $model_name,
+                'slug' => $slug,
                 'brand_id' => $brand_id,
             ]
         );
@@ -114,18 +117,24 @@ class GaleonMigrationService
      */
     protected function updateCustomFields($yacht, $fields)
     {
+        // Build custom_fields JSON with multilingual support
+        $customFields = [];
+
         foreach ($fields as $key => $value) {
             if ($value !== null && $value !== '') {
                 // For multilingual fields, set only EN
                 if (in_array($key, ['sub_titile', 'full_description', 'specifications'])) {
-                    $yacht->$key = ['en' => $value];
+                    $customFields[$key] = ['en' => $value];
                 } else {
-                    $yacht->$key = $value;
+                    $customFields[$key] = $value;
                 }
             }
         }
 
+        // Store in custom_fields JSON column with EN language
+        $yacht->custom_fields = ['en' => $customFields];
         $yacht->save();
+
         Log::info('Custom fields updated', ['yacht_id' => $yacht->id, 'fields' => array_keys($fields)]);
     }
 
@@ -152,9 +161,14 @@ class GaleonMigrationService
             $this->downloadAndUploadMedia($media['pdf_brochure'], $yacht, 'pdf_brochure');
         }
 
-        // Handle video URL (just save the URL, don't download)
+        // Handle video URL - store in custom_fields
         if (!empty($media['video_url'])) {
-            $yacht->video_url = $media['video_url'];
+            $customFields = $yacht->custom_fields ?? ['en' => []];
+            if (!isset($customFields['en'])) {
+                $customFields['en'] = [];
+            }
+            $customFields['en']['video_url'] = $media['video_url'];
+            $yacht->custom_fields = $customFields;
             $yacht->save();
             Log::info('Video URL saved', ['url' => $media['video_url']]);
         }
