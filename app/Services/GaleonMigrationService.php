@@ -117,22 +117,25 @@ class GaleonMigrationService
      */
     protected function updateCustomFields($yacht, $fields)
     {
-        // Build custom_fields JSON with multilingual support
-        $customFields = [];
+        // Build custom_fields JSON
+        // Filament expects: custom_fields.field_key.lang_code for multilingual
+        // And: custom_fields.field_key for non-multilingual
+
+        $customFields = $yacht->custom_fields ?? [];
 
         foreach ($fields as $key => $value) {
             if ($value !== null && $value !== '') {
-                // For multilingual fields, set only EN
+                // Multilingual fields
                 if (in_array($key, ['sub_titile', 'full_description', 'specifications'])) {
                     $customFields[$key] = ['en' => $value];
                 } else {
+                    // Non-multilingual fields (lenght, etc.)
                     $customFields[$key] = $value;
                 }
             }
         }
 
-        // Store in custom_fields JSON column with EN language
-        $yacht->custom_fields = ['en' => $customFields];
+        $yacht->custom_fields = $customFields;
         $yacht->save();
 
         Log::info('Custom fields updated', ['yacht_id' => $yacht->id, 'fields' => array_keys($fields)]);
@@ -143,6 +146,22 @@ class GaleonMigrationService
      */
     protected function handleMedia($yacht, $media)
     {
+        // Clear existing media collections to prevent duplicates on re-import
+        $collections = [
+            'cover_image',
+            'grid_image',
+            'grid_image_hover',
+            'pdf_brochure',
+            'gallery_exterior',
+            'gallery_interrior',
+            'gallery_cockpit',
+            'gallery_layout'
+        ];
+
+        foreach ($collections as $collection) {
+            $yacht->clearMediaCollection($collection);
+        }
+
         // Handle single images
         if (!empty($media['cover_image'])) {
             $this->downloadAndUploadMedia($media['cover_image'], $yacht, 'cover_image');
@@ -161,13 +180,10 @@ class GaleonMigrationService
             $this->downloadAndUploadMedia($media['pdf_brochure'], $yacht, 'pdf_brochure');
         }
 
-        // Handle video URL - store in custom_fields
+        // Handle video URL - store in custom_fields (non-multilingual)
         if (!empty($media['video_url'])) {
-            $customFields = $yacht->custom_fields ?? ['en' => []];
-            if (!isset($customFields['en'])) {
-                $customFields['en'] = [];
-            }
-            $customFields['en']['video_url'] = $media['video_url'];
+            $customFields = $yacht->custom_fields ?? [];
+            $customFields['video_url'] = $media['video_url'];
             $yacht->custom_fields = $customFields;
             $yacht->save();
             Log::info('Video URL saved', ['url' => $media['video_url']]);
