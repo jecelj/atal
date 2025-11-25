@@ -19,7 +19,7 @@ class GaleonMigrationService
      */
     public function importYacht(array $data)
     {
-        Log::info('Starting yacht import', ['source_post_id' => $data['source_post_id']]);
+        Log::info('Starting yacht import', ['source_post_id' => $data['source_post_id'] ?? 'unknown']);
 
         try {
             // Ensure brand exists (Galeon)
