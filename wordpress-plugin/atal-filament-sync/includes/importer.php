@@ -820,6 +820,14 @@ function atal_import_news($data)
                             $gallery_ids = atal_import_gallery($value, $post_id);
                             update_field($key, $gallery_ids, $post_id);
                         }
+                    } elseif ($type === 'repeater') {
+                        // Handle repeater fields (e.g., video_url)
+                        if (is_array($value)) {
+                            atal_log("Updating repeater field: $key. Count: " . count($value));
+                            // ACF expects repeater data in same format as Filament
+                            // [['url' => '...'], ['url' => '...']]
+                            update_field($key, $value, $post_id);
+                        }
                     } else {
                         atal_log("Updating field: $key | Type: $type | Value: " . (is_string($value) ? substr($value, 0, 50) : 'array'));
                         update_field($key, $value, $post_id);

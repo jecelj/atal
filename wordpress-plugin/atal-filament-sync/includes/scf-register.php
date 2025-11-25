@@ -77,6 +77,23 @@ function atal_sync_register_scf_fields()
                 $acf_field['add_term'] = 0; // Disable adding new terms from here
                 $acf_field['save_terms'] = 1; // Important: Save terms to post
                 $acf_field['load_terms'] = 1; // Load terms from post
+            } elseif ($field['type'] === 'repeater') {
+                // Handle repeater fields (e.g., video_url)
+                $acf_field['type'] = 'repeater';
+                $acf_field['layout'] = 'table';
+                $acf_field['button_label'] = 'Add Row';
+
+                // Define sub-fields for repeater
+                // For video_url, we have a single 'url' sub-field
+                $acf_field['sub_fields'] = [
+                    [
+                        'key' => $field['key'] . '_url',
+                        'label' => 'URL',
+                        'name' => 'url',
+                        'type' => 'url',
+                        'required' => 1,
+                    ],
+                ];
             }
 
             // Log field registration for debugging
@@ -119,6 +136,7 @@ function atal_sync_map_field_type($filament_type)
         'file' => 'file',
         'wysiwyg' => 'wysiwyg',
         'taxonomy' => 'taxonomy',
+        'repeater' => 'repeater',
     ];
 
     return $type_map[$filament_type] ?? 'text';
