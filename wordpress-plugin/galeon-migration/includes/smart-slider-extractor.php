@@ -97,30 +97,94 @@ class Galeon_Smart_Slider_Extractor
 
         $urls = [];
 
-        // Patterns: youtube.com/watch?v=, youtu.be/, youtube.com/embed/
+        foreach ($slides as $slide) {
+            $slide_data = $slide->slide;
+
+            // Try to decode JSON
+            $json = json_decode($slide_data, true);
+
+            if (!$json || !is_array($json)) {
+                // Fallback to regex if not valid JSON
+                $this->extract_urls_from_text($slide_data, $urls);
+                continue;
+            }
+
+            // Parse JSON structure to find YouTube URLs
+            $this->extract_urls_from_json($json, $urls);
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Extract YouTube URLs from JSON structure
+     */
+    private function extract_urls_from_json($data, &$urls)
+    {
+        if (!is_array($data)) {
+            return;
+        }
+
+        foreach ($data as $key => $value) {
+            // Check if this is a YouTube item with youtubeurl field
+            if ($key === 'youtubeurl' && is_string($value) && !empty($value)) {
+                $url = $this->normalize_youtube_url($value);
+                if ($url && !in_array($url, $urls)) {
+                    $urls[] = $url;
+                }
+            }
+
+            // Recursively search nested arrays/objects
+            if (is_array($value)) {
+                $this->extract_urls_from_json($value, $urls);
+            }
+        }
+    }
+
+    /**
+     * Extract YouTube URLs from plain text using regex (fallback)
+     */
+    private function extract_urls_from_text($text, &$urls)
+    {
         $patterns = [
             '/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/',
             '/youtu\.be\/([a-zA-Z0-9_-]+)/',
             '/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/',
         ];
 
-        foreach ($slides as $slide) {
-            $slide_data = $slide->slide;
-
-            foreach ($patterns as $pattern) {
-                if (preg_match($pattern, $slide_data, $matches)) {
-                    $url = 'https://www.youtube.com/watch?v=' . $matches[1];
-                    // Avoid duplicates
-                    if (!in_array($url, $urls)) {
-                        $urls[] = $url;
-                    }
-                    // Found a URL in this slide, move to next slide
-                    break;
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $text, $matches)) {
+                $url = 'https://www.youtube.com/watch?v=' . $matches[1];
+                if (!in_array($url, $urls)) {
+                    $urls[] = $url;
                 }
             }
         }
+    }
 
-        return $urls;
+    /**
+     * Normalize YouTube URL to standard watch format
+     */
+    private function normalize_youtube_url($url)
+    {
+        if (empty($url)) {
+            return null;
+        }
+
+        // Extract video ID from various YouTube URL formats
+        $patterns = [
+            '/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/',
+            '/youtu\.be\/([a-zA-Z0-9_-]+)/',
+            '/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $url, $matches)) {
+                return 'https://www.youtube.com/watch?v=' . $matches[1];
+            }
+        }
+
+        return null;
     }
 
     /**
