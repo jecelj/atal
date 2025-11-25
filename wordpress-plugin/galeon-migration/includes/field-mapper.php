@@ -200,20 +200,20 @@ class Galeon_Field_Mapper
     private function map_video_gallery($shortcode)
     {
         if (empty($shortcode)) {
-            return null;
+            return [];
         }
 
         $slider_id = $this->slider_extractor->extract_slider_id($shortcode);
         if (!$slider_id) {
-            return null;
+            return [];
         }
 
-        $youtube_url = $this->slider_extractor->extract_youtube_url($slider_id);
-        if ($youtube_url) {
-            $this->log("Extracted YouTube URL: {$youtube_url}");
+        $youtube_urls = $this->slider_extractor->extract_youtube_urls($slider_id);
+        if (!empty($youtube_urls)) {
+            $this->log("Extracted " . count($youtube_urls) . " YouTube URLs");
         }
 
-        return $youtube_url;
+        return $youtube_urls;
     }
 
     /**

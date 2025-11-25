@@ -180,13 +180,26 @@ class GaleonMigrationService
             $this->downloadAndUploadMedia($media['pdf_brochure'], $yacht, 'pdf_brochure');
         }
 
-        // Handle video URL - store in custom_fields (non-multilingual)
+        // Handle video URLs - store in custom_fields as repeater data
         if (!empty($media['video_url'])) {
             $customFields = $yacht->custom_fields ?? [];
-            $customFields['video_url'] = $media['video_url'];
+
+            // Format for Filament Repeater: [['url' => '...'], ['url' => '...']]
+            $videoUrls = [];
+
+            // Handle both single string (legacy/fallback) and array (new)
+            $inputs = is_array($media['video_url']) ? $media['video_url'] : [$media['video_url']];
+
+            foreach ($inputs as $url) {
+                if (!empty($url)) {
+                    $videoUrls[] = ['url' => $url];
+                }
+            }
+
+            $customFields['video_url'] = $videoUrls;
             $yacht->custom_fields = $customFields;
             $yacht->save();
-            Log::info('Video URL saved', ['url' => $media['video_url']]);
+            Log::info('Video URLs saved', ['count' => count($videoUrls)]);
         }
 
         // Handle galleries

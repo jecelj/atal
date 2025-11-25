@@ -73,31 +73,30 @@ class Galeon_Smart_Slider_Extractor
     }
 
     /**
-     * Extract YouTube URL from video slider
+     * Extract YouTube URLs from video slider
      * 
      * @param int $slider_id Slider ID
-     * @return string|null YouTube URL or null
+     * @return array Array of YouTube URLs
      */
-    public function extract_youtube_url($slider_id)
+    public function extract_youtube_urls($slider_id)
     {
         if (empty($slider_id)) {
-            return null;
+            return [];
         }
 
         $table_name = $this->wpdb->prefix . 'nextend2_smartslider3_slides';
 
         $slides = $this->wpdb->get_results($this->wpdb->prepare(
-            "SELECT slide FROM {$table_name} WHERE slider = %d ORDER BY ordering ASC LIMIT 1",
+            "SELECT slide FROM {$table_name} WHERE slider = %d ORDER BY ordering ASC",
             $slider_id
         ));
 
         if (empty($slides)) {
-            return null;
+            return [];
         }
 
-        $slide_data = $slides[0]->slide;
+        $urls = [];
 
-        // Try to find YouTube URL in slide data
         // Patterns: youtube.com/watch?v=, youtu.be/, youtube.com/embed/
         $patterns = [
             '/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/',
@@ -105,13 +104,23 @@ class Galeon_Smart_Slider_Extractor
             '/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/',
         ];
 
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $slide_data, $matches)) {
-                return 'https://www.youtube.com/watch?v=' . $matches[1];
+        foreach ($slides as $slide) {
+            $slide_data = $slide->slide;
+
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $slide_data, $matches)) {
+                    $url = 'https://www.youtube.com/watch?v=' . $matches[1];
+                    // Avoid duplicates
+                    if (!in_array($url, $urls)) {
+                        $urls[] = $url;
+                    }
+                    // Found a URL in this slide, move to next slide
+                    break;
+                }
             }
         }
 
-        return null;
+        return $urls;
     }
 
     /**

@@ -237,6 +237,15 @@ class NewYachtResource extends Resource
             'date' => Forms\Components\DatePicker::make($fieldKey),
             'select' => Forms\Components\Select::make($fieldKey)
                 ->options(collect($config->options ?? [])->pluck('label', 'value')->toArray()),
+            'repeater' => Forms\Components\Repeater::make($fieldKey)
+                ->schema([
+                    Forms\Components\TextInput::make('url')
+                        ->label('URL')
+                        ->required(),
+                ])
+                ->addActionLabel('Add Video URL')
+                ->reorderableWithButtons()
+                ->collapsible(),
             'image' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
                 ->image()

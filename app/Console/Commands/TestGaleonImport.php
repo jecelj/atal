@@ -41,7 +41,11 @@ class TestGaleonImport extends Command
                 'grid_image' => 'https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0068.webp',
                 'grid_image_hover' => 'https://galeonadriatic.com/wp-content/uploads/2025/06/DJI_0046.webp',
                 'pdf_brochure' => 'https://galeonadriatic.com/wp-content/uploads/2025/06/Galeon-800fly-brochure-1.pdf',
-                'video_url' => 'https://www.youtube.com/watch?v=Scx',
+                'video_url' => [
+                    'https://www.youtube.com/watch?v=Scx',
+                    'https://www.youtube.com/watch?v=AnotherVideo',
+                    'https://www.youtube.com/watch?v=ThirdVideo'
+                ],
                 'gallery_exterior' => [
                     'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0025.webp',
                     'https://galeonadriatic.com/wp-content/uploads/slider36/DJI_0023.webp',
