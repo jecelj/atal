@@ -89,8 +89,39 @@ function galeon_handle_test_export($post_id = 837)
     $result = $exporter->export_single_yacht($post_id);
 
     if ($result['success']) {
-        echo '<div class="notice notice-success"><p>Export successful!</p></div>';
-        echo '<pre>' . json_encode($result['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
+        $json_output = json_encode($result['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        ?>
+        <div class="notice notice-success">
+            <p>Export successful!</p>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="button" id="copy-json-btn" class="button button-primary" style="margin-bottom: 10px;">
+                📋 Copy JSON to Clipboard
+            </button>
+            <span id="copy-status" style="margin-left: 10px; color: green; display: none;">✓ Copied!</span>
+        </div>
+
+        <pre id="json-output"
+            style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; max-height: 600px; overflow: auto;"><?php echo esc_html($json_output); ?></pre>
+
+        <script>
+            document.getElementById('copy-json-btn').addEventListener('click', function () {
+                const jsonText = document.getElementById('json-output').textContent;
+
+                navigator.clipboard.writeText(jsonText).then(function () {
+                    const status = document.getElementById('copy-status');
+                    status.style.display = 'inline';
+
+                    setTimeout(function () {
+                        status.style.display = 'none';
+                    }, 2000);
+                }).catch(function (err) {
+                    alert('Failed to copy: ' + err);
+                });
+            });
+        </script>
+        <?php
     } else {
         echo '<div class="notice notice-error"><p>Export failed: ' . esc_html($result['error']) . '</p></div>';
     }
