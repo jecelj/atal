@@ -93,6 +93,9 @@ class ConvertImageToWebP
             $success = imagewebp($image, $webpPath, 80);
             imagedestroy($image);
 
+            // Clear cache to ensure filesize is correct
+            clearstatcache(true, $webpPath);
+
             // Strict Validation
             $isValid = false;
             if ($success && file_exists($webpPath) && filesize($webpPath) > 0) {
