@@ -498,9 +498,15 @@ function atal_import_image($url, $post_id)
         'tmp_name' => $tmp,
     ];
 
+    // Disable intermediate image sizes during import for speed
+    add_filter('intermediate_image_sizes_advanced', '__return_empty_array');
+
     // Use 0 as post_id to make media NOT attached to specific post
     // This allows media to be shared across translations (EN, SL posts)
     $attachment_id = media_handle_sideload($file_array, 0);
+
+    // Re-enable intermediate image sizes
+    remove_filter('intermediate_image_sizes_advanced', '__return_empty_array');
 
     if (is_wp_error($attachment_id)) {
         atal_log("Sideload failed: " . $attachment_id->get_error_message());
