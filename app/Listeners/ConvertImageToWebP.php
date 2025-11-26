@@ -96,12 +96,13 @@ class ConvertImageToWebP
             // Strict Validation
             $isValid = false;
             if ($success && file_exists($webpPath) && filesize($webpPath) > 0) {
-                // 1. Check if file is too small (suspiciously small, e.g. < 1KB)
+                // 1. Check if file is too small (suspiciously small, e.g. < 10KB)
                 // Unless original was also tiny
                 $newSize = filesize($webpPath);
                 $originalSize = filesize($originalPath);
 
-                if ($newSize < 1024 && $originalSize > 5120) {
+                // Increased threshold to 10KB to catch 6KB corrupt files
+                if ($newSize < 10240 && $originalSize > 20480) {
                     Log::error("ConvertImageToWebP: WebP file is suspiciously small ({$newSize} bytes) compared to original ({$originalSize} bytes). Rejecting.");
                 } else {
                     // 2. Try to load the new WebP file to ensure it's valid
