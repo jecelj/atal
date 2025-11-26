@@ -93,11 +93,39 @@ class ConvertImageToWebP
             $success = imagewebp($image, $webpPath, 80);
             imagedestroy($image);
 
-            if (!$success || !file_exists($webpPath) || filesize($webpPath) === 0) {
-                Log::error("ConvertImageToWebP: Failed to create WebP file at {$webpPath}");
-                if (file_exists($webpPath)) {
-                    unlink($webpPath); // Clean up empty/corrupt file
+            // Strict Validation
+            $isValid = false;
+            if ($success && file_exists($webpPath) && filesize($webpPath) > 0) {
+                // 1. Check if file is too small (suspiciously small, e.g. < 1KB)
+                // Unless original was also tiny
+                $newSize = filesize($webpPath);
+                $originalSize = filesize($originalPath);
+
+                if ($newSize < 1024 && $originalSize > 5120) {
+                    Log::error("ConvertImageToWebP: WebP file is suspiciously small ({$newSize} bytes) compared to original ({$originalSize} bytes). Rejecting.");
+                } else {
+                    // 2. Try to load the new WebP file to ensure it's valid
+                    try {
+                        $checkImage = @imagecreatefromwebp($webpPath);
+                        if ($checkImage) {
+                            $isValid = true;
+                            imagedestroy($checkImage);
+                        } else {
+                            Log::error("ConvertImageToWebP: Generated WebP file is invalid (cannot be loaded).");
+                        }
+                    } catch (\Throwable $e) {
+                        Log::error("ConvertImageToWebP: Exception checking WebP validity: " . $e->getMessage());
+                    }
                 }
+            } else {
+                Log::error("ConvertImageToWebP: Failed to create WebP file at {$webpPath}");
+            }
+
+            if (!$isValid) {
+                if (file_exists($webpPath)) {
+                    unlink($webpPath); // Clean up corrupt file
+                }
+                Log::warning("ConvertImageToWebP: Conversion failed validation. Keeping original file.");
                 return;
             }
 

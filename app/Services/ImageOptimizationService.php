@@ -109,8 +109,35 @@ class ImageOptimizationService
                     $success = imagewebp($image, $targetPath, 80);
                     imagedestroy($image);
 
-                    if (!$success || !file_exists($targetPath) || filesize($targetPath) === 0) {
+                    // Strict Validation
+                    $isValid = false;
+                    if ($success && file_exists($targetPath) && filesize($targetPath) > 0) {
+                        // 1. Check if file is too small (suspiciously small, e.g. < 1KB)
+                        // Unless original was also tiny
+                        $newSize = filesize($targetPath);
+                        $originalSize = filesize($originalPath);
+
+                        if ($newSize < 1024 && $originalSize > 5120) {
+                            Log::error("ImageOptimizationService: WebP file is suspiciously small ({$newSize} bytes) compared to original ({$originalSize} bytes). Rejecting.");
+                        } else {
+                            // 2. Try to load the new WebP file to ensure it's valid
+                            try {
+                                $checkImage = @imagecreatefromwebp($targetPath);
+                                if ($checkImage) {
+                                    $isValid = true;
+                                    imagedestroy($checkImage);
+                                } else {
+                                    Log::error("ImageOptimizationService: Generated WebP file is invalid (cannot be loaded).");
+                                }
+                            } catch (\Throwable $e) {
+                                Log::error("ImageOptimizationService: Exception checking WebP validity: " . $e->getMessage());
+                            }
+                        }
+                    } else {
                         Log::error("ImageOptimizationService: Failed to create WebP file at {$targetPath}");
+                    }
+
+                    if (!$isValid) {
                         if (file_exists($targetPath)) {
                             unlink($targetPath);
                         }
