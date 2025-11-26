@@ -99,26 +99,30 @@ class ConvertImageToWebP
             // Strict Validation
             $isValid = false;
             if ($success && file_exists($webpPath) && filesize($webpPath) > 0) {
-                // 1. Check if file is too small (suspiciously small, e.g. < 10KB)
-                // Unless original was also tiny
+                // 1. Check if file is too small (absolute minimum: 10KB)
                 $newSize = filesize($webpPath);
-                $originalSize = filesize($originalPath);
 
-                // Increased threshold to 10KB to catch 6KB corrupt files
-                if ($newSize < 10240 && $originalSize > 20480) {
-                    Log::error("ConvertImageToWebP: WebP file is suspiciously small ({$newSize} bytes) compared to original ({$originalSize} bytes). Rejecting.");
+                // Absolute minimum: 10KB for any yacht image
+                if ($newSize < 10240) {
+                    Log::error("ConvertImageToWebP: WebP file is too small ({$newSize} bytes). Rejecting.");
                 } else {
-                    // 2. Try to load the new WebP file to ensure it's valid
-                    try {
-                        $checkImage = @imagecreatefromwebp($webpPath);
-                        if ($checkImage) {
-                            $isValid = true;
-                            imagedestroy($checkImage);
-                        } else {
-                            Log::error("ConvertImageToWebP: Generated WebP file is invalid (cannot be loaded).");
+                    // 2. Check dimensions (absolute minimum: 50x50px)
+                    $imageInfo = @getimagesize($webpPath);
+                    if (!$imageInfo || $imageInfo[0] < 50 || $imageInfo[1] < 50) {
+                        Log::error("ConvertImageToWebP: WebP dimensions are too small or invalid. Rejecting.");
+                    } else {
+                        // 3. Try to load the new WebP file to ensure it's valid
+                        try {
+                            $checkImage = @imagecreatefromwebp($webpPath);
+                            if ($checkImage) {
+                                $isValid = true;
+                                imagedestroy($checkImage);
+                            } else {
+                                Log::error("ConvertImageToWebP: Generated WebP file is invalid (cannot be loaded).");
+                            }
+                        } catch (\Throwable $e) {
+                            Log::error("ConvertImageToWebP: Exception checking WebP validity: " . $e->getMessage());
                         }
-                    } catch (\Throwable $e) {
-                        Log::error("ConvertImageToWebP: Exception checking WebP validity: " . $e->getMessage());
                     }
                 }
             } else {
