@@ -57,6 +57,26 @@ class ImageOptimizationService
 
                         $stats['renamed']++;
                         $needsSave = true;
+                    } else {
+                        // File name is correct. Check if it's already WebP and valid.
+                        if ($media->mime_type === 'image/webp') {
+                            $currentPath = $media->getPath();
+                            clearstatcache(true, $currentPath);
+
+                            if (file_exists($currentPath) && filesize($currentPath) > 10240) {
+                                // It's already WebP, correctly named, and seems valid (>10KB).
+                                // We can skip processing unless we want to force resize.
+                                // Let's check dimensions to be sure.
+                                $imageInfo = @getimagesize($currentPath);
+                                if ($imageInfo) {
+                                    $width = $imageInfo[0];
+                                    if ($width <= 2500) {
+                                        // Already optimized. Skip.
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // 2. Process Image (Resize & Convert)
@@ -108,6 +128,9 @@ class ImageOptimizationService
                     // Save to target path
                     $success = imagewebp($image, $targetPath, 80);
                     imagedestroy($image);
+
+                    // Clear cache to ensure filesize is correct
+                    clearstatcache(true, $targetPath);
 
                     // Strict Validation
                     $isValid = false;
