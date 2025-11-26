@@ -157,4 +157,55 @@ class UsedYachtSyncController extends Controller
             'results' => $results,
         ]);
     }
+
+    /**
+     * Sync a single yacht to a site (for testing)
+     */
+    public function syncSingleYacht(Request $request, $siteId, $yachtId)
+    {
+        $site = SyncSite::findOrFail($siteId);
+        $yacht = UsedYacht::with(['brand', 'yachtModel', 'media'])->findOrFail($yachtId);
+
+        // First, sync field configuration
+        $configResult = $this->syncFieldConfiguration($site);
+
+        if (!$configResult['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync field configuration',
+                'error' => $configResult['error'] ?? 'Unknown error',
+            ], 500);
+        }
+
+        $yachtData = [$this->prepareYachtData($yacht)];
+
+        try {
+            $response = Http::withHeaders([
+                'X-API-Key' => $site->api_key,
+                'Content-Type' => 'application/json',
+            ])->timeout(300)->post($site->url . '/wp-json/atal-used-yachts/v1/sync', $yachtData);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                return response()->json([
+                    'success' => true,
+                    'message' => "Synced yacht '{$yacht->name}' successfully",
+                    'result' => $result,
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sync failed',
+                    'error' => $response->body(),
+                ], $response->status());
+            }
+        } catch (\Exception $e) {
+            Log::error('Single yacht sync failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Sync failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

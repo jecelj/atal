@@ -24,5 +24,6 @@ Route::prefix('import')->middleware('validate.api.key')->group(function () {
 // Used Yacht Sync API
 Route::prefix('used-yachts')->group(function () {
     Route::post('sync/{site}', [\App\Http\Controllers\Api\UsedYachtSyncController::class, 'syncToSite']);
+    Route::post('sync/{site}/yacht/{yacht}', [\App\Http\Controllers\Api\UsedYachtSyncController::class, 'syncSingleYacht']);
     Route::post('sync-all', [\App\Http\Controllers\Api\UsedYachtSyncController::class, 'syncAllSites']);
 });

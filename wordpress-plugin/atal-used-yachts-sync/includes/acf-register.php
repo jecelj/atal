@@ -141,6 +141,14 @@ function atal_used_yachts_convert_to_acf_field($field)
             ]);
 
         case 'gallery':
+            // Check if ACF Galleries 4 is active
+            if (function_exists('acfg4_init')) {
+                return array_merge($base_field, [
+                    'type' => 'acfg4_gallery',
+                ]);
+            }
+
+            // Fallback to standard ACF gallery
             return array_merge($base_field, [
                 'type' => 'gallery',
                 'return_format' => 'array',

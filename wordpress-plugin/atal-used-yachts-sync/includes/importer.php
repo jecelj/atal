@@ -108,6 +108,8 @@ function atal_used_yachts_import_media($post_id, $media_data)
             $items = [$items];
         }
 
+        $attachment_ids = [];
+
         foreach ($items as $item) {
             if (empty($item['url'])) {
                 continue;
@@ -117,23 +119,30 @@ function atal_used_yachts_import_media($post_id, $media_data)
             $attachment_id = atal_used_yachts_download_image($item['url'], $post_id);
 
             if ($attachment_id && !is_wp_error($attachment_id)) {
+                $attachment_ids[] = $attachment_id;
+
                 // Set as featured image if it's cover_image
                 if ($collection === 'cover_image') {
                     set_post_thumbnail($post_id, $attachment_id);
                 }
+            }
+        }
 
-                // Store in ACF field
-                if (function_exists('update_field')) {
-                    $current_value = get_field($collection, $post_id);
+        // Store in ACF field or ACF Galleries 4
+        if (!empty($attachment_ids)) {
+            if ($collection === 'cover_image' || $collection === 'grid_image') {
+                // Single image field
+                update_field($collection, $attachment_ids[0], $post_id);
+            } else {
+                // Check if this is an ACF Galleries 4 field
+                $field_object = get_field_object($collection, $post_id);
 
-                    if ($collection === 'cover_image' || $collection === 'grid_image') {
-                        update_field($collection, $attachment_id, $post_id);
-                    } else {
-                        // Gallery field - append
-                        $gallery = is_array($current_value) ? $current_value : [];
-                        $gallery[] = $attachment_id;
-                        update_field($collection, $gallery, $post_id);
-                    }
+                if ($field_object && $field_object['type'] === 'acfg4_gallery') {
+                    // ACF Galleries 4 format
+                    update_post_meta($post_id, '_acfg4_' . $collection, $attachment_ids);
+                } else {
+                    // Standard ACF gallery
+                    update_field($collection, $attachment_ids, $post_id);
                 }
             }
         }
