@@ -603,11 +603,6 @@ class NewYachtResource extends Resource
                     ->label('Model'),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('price')
-                    ->money('EUR')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('year')
-                    ->sortable(),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')
