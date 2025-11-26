@@ -74,33 +74,48 @@ class ConvertImageToWebP
                 Log::info("ConvertImageToWebP: Resizing to {$newWidth}x{$newHeight}");
 
                 $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+
+                // Preserve transparency
+                imagealphablending($resizedImage, false);
+                imagesavealpha($resizedImage, true);
+
                 imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
                 imagedestroy($image);
                 $image = $resizedImage;
+            } else {
+                // Even if not resizing, ensure transparency is preserved for the original image resource if it's PNG/GIF
+                imagepalettetotruecolor($image);
+                imagealphablending($image, false);
+                imagesavealpha($image, true);
             }
 
             // Convert to WebP and save
-            imagewebp($image, $webpPath, 80);
+            $success = imagewebp($image, $webpPath, 80);
             imagedestroy($image);
+
+            if (!$success || !file_exists($webpPath) || filesize($webpPath) === 0) {
+                Log::error("ConvertImageToWebP: Failed to create WebP file at {$webpPath}");
+                if (file_exists($webpPath)) {
+                    unlink($webpPath); // Clean up empty/corrupt file
+                }
+                return;
+            }
 
             Log::info("ConvertImageToWebP: WebP file saved at {$webpPath}");
 
-            // Delete original file
+            // Update media record with new file name and mime type
+            $newFileName = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $media->file_name);
+
+            // Delete original file ONLY if different from new path and new file exists
             if (file_exists($originalPath) && $originalPath !== $webpPath) {
                 unlink($originalPath);
                 Log::info("ConvertImageToWebP: Deleted original file {$originalPath}");
             }
 
-            // Update media record with new file name and mime type
-            $newFileName = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $media->file_name);
             $media->file_name = $newFileName;
             $media->mime_type = 'image/webp';
-
-            // Update file size
-            if (file_exists($webpPath)) {
-                $media->size = filesize($webpPath);
-                Log::info("ConvertImageToWebP: New file size: {$media->size} bytes");
-            }
+            $media->size = filesize($webpPath);
+            Log::info("ConvertImageToWebP: New file size: {$media->size} bytes");
 
             // Save normally to trigger thumbnail generation!
             $media->save();

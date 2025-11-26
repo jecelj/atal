@@ -106,8 +106,17 @@ class ImageOptimizationService
                     $targetPath = $directory . DIRECTORY_SEPARATOR . $newFileName;
 
                     // Save to target path
-                    imagewebp($image, $targetPath, 80);
+                    $success = imagewebp($image, $targetPath, 80);
                     imagedestroy($image);
+
+                    if (!$success || !file_exists($targetPath) || filesize($targetPath) === 0) {
+                        Log::error("ImageOptimizationService: Failed to create WebP file at {$targetPath}");
+                        if (file_exists($targetPath)) {
+                            unlink($targetPath);
+                        }
+                        $stats['errors']++;
+                        continue;
+                    }
 
                     // If the file name changed or we converted format, delete the old file
                     if ($originalPath !== $targetPath) {
