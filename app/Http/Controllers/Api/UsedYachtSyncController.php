@@ -8,6 +8,7 @@ use App\Models\SyncSite;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Routing\Controller;
 
 class UsedYachtSyncController extends Controller
 {
