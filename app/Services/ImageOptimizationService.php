@@ -173,13 +173,17 @@ class ImageOptimizationService
                         continue;
                     }
 
-                    // If the file name changed or we converted format, delete the old file
-                    if ($originalPath !== $targetPath) {
-                        if (file_exists($originalPath)) {
+                    // CRITICAL: Only delete original if validation passed AND paths are different
+                    if ($isValid && $originalPath !== $targetPath && file_exists($originalPath)) {
+                        // Double-check that target exists and is valid before deleting original
+                        if (file_exists($targetPath) && filesize($targetPath) > 10240) {
                             unlink($originalPath);
+                            Log::info("ImageOptimizationService: Deleted original file {$originalPath}");
+                            $stats['converted']++;
+                            $needsSave = true;
+                        } else {
+                            Log::warning("ImageOptimizationService: Skipping original deletion - target invalid");
                         }
-                        $stats['converted']++;
-                        $needsSave = true;
                     }
 
                     // Update Media Model

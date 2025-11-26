@@ -142,10 +142,15 @@ class ConvertImageToWebP
             // Update media record with new file name and mime type
             $newFileName = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $media->file_name);
 
-            // Delete original file ONLY if different from new path and new file exists
-            if (file_exists($originalPath) && $originalPath !== $webpPath) {
-                unlink($originalPath);
-                Log::info("ConvertImageToWebP: Deleted original file {$originalPath}");
+            // CRITICAL: Only delete original if validation passed AND paths are different
+            if ($isValid && file_exists($originalPath) && $originalPath !== $webpPath) {
+                // Double-check that WebP exists and is valid before deleting original
+                if (file_exists($webpPath) && filesize($webpPath) > 10240) {
+                    unlink($originalPath);
+                    Log::info("ConvertImageToWebP: Deleted original file {$originalPath}");
+                } else {
+                    Log::warning("ConvertImageToWebP: Skipping original deletion - WebP invalid");
+                }
             }
 
             $media->file_name = $newFileName;
