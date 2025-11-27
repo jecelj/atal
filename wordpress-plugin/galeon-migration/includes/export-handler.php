@@ -299,6 +299,7 @@ class Galeon_Export_Handler
             'date_picker' => 'date',
             'select' => 'select',
             'image' => 'image',
+            'galerie' => 'gallery',  // ACF Galleries 4
             'acfg4_gallery' => 'gallery',
             'gallery' => 'gallery',
             'file' => 'file',
