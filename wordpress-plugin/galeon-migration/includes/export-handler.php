@@ -188,10 +188,8 @@ class Galeon_Export_Handler
                 ];
             }
 
-            // Get the "Used yachts" field group
-            $field_groups = acf_get_field_groups([
-                'post_type' => 'post',
-            ]);
+            // Get ALL field groups without filter
+            $field_groups = acf_get_field_groups();
 
             $used_yacht_group = null;
             $available_groups = [];
@@ -200,12 +198,13 @@ class Galeon_Export_Handler
                 $available_groups[] = [
                     'title' => $group['title'],
                     'key' => $group['key'],
+                    'location' => $group['location'] ?? 'unknown',
                 ];
 
                 // Match exact key or title (case-insensitive)
                 if (
                     $group['key'] === 'group_68b0a977aef33' ||
-                    strtolower($group['title']) === 'used yachts'
+                    strtolower(trim($group['title'])) === 'used yachts'
                 ) {
                     $used_yacht_group = $group;
                     break;
@@ -213,10 +212,14 @@ class Galeon_Export_Handler
             }
 
             if (!$used_yacht_group) {
-                $this->log('Available ACF groups: ' . json_encode($available_groups));
+                // Return detailed error with list of found groups
+                $debug_list = array_map(function ($g) {
+                    return "Title: '{$g['title']}', Key: '{$g['key']}'";
+                }, $available_groups);
+
                 return [
                     'success' => false,
-                    'error' => 'Used yachts ACF field group not found',
+                    'error' => 'Group not found. Available groups: ' . implode(' | ', $debug_list),
                     'available_groups' => $available_groups,
                 ];
             }
