@@ -194,17 +194,31 @@ class Galeon_Export_Handler
             ]);
 
             $used_yacht_group = null;
+            $available_groups = [];
+
             foreach ($field_groups as $group) {
-                if ($group['title'] === 'Used yachts' || $group['key'] === 'group_68b0a977aef33') {
+                $available_groups[] = [
+                    'title' => $group['title'],
+                    'key' => $group['key'],
+                ];
+
+                // Case-insensitive search for "used" and "yacht" in title
+                $title_lower = strtolower($group['title']);
+                if (
+                    (strpos($title_lower, 'used') !== false && strpos($title_lower, 'yacht') !== false) ||
+                    $group['key'] === 'group_68b0a977aef33'
+                ) {
                     $used_yacht_group = $group;
                     break;
                 }
             }
 
             if (!$used_yacht_group) {
+                $this->log('Available ACF groups: ' . json_encode($available_groups));
                 return [
                     'success' => false,
                     'error' => 'Used yachts ACF field group not found',
+                    'available_groups' => $available_groups,
                 ];
             }
 
