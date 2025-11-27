@@ -389,7 +389,7 @@ class Galeon_Export_Handler
         foreach ($acf_fields as $key => $value) {
             // Skip image/gallery fields - they'll be in media
             if (is_array($value) && isset($value['url'])) {
-                // Single image field
+                // Single image field (standard ACF image)
                 $data['media'][$key] = [
                     [
                         'url' => $value['url'],
@@ -397,22 +397,42 @@ class Galeon_Export_Handler
                     ]
                 ];
             } elseif (is_array($value) && !empty($value)) {
-                // Check if it's a gallery (array of images)
+                // Check if it's a gallery
+                // ACF Galleries 4 structure: [{'attachment': {...}, 'metadata': {'full': {'file_url': '...'}}}]
+                // Standard ACF gallery: [{'url': '...'}]
+
                 $is_gallery = true;
+                $gallery_images = [];
+
                 foreach ($value as $item) {
-                    if (!is_array($item) || !isset($item['url'])) {
+                    if (!is_array($item)) {
+                        $is_gallery = false;
+                        break;
+                    }
+
+                    // Check for ACF Galleries 4 structure
+                    if (isset($item['metadata']['full']['file_url'])) {
+                        $gallery_images[] = [
+                            'url' => $item['metadata']['full']['file_url'],
+                            'name' => basename($item['metadata']['full']['file_url']),
+                        ];
+                    }
+                    // Check for standard ACF gallery structure
+                    elseif (isset($item['url'])) {
+                        $gallery_images[] = [
+                            'url' => $item['url'],
+                            'name' => basename($item['url']),
+                        ];
+                    }
+                    // Not a gallery item
+                    else {
                         $is_gallery = false;
                         break;
                     }
                 }
 
-                if ($is_gallery) {
-                    $data['media'][$key] = array_map(function ($img) {
-                        return [
-                            'url' => $img['url'],
-                            'name' => basename($img['url']),
-                        ];
-                    }, $value);
+                if ($is_gallery && !empty($gallery_images)) {
+                    $data['media'][$key] = $gallery_images;
                 } else {
                     $data['custom_fields'][$key] = $value;
                 }
