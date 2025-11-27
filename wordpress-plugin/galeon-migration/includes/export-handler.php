@@ -202,11 +202,10 @@ class Galeon_Export_Handler
                     'key' => $group['key'],
                 ];
 
-                // Case-insensitive search for "used" and "yacht" in title
-                $title_lower = strtolower($group['title']);
+                // Match exact key or title (case-insensitive)
                 if (
-                    (strpos($title_lower, 'used') !== false && strpos($title_lower, 'yacht') !== false) ||
-                    $group['key'] === 'group_68b0a977aef33'
+                    $group['key'] === 'group_68b0a977aef33' ||
+                    strtolower($group['title']) === 'used yachts'
                 ) {
                     $used_yacht_group = $group;
                     break;
