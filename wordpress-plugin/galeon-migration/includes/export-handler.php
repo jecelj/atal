@@ -238,6 +238,11 @@ class Galeon_Export_Handler
             $order = 0;
 
             foreach ($fields as $field) {
+                // Debug: Log field type for gallery field
+                if ($field['name'] === 'galerie') {
+                    $this->log("Gallery field type: " . $field['type']);
+                }
+
                 $field_data = [
                     'field_key' => $field['name'],
                     'field_type' => $this->map_acf_type_to_master($field['type']),
