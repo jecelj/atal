@@ -19,6 +19,7 @@ Route::prefix('sync')->middleware('validate.api.key')->group(function () {
 Route::prefix('import')->middleware('validate.api.key')->group(function () {
     Route::get('test', [\App\Http\Controllers\Api\ImportController::class, 'test']);
     Route::post('yacht', [\App\Http\Controllers\Api\ImportController::class, 'importYacht']);
+    Route::post('used-yacht-fields', [\App\Http\Controllers\Api\ImportController::class, 'importUsedYachtFields']);
 });
 
 // Used Yacht Sync API
