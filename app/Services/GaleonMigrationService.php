@@ -275,4 +275,131 @@ class GaleonMigrationService
             $this->downloadAndUploadMedia($url, $yacht, $collection);
         }
     }
+    /**
+     * Import Used Yacht from galeonadriatic.com
+     * 
+     * @param array $data Yacht data from WordPress
+     * @return array Result with success status
+     */
+    public function importUsedYacht(array $data)
+    {
+        Log::info('Starting Used Yacht import', ['slug' => $data['slug'] ?? 'unknown']);
+
+        try {
+            $customFields = $data['custom_fields'] ?? [];
+
+            // Extract Brand and Location
+            $brandName = $customFields['brand'] ?? 'Unknown Brand';
+            $locationName = $customFields['location'] ?? null;
+
+            // Ensure Brand exists
+            $brand = $this->ensureBrandExists($brandName);
+
+            // Ensure Location exists (if provided)
+            $location = null;
+            if ($locationName) {
+                $location = $this->ensureLocationExists($locationName);
+            }
+
+            // Create or update yacht
+            $yacht = \App\Models\UsedYacht::updateOrCreate(
+                ['slug' => $data['slug']],
+                [
+                    'slug' => $data['slug'],
+                    'name' => ['en' => $data['name']],
+                    'state' => 'published',
+                    'brand_id' => $brand->id,
+                    'location_id' => $location?->id,
+                ]
+            );
+
+            Log::info('Used Yacht record created/updated', ['yacht_id' => $yacht->id]);
+
+            // Process Custom Fields
+            // 1. Remove Brand and Location (handled as relations), keep Model as text
+            unset($customFields['brand']);
+            unset($customFields['location']);
+
+            // 2. Handle Multilingual Fields (Rich Text)
+            // Known rich text fields from configuration
+            $richTextFields = ['short_description', 'equipment_and_other_information'];
+
+            foreach ($customFields as $key => $value) {
+                if (in_array($key, $richTextFields)) {
+                    // Ensure it's stored as multilingual array ['en' => 'value']
+                    if (!is_array($value)) {
+                        $customFields[$key] = ['en' => $value];
+                    }
+                }
+            }
+
+            $yacht->custom_fields = $customFields;
+            $yacht->save();
+
+            // Handle media
+            if (!empty($data['media'])) {
+                $this->handleUsedYachtMedia($yacht, $data['media']);
+            }
+
+            return [
+                'success' => true,
+                'yacht_id' => $yacht->id,
+                'yacht_name' => $yacht->name,
+                'message' => 'Used Yacht imported successfully',
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Used Yacht import failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Handle Used Yacht media
+     */
+    protected function handleUsedYachtMedia($yacht, $media)
+    {
+        // Clear existing media to prevent duplicates
+        $yacht->clearMediaCollection(); // Clear all collections
+
+        foreach ($media as $fieldKey => $items) {
+            // In Master, we might map these fields to specific collections
+            // or just use the field key as collection name
+
+            // Common mappings
+            $collection = $fieldKey;
+
+            foreach ($items as $item) {
+                if (!empty($item['url'])) {
+                    $this->downloadAndUploadMedia($item['url'], $yacht, $collection);
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensure location exists, create if not
+     */
+    protected function ensureLocationExists($location_name)
+    {
+        $slug = Str::slug($location_name);
+
+        $location = \App\Models\Location::firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $location_name,
+                'slug' => $slug,
+            ]
+        );
+
+        Log::info('Location ensured', ['location_id' => $location->id, 'name' => $location_name]);
+        return $location;
+    }
 }

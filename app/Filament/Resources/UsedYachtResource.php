@@ -33,8 +33,6 @@ class UsedYachtResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('brand_id')
                         ->relationship('brand', 'name')
-                        ->live()
-                        ->afterStateUpdated(fn(Forms\Set $set) => $set('yacht_model_id', null))
                         ->required()
                         ->searchable()
                         ->preload()
@@ -46,15 +44,11 @@ class UsedYachtResource extends Resource
                             Forms\Components\TextInput::make('slug')
                                 ->required(),
                         ]),
-                    Forms\Components\Select::make('yacht_model_id')
-                        ->relationship('yachtModel', 'name', modifyQueryUsing: fn(Builder $query, Forms\Get $get) => $query->where('brand_id', $get('brand_id')))
+                    Forms\Components\Select::make('location_id')
+                        ->relationship('location', 'name')
                         ->searchable()
                         ->preload()
-                        ->required()
                         ->createOptionForm([
-                            Forms\Components\Select::make('brand_id')
-                                ->relationship('brand', 'name')
-                                ->required(),
                             Forms\Components\TextInput::make('name')
                                 ->required()
                                 ->live(onBlur: true)
@@ -532,17 +526,19 @@ class UsedYachtResource extends Resource
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('yachtModel.name')
+                Tables\Columns\TextColumn::make('location.name')
                     ->sortable()
                     ->searchable()
-                    ->label('Model'),
+                    ->label('Location'),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('price')
+                Tables\Columns\TextColumn::make('custom_fields.price')
                     ->money('EUR')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('year')
-                    ->sortable(),
+                    ->sortable()
+                    ->label('Price'),
+                Tables\Columns\TextColumn::make('custom_fields.year')
+                    ->sortable()
+                    ->label('Year'),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')

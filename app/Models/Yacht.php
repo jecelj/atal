@@ -22,6 +22,7 @@ class Yacht extends Model implements HasMedia
         'state',
         'brand_id',
         'yacht_model_id',
+        'location_id',
         'name',
         'slug',
         'description',
@@ -45,6 +46,11 @@ class Yacht extends Model implements HasMedia
     public function yachtModel(): BelongsTo
     {
         return $this->belongsTo(YachtModel::class);
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
     }
 
     /**
