@@ -23,18 +23,20 @@ class WordPressSyncService
 
             // 1. Sync New Yachts
             Log::info("Syncing New Yachts for site: {$site->name}");
+            $urlNew = $site->url . (str_contains($site->url, '?') ? '&' : '?') . 'type=new';
             $responseNew = Http::timeout(120)
                 ->withHeaders($headers)
-                ->post($site->url, ['type' => 'new']);
+                ->post($urlNew, ['type' => 'new']);
 
             $resultNew = $responseNew->json();
             $successNew = $responseNew->successful();
 
             // 2. Sync Used Yachts
             Log::info("Syncing Used Yachts for site: {$site->name}");
+            $urlUsed = $site->url . (str_contains($site->url, '?') ? '&' : '?') . 'type=used';
             $responseUsed = Http::timeout(120)
                 ->withHeaders($headers)
-                ->post($site->url, ['type' => 'used']);
+                ->post($urlUsed, ['type' => 'used']);
 
             $resultUsed = $responseUsed->json();
             $successUsed = $responseUsed->successful();

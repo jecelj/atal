@@ -46,7 +46,9 @@ function atal_sync_rest_import($request)
     $data = $request->get_param('data');
 
     // Debug logging
-    atal_log("REST API Import called. Type: " . ($type ?? 'NULL') . " | Has data: " . (!empty($data) ? 'YES' : 'NO'));
+    $all_params = $request->get_params();
+    atal_log("REST API Import called. Type param: " . ($type ?? 'NULL'));
+    atal_log("All Params: " . print_r($all_params, true));
 
     if (!empty($data)) {
         atal_log("Data keys: " . implode(', ', array_keys($data)));
@@ -58,7 +60,7 @@ function atal_sync_rest_import($request)
     } else {
         atal_log("Calling atal_import_yachts() - type: " . ($type ?? 'NULL'));
         // Default to yacht import (pull mode)
-        $result = atal_import_yachts();
+        $result = atal_import_yachts($type ?? 'new');
     }
 
     if (isset($result['error'])) {
