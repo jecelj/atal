@@ -35,6 +35,10 @@ class LanguageResource extends Resource
                     ->maxLength(255),
                 Forms\Components\Toggle::make('is_default')
                     ->required(),
+                Forms\Components\TextInput::make('sort_order')
+                    ->numeric()
+                    ->default(0)
+                    ->required(),
             ]);
     }
 
@@ -42,6 +46,9 @@ class LanguageResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('Order')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('code')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
@@ -57,10 +64,23 @@ class LanguageResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('sort_order', 'asc')
             ->filters([
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('moveUp')
+                    ->label('↑')
+                    ->tooltip('Move Up')
+                    ->action(fn(Language $record) => $record->moveUp())
+                    ->color('gray')
+                    ->size('sm'),
+                Tables\Actions\Action::make('moveDown')
+                    ->label('↓')
+                    ->tooltip('Move Down')
+                    ->action(fn(Language $record) => $record->moveDown())
+                    ->color('gray')
+                    ->size('sm'),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
