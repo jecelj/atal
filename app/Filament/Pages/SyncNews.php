@@ -27,7 +27,7 @@ class SyncNews extends Page
             $service = app(\App\Services\WordPressSyncService::class);
 
             // Sync all news
-            $newsItems = News::where('status', 'published')->get();
+            $newsItems = News::where('is_active', true)->get();
             $count = 0;
             $errors = [];
 
@@ -49,7 +49,8 @@ class SyncNews extends Page
                     if ($result['success']) {
                         $count++;
                     } else {
-                        $errors[] = "News '{$news->title}': " . ($result['message'] ?? 'Error');
+                        $title = is_array($news->title) ? ($news->title['en'] ?? reset($news->title)) : $news->title;
+                        $errors[] = "News '{$title}': " . ($result['message'] ?? 'Error');
                     }
                 }
             }
@@ -94,7 +95,7 @@ class SyncNews extends Page
     {
         try {
             $service = app(\App\Services\WordPressSyncService::class);
-            $newsItems = News::where('status', 'published')->get();
+            $newsItems = News::where('is_active', true)->get();
             $count = 0;
 
             foreach ($newsItems as $news) {

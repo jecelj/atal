@@ -29,7 +29,7 @@ class SyncAll extends Page
             $yachtResults = $service->syncAll(); // This iterates all sites and calls syncSite (which syncs New + Used)
 
             // 2. Sync News
-            $newsItems = News::where('status', 'published')->get();
+            $newsItems = News::where('is_active', true)->get();
             $newsCount = 0;
             foreach ($newsItems as $news) {
                 $service->syncNews($news);
