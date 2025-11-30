@@ -8,10 +8,10 @@ use Illuminate\Support\Facades\Log;
 
 class WordPressSyncService
 {
-    public function syncSite(SyncSite $site): array
+    public function syncSite(SyncSite $site, ?string $type = null): array
     {
         try {
-            Log::info("Starting sync for site: {$site->name}");
+            Log::info("Starting sync for site: {$site->name}" . ($type ? " (Type: $type)" : ""));
 
             // Use site-specific API key, or fall back to global API key
             $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
@@ -21,40 +21,37 @@ class WordPressSyncService
                 $headers['X-API-Key'] = $apiKey;
             }
 
-            // 1. Sync New Yachts
-            Log::info("Syncing New Yachts for site: {$site->name}");
-            $urlNew = $site->url . (str_contains($site->url, '?') ? '&' : '?') . 'type=new';
-            $responseNew = Http::timeout(120)
-                ->withHeaders($headers)
-                ->post($urlNew, ['type' => 'new']);
+            $results = [];
+            $errors = [];
+            $importedTotal = 0;
+            $success = true;
 
-            $resultNew = $responseNew->json();
-            $successNew = $responseNew->successful();
+            // Determine what to sync
+            $typesToSync = $type ? [$type] : ['new', 'used'];
 
-            // 2. Sync Used Yachts
-            Log::info("Syncing Used Yachts for site: {$site->name}");
-            $urlUsed = $site->url . (str_contains($site->url, '?') ? '&' : '?') . 'type=used';
-            $responseUsed = Http::timeout(120)
-                ->withHeaders($headers)
-                ->post($urlUsed, ['type' => 'used']);
+            foreach ($typesToSync as $syncType) {
+                Log::info("Syncing " . ucfirst($syncType) . " Yachts for site: {$site->name}");
 
-            $resultUsed = $responseUsed->json();
-            $successUsed = $responseUsed->successful();
+                $url = $site->url . (str_contains($site->url, '?') ? '&' : '?') . "type={$syncType}";
 
-            // Combine results
-            $success = $successNew && $successUsed;
-            $importedTotal = ($resultNew['imported'] ?? 0) + ($resultUsed['imported'] ?? 0);
+                $response = Http::timeout(120)
+                    ->withHeaders($headers)
+                    ->post($url, ['type' => $syncType]);
 
-            $errors = array_merge(
-                $resultNew['errors'] ?? [],
-                $resultUsed['errors'] ?? []
-            );
+                $result = $response->json();
+                $isSuccessful = $response->successful();
 
-            if (!$successNew) {
-                $errors[] = "New Yachts Sync Failed: " . $responseNew->body();
-            }
-            if (!$successUsed) {
-                $errors[] = "Used Yachts Sync Failed: " . $responseUsed->body();
+                $results[$syncType] = $result;
+
+                if (!$isSuccessful) {
+                    $success = false;
+                    $errors[] = ucfirst($syncType) . " Yachts Sync Failed: " . $response->body();
+                } else {
+                    $importedTotal += ($result['imported'] ?? 0);
+                    if (isset($result['errors']) && is_array($result['errors'])) {
+                        $errors = array_merge($errors, $result['errors']);
+                    }
+                }
             }
 
             $site->update([
@@ -64,10 +61,7 @@ class WordPressSyncService
                     'imported' => $importedTotal,
                     'errors' => $errors,
                     'timestamp' => now()->toIso8601String(),
-                    'details' => [
-                        'new' => $resultNew,
-                        'used' => $resultUsed
-                    ]
+                    'details' => $results
                 ],
             ]);
 
@@ -75,7 +69,7 @@ class WordPressSyncService
                 Log::info("Sync completed for site: {$site->name}", ['imported' => $importedTotal]);
                 return [
                     'success' => true,
-                    'message' => "Successfully synced {$importedTotal} items (New + Used)",
+                    'message' => "Successfully synced {$importedTotal} items (" . implode(' + ', $typesToSync) . ")",
                     'data' => ['imported' => $importedTotal],
                 ];
             } else {

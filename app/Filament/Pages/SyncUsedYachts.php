@@ -25,23 +25,20 @@ class SyncUsedYachts extends Page
     {
         try {
             $site = SyncSite::findOrFail($siteId);
+            $service = app(\App\Services\WordPressSyncService::class);
 
-            $response = Http::timeout(300)->post(
-                url("/api/used-yachts/sync/{$siteId}")
-            );
+            $result = $service->syncSite($site, 'used');
 
-            if ($response->successful()) {
-                $result = $response->json();
-
+            if ($result['success']) {
                 Notification::make()
                     ->title('Sync Successful')
-                    ->body("Synced {$result['imported']} used yachts to {$site->name}")
+                    ->body($result['message'])
                     ->success()
                     ->send();
             } else {
                 Notification::make()
                     ->title('Sync Failed')
-                    ->body($response->body())
+                    ->body($result['error'] ?? 'Unknown error')
                     ->danger()
                     ->send();
             }
@@ -58,58 +55,42 @@ class SyncUsedYachts extends Page
 
     public function syncSingleYacht($siteId, $yachtId)
     {
-        try {
-            $site = SyncSite::findOrFail($siteId);
-            $yacht = UsedYacht::findOrFail($yachtId);
+        // Note: WordPressSyncService currently doesn't support syncing a SINGLE yacht by ID via push.
+        // It triggers a full pull from WP.
+        // For now, we will trigger a full sync for 'used' yachts, which is safer.
+        // Or we could implement single sync in the service later.
 
-            $response = Http::timeout(300)->post(
-                url("/api/used-yachts/sync/{$siteId}/yacht/{$yachtId}")
-            );
-
-            if ($response->successful()) {
-                $result = $response->json();
-
-                Notification::make()
-                    ->title('Test Sync Successful')
-                    ->body("Synced '{$yacht->name}' to {$site->name}")
-                    ->success()
-                    ->send();
-            } else {
-                Notification::make()
-                    ->title('Test Sync Failed')
-                    ->body($response->body())
-                    ->danger()
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            Log::error('Single yacht sync failed: ' . $e->getMessage());
-
-            Notification::make()
-                ->title('Sync Error')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-        }
+        $this->syncToSite($siteId);
     }
 
     public function syncAllSites()
     {
         try {
-            $response = Http::timeout(600)->post(url('/api/used-yachts/sync-all'));
+            $sites = SyncSite::where('is_active', true)->get();
+            $service = app(\App\Services\WordPressSyncService::class);
+            $count = 0;
+            $errors = [];
 
-            if ($response->successful()) {
-                $result = $response->json();
+            foreach ($sites as $site) {
+                $result = $service->syncSite($site, 'used');
+                if ($result['success']) {
+                    $count++;
+                } else {
+                    $errors[] = $site->name . ': ' . ($result['error'] ?? 'Unknown error');
+                }
+            }
 
+            if (empty($errors)) {
                 Notification::make()
                     ->title('Sync All Successful')
-                    ->body('Synced used yachts to all active sites')
+                    ->body("Synced used yachts to {$count} sites")
                     ->success()
                     ->send();
             } else {
                 Notification::make()
-                    ->title('Sync All Failed')
-                    ->body($response->body())
-                    ->danger()
+                    ->title('Sync Completed with Errors')
+                    ->body("Synced to {$count} sites. Errors: " . implode(', ', $errors))
+                    ->warning()
                     ->send();
             }
         } catch (\Exception $e) {
