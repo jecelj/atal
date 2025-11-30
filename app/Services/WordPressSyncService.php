@@ -21,56 +21,69 @@ class WordPressSyncService
                 $headers['X-API-Key'] = $apiKey;
             }
 
-            $response = Http::timeout(120)
+            // 1. Sync New Yachts
+            Log::info("Syncing New Yachts for site: {$site->name}");
+            $responseNew = Http::timeout(120)
                 ->withHeaders($headers)
-                ->post($site->url, [
-                    'type' => 'new', // Default to new yachts for now, or we could make separate sync actions
-                ]);
+                ->post($site->url, ['type' => 'new']);
 
-            if ($response->successful()) {
-                $result = $response->json();
+            $resultNew = $responseNew->json();
+            $successNew = $responseNew->successful();
 
-                $site->update([
-                    'last_synced_at' => now(),
-                    'last_sync_result' => [
-                        'success' => true,
-                        'imported' => $result['imported'] ?? 0,
-                        'errors' => $result['errors'] ?? [],
-                        'timestamp' => now()->toIso8601String(),
-                    ],
-                ]);
+            // 2. Sync Used Yachts
+            Log::info("Syncing Used Yachts for site: {$site->name}");
+            $responseUsed = Http::timeout(120)
+                ->withHeaders($headers)
+                ->post($site->url, ['type' => 'used']);
 
-                Log::info("Sync completed for site: {$site->name}", $result);
+            $resultUsed = $responseUsed->json();
+            $successUsed = $responseUsed->successful();
 
-                return [
-                    'success' => true,
-                    'message' => "Successfully synced {$result['imported']} items",
-                    'data' => $result,
-                ];
+            // Combine results
+            $success = $successNew && $successUsed;
+            $importedTotal = ($resultNew['imported'] ?? 0) + ($resultUsed['imported'] ?? 0);
+
+            $errors = array_merge(
+                $resultNew['errors'] ?? [],
+                $resultUsed['errors'] ?? []
+            );
+
+            if (!$successNew) {
+                $errors[] = "New Yachts Sync Failed: " . $responseNew->body();
             }
-
-            $errorMessage = $response->body();
+            if (!$successUsed) {
+                $errors[] = "Used Yachts Sync Failed: " . $responseUsed->body();
+            }
 
             $site->update([
                 'last_synced_at' => now(),
                 'last_sync_result' => [
-                    'success' => false,
-                    'error' => $errorMessage,
-                    'status_code' => $response->status(),
+                    'success' => $success,
+                    'imported' => $importedTotal,
+                    'errors' => $errors,
                     'timestamp' => now()->toIso8601String(),
+                    'details' => [
+                        'new' => $resultNew,
+                        'used' => $resultUsed
+                    ]
                 ],
             ]);
 
-            Log::error("Sync failed for site: {$site->name}", [
-                'status' => $response->status(),
-                'error' => $errorMessage,
-            ]);
-
-            return [
-                'success' => false,
-                'message' => "Sync failed: HTTP {$response->status()}",
-                'error' => $errorMessage,
-            ];
+            if ($success) {
+                Log::info("Sync completed for site: {$site->name}", ['imported' => $importedTotal]);
+                return [
+                    'success' => true,
+                    'message' => "Successfully synced {$importedTotal} items (New + Used)",
+                    'data' => ['imported' => $importedTotal],
+                ];
+            } else {
+                Log::error("Sync failed for site: {$site->name}", ['errors' => $errors]);
+                return [
+                    'success' => false,
+                    'message' => "Sync failed. Check logs for details.",
+                    'error' => implode('; ', array_slice($errors, 0, 3)),
+                ];
+            }
 
         } catch (\Exception $e) {
             $site->update([
