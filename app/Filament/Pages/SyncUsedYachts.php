@@ -15,7 +15,7 @@ class SyncUsedYachts extends Page
 
     protected static ?string $navigationLabel = 'Sync Used Yachts';
 
-    protected static ?string $navigationGroup = 'Sync Sites';
+    protected static ?string $navigationGroup = 'Migration';
 
     protected static ?int $navigationSort = 2;
 

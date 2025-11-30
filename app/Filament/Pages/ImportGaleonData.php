@@ -16,7 +16,7 @@ class ImportGaleonData extends Page
 
     protected static ?string $navigationLabel = 'Import Galeon Data';
 
-    protected static ?string $navigationGroup = 'Sync Sites';
+    protected static ?string $navigationGroup = 'Migration';
 
     protected static ?int $navigationSort = 3;
 

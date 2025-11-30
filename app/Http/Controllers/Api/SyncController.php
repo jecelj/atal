@@ -140,11 +140,11 @@ class SyncController extends Controller
                 'name' => $yacht->brand->name,
                 'slug' => Str::slug($yacht->brand->name),
             ],
-            'model' => [
+            'model' => $yacht->yachtModel ? [
                 'id' => $yacht->yachtModel->id,
                 'name' => $yacht->yachtModel->name,
                 'slug' => Str::slug($yacht->yachtModel->name),
-            ],
+            ] : null,
             'translations' => $translations,
             'media' => $media,
         ];

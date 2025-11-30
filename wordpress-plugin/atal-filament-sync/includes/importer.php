@@ -15,14 +15,14 @@ function atal_log($message)
     file_put_contents($log_file, $entry, FILE_APPEND);
 }
 
-function atal_import_yachts()
+function atal_import_yachts($type = 'new')
 {
     // Increase PHP limits for large imports
     @set_time_limit(300); // 5 minutes
     @ini_set('memory_limit', '512M');
     @ini_set('max_execution_time', '300');
 
-    atal_log("Starting Yacht Import...");
+    atal_log("Starting Yacht Import (Type: $type)...");
     atal_log("PHP limits set: max_execution_time=300s, memory_limit=512M");
 
     // Always sync fields first to ensure ACF field definitions are up-to-date
@@ -43,8 +43,17 @@ function atal_import_yachts()
         return ['error' => 'API URL or API Key not configured'];
     }
 
-    // Fetch yachts from Filament
-    $response = wp_remote_get($api_url . '/yachts', [
+    // Build full URL
+    $full_url = $api_url . '/yachts?type=' . $type;
+
+    atal_log("=== API Request Details ===");
+    atal_log("API URL: $api_url");
+    atal_log("Full URL: $full_url");
+    atal_log("API Key (first 10 chars): " . substr($api_key, 0, 10) . "...");
+    atal_log("Type: $type");
+
+    // Fetch yachts from Filament with type parameter
+    $response = wp_remote_get($full_url, [
         'headers' => [
             'Authorization' => 'Bearer ' . $api_key,
         ],
@@ -56,10 +65,17 @@ function atal_import_yachts()
         return ['error' => $response->get_error_message()];
     }
 
-    $data = json_decode(wp_remote_retrieve_body($response), true);
+    $body = wp_remote_retrieve_body($response);
+    $status_code = wp_remote_retrieve_response_code($response);
+
+    atal_log("API Response Status: $status_code");
+    atal_log("API Response Body (first 500 chars): " . substr($body, 0, 500));
+
+    $data = json_decode($body, true);
 
     if (!isset($data['yachts'])) {
-        atal_log("Error: Invalid API response format");
+        atal_log("Error: Invalid API response format. Response does not contain 'yachts' key.");
+        atal_log("Available keys: " . (is_array($data) ? implode(', ', array_keys($data)) : 'Not an array'));
         return ['error' => 'Invalid API response'];
     }
 
@@ -414,9 +430,8 @@ function atal_import_single_yacht($yacht_data)
         }
 
         // Set taxonomies - Brand → Model hierarchy in yacht_brand taxonomy
-        if (isset($yacht_data['brand']) && isset($yacht_data['model'])) {
+        if (isset($yacht_data['brand'])) {
             $brand_name = $yacht_data['brand']['name'];
-            $model_name = $yacht_data['model']['name'];
 
             atal_log("Processing Brand: $brand_name for lang: $lang");
 
@@ -430,25 +445,38 @@ function atal_import_single_yacht($yacht_data)
             atal_log("Brand Term ID: $brand_term");
 
             if ($brand_term) {
-                atal_log("Processing Model: $model_name as child of brand $brand_name for lang: $lang");
+                // Check if yacht has a model
+                if (isset($yacht_data['model']) && !empty($yacht_data['model'])) {
+                    $model_name = $yacht_data['model']['name'];
+                    atal_log("Processing Model: $model_name as child of brand $brand_name for lang: $lang");
 
-                // Create/get model term as child of brand
-                $model_term = atal_get_or_create_term(
-                    $model_name,
-                    'yacht_brand', // Same taxonomy!
-                    $lang,
-                    $brand_term // Brand is parent
-                );
-                atal_log("Model Term ID: $model_term (parent: $brand_term)");
+                    // Create/get model term as child of brand
+                    $model_term = atal_get_or_create_term(
+                        $model_name,
+                        'yacht_brand', // Same taxonomy!
+                        $lang,
+                        $brand_term // Brand is parent
+                    );
+                    atal_log("Model Term ID: $model_term (parent: $brand_term)");
 
-                if ($model_term) {
-                    // Assign post to MODEL term (child) only
-                    // Brand is automatically implied via hierarchy
-                    wp_set_object_terms($post_id, [(int) $model_term], 'yacht_brand');
+                    if ($model_term) {
+                        // Assign post to MODEL term (child) only
+                        // Brand is automatically implied via hierarchy
+                        wp_set_object_terms($post_id, [(int) $model_term], 'yacht_brand');
+
+                        // Also save to ACF field if it exists
+                        if (function_exists('update_field')) {
+                            update_field($brand_field_key, [(int) $model_term], $post_id);
+                        }
+                    }
+                } else {
+                    // No model - just assign brand term directly (Used Yachts)
+                    atal_log("No model specified - assigning only brand term for lang: $lang");
+                    wp_set_object_terms($post_id, [(int) $brand_term], 'yacht_brand');
 
                     // Also save to ACF field if it exists
                     if (function_exists('update_field')) {
-                        update_field($brand_field_key, [(int) $model_term], $post_id);
+                        update_field($brand_field_key, [(int) $brand_term], $post_id);
                     }
                 }
             }

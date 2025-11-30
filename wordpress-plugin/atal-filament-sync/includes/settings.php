@@ -44,8 +44,22 @@ function atal_sync_page()
 
     // Handle sync triggers
     $sync_result = null;
-    if (isset($_POST['atal_sync_yachts']) && check_admin_referer('atal_sync_manual')) {
-        $sync_result = atal_import_yachts();
+    if (isset($_POST['atal_sync_new_yachts']) && check_admin_referer('atal_sync_manual')) {
+        $sync_result = atal_import_yachts('new');
+    } elseif (isset($_POST['atal_sync_used_yachts']) && check_admin_referer('atal_sync_manual')) {
+        $sync_result = atal_import_yachts('used');
+    } elseif (isset($_POST['atal_sync_all_yachts']) && check_admin_referer('atal_sync_manual')) {
+        $new_result = atal_import_yachts('new');
+        $used_result = atal_import_yachts('used');
+        $sync_result = [
+            'imported' => ($new_result['imported'] ?? 0) + ($used_result['imported'] ?? 0),
+            'deleted' => ($new_result['deleted'] ?? 0) + ($used_result['deleted'] ?? 0),
+            'message' => sprintf(
+                'Synced %d New Yachts and %d Used Yachts',
+                $new_result['imported'] ?? 0,
+                $used_result['imported'] ?? 0
+            )
+        ];
     } elseif (isset($_POST['atal_sync_brands']) && check_admin_referer('atal_sync_manual')) {
         $sync_result = atal_import_brands();
     } elseif (isset($_POST['atal_sync_models']) && check_admin_referer('atal_sync_manual')) {
@@ -56,10 +70,11 @@ function atal_sync_page()
         $fields = atal_import_fields();
         $brands = atal_import_brands();
         $models = atal_import_models();
-        $yachts = atal_import_yachts();
+        $new_yachts = atal_import_yachts('new');
+        $used_yachts = atal_import_yachts('used');
         $sync_result = [
-            'imported' => ($fields['imported'] ?? 0) + ($brands['imported'] ?? 0) + ($models['imported'] ?? 0) + ($yachts['imported'] ?? 0),
-            'message' => 'Synced fields, brands, models, and yachts'
+            'imported' => ($fields['imported'] ?? 0) + ($brands['imported'] ?? 0) + ($models['imported'] ?? 0) + ($new_yachts['imported'] ?? 0) + ($used_yachts['imported'] ?? 0),
+            'message' => 'Synced fields, brands, models, new yachts, and used yachts'
         ];
     } elseif (isset($_POST['atal_sync_refresh']) && check_admin_referer('atal_sync_refresh_data')) {
         $sync_result = atal_refresh_available_data();
@@ -218,8 +233,21 @@ function atal_sync_page()
                     <button type="submit" name="atal_sync_models" class="button">
                         Sync Models
                     </button>
-                    <button type="submit" name="atal_sync_yachts" class="button">
-                        Sync Yachts
+                </p>
+
+                <h3>Sync Yachts:</h3>
+                <p>
+                    <button type="submit" name="atal_sync_all_yachts" class="button button-primary">
+                        <span class="dashicons dashicons-update" style="margin-top: 3px;"></span>
+                        Sync All Yachts (New + Used)
+                    </button>
+                </p>
+                <p>
+                    <button type="submit" name="atal_sync_new_yachts" class="button">
+                        Sync New Yachts Only
+                    </button>
+                    <button type="submit" name="atal_sync_used_yachts" class="button">
+                        Sync Used Yachts Only
                     </button>
                 </p>
             </form>
