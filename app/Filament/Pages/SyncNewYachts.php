@@ -3,23 +3,22 @@
 namespace App\Filament\Pages;
 
 use App\Models\SyncSite;
-use App\Models\UsedYacht;
+use App\Models\NewYacht;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class SyncUsedYachts extends Page
+class SyncNewYachts extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
 
-    protected static ?string $navigationLabel = 'Sync Used Yachts';
+    protected static ?string $navigationLabel = 'Sync New Yachts';
 
     protected static ?string $navigationGroup = 'Sync';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
-    protected static string $view = 'filament.pages.sync-used-yachts';
+    protected static string $view = 'filament.pages.sync-new-yachts';
 
     public function syncToSite($siteId)
     {
@@ -27,7 +26,7 @@ class SyncUsedYachts extends Page
             $site = SyncSite::findOrFail($siteId);
             $service = app(\App\Services\WordPressSyncService::class);
 
-            $result = $service->syncSite($site, 'used');
+            $result = $service->syncSite($site, 'new');
 
             if ($result['success']) {
                 Notification::make()
@@ -43,7 +42,7 @@ class SyncUsedYachts extends Page
                     ->send();
             }
         } catch (\Exception $e) {
-            Log::error('Used yacht sync failed: ' . $e->getMessage());
+            Log::error('New yacht sync failed: ' . $e->getMessage());
 
             Notification::make()
                 ->title('Sync Error')
@@ -55,11 +54,7 @@ class SyncUsedYachts extends Page
 
     public function syncSingleYacht($siteId, $yachtId)
     {
-        // Note: WordPressSyncService currently doesn't support syncing a SINGLE yacht by ID via push.
-        // It triggers a full pull from WP.
-        // For now, we will trigger a full sync for 'used' yachts, which is safer.
-        // Or we could implement single sync in the service later.
-
+        // For now, trigger full sync for 'new' yachts
         $this->syncToSite($siteId);
     }
 
@@ -72,7 +67,7 @@ class SyncUsedYachts extends Page
             $errors = [];
 
             foreach ($sites as $site) {
-                $result = $service->syncSite($site, 'used');
+                $result = $service->syncSite($site, 'new');
                 if ($result['success']) {
                     $count++;
                 } else {
@@ -83,7 +78,7 @@ class SyncUsedYachts extends Page
             if (empty($errors)) {
                 Notification::make()
                     ->title('Sync All Successful')
-                    ->body("Synced used yachts to {$count} sites")
+                    ->body("Synced new yachts to {$count} sites")
                     ->success()
                     ->send();
             } else {
@@ -111,7 +106,7 @@ class SyncUsedYachts extends Page
 
     public function getYachts()
     {
-        return UsedYacht::with(['brand', 'yachtModel'])
+        return NewYacht::with(['brand', 'yachtModel'])
             ->where('state', 'published')
             ->orderBy('created_at', 'desc')
             ->limit(10)

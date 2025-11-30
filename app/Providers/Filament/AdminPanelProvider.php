@@ -32,6 +32,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 'Content',
+                'Sync',
                 'Master Data',
                 'Configuration',
                 'Migration',
