@@ -23,7 +23,9 @@ class WordPressSyncService
 
             $response = Http::timeout(120)
                 ->withHeaders($headers)
-                ->post($site->url);
+                ->post($site->url, [
+                    'type' => 'new', // Default to new yachts for now, or we could make separate sync actions
+                ]);
 
             if ($response->successful()) {
                 $result = $response->json();
