@@ -482,6 +482,29 @@ function atal_import_single_yacht($yacht_data)
             }
         }
 
+        // Set Location taxonomy
+        if (isset($yacht_data['location']) && !empty($yacht_data['location'])) {
+            $location_name = $yacht_data['location']['name'];
+            $location_slug = $yacht_data['location']['slug'] ?? sanitize_title($location_name);
+
+            atal_log("Processing Location: $location_name for lang: $lang");
+
+            // Create/get location term (non-hierarchical)
+            $location_term = atal_get_or_create_term(
+                $location_name,
+                'yacht_location',
+                $lang,
+                0 // No parent (non-hierarchical)
+            );
+            atal_log("Location Term ID: $location_term");
+
+            if ($location_term) {
+                // Assign post to location term
+                wp_set_object_terms($post_id, [(int) $location_term], 'yacht_location');
+                atal_log("Assigned location term $location_term to post $post_id");
+            }
+        }
+
         $translation_ids[$lang] = $post_id;
     }
 

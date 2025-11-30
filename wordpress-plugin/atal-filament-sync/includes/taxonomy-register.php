@@ -30,4 +30,22 @@ function atal_sync_register_taxonomies()
         'show_admin_column' => true,
         'rewrite' => ['slug' => 'brand', 'hierarchical' => true],
     ]);
+
+    // Location Taxonomy (Non-hierarchical)
+    register_taxonomy('yacht_location', ['new_yachts', 'used_yachts'], [
+        'labels' => [
+            'name' => __('Locations', 'atal-sync'),
+            'singular_name' => __('Location', 'atal-sync'),
+            'search_items' => __('Search Locations', 'atal-sync'),
+            'all_items' => __('All Locations', 'atal-sync'),
+            'edit_item' => __('Edit Location', 'atal-sync'),
+            'update_item' => __('Update Location', 'atal-sync'),
+            'add_new_item' => __('Add New Location', 'atal-sync'),
+            'new_item_name' => __('New Location Name', 'atal-sync'),
+        ],
+        'hierarchical' => false,
+        'show_in_rest' => true,
+        'show_admin_column' => true,
+        'rewrite' => ['slug' => 'location'],
+    ]);
 }
