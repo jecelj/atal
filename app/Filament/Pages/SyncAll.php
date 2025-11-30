@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class SyncAll extends Page
 {
+    protected static ?string $slug = 'sync-all';
+
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path-rounded-square';
 
     protected static ?string $navigationLabel = 'Sync All';
