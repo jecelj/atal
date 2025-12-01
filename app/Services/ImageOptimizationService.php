@@ -52,30 +52,43 @@ class ImageOptimizationService
                     $newFileNameBase = "{$baseName}-{$collectionName}-" . ($index + 1);
                     $newFileName = "{$newFileNameBase}.webp";
 
-                    // Check if renaming is needed
-                    if ($media->file_name !== $newFileName) {
-                        $oldPath = $media->getPath();
-                        $newPath = str_replace($media->file_name, $newFileName, $oldPath);
+                    // SPECIAL HANDLING FOR WEBP: Rename only, do not re-process
+                    if ($media->mime_type === 'image/webp') {
+                        if ($media->file_name !== $newFileName) {
+                            $oldPath = $media->getPath();
+                            $directory = dirname($oldPath);
+                            $newPath = $directory . DIRECTORY_SEPARATOR . $newFileName;
 
-                        // If we are just renaming (and maybe converting), we need to be careful
-                        // But first, let's handle the processing (resize/convert) which might create a new file anyway
+                            if (file_exists($oldPath)) {
+                                // Rename file on disk
+                                if (rename($oldPath, $newPath)) {
+                                    $media->name = $newFileNameBase;
+                                    $media->file_name = $newFileName;
+                                    $media->setCustomProperty('optimized', true);
+                                    $media->save();
 
-                        $stats['renamed']++;
-                        $needsSave = true;
-                    } else {
-                        // File name is correct. Check if it's already WebP and valid.
-                        if ($media->mime_type === 'image/webp') {
-                            $currentPath = $media->getPath();
-                            clearstatcache(true, $currentPath);
-
-                            if (file_exists($currentPath) && filesize($currentPath) > 10240) {
-                                // It's already WebP, correctly named, and seems valid (>10KB).
-                                // Mark as optimized and skip.
+                                    $stats['renamed']++;
+                                    Log::info("ImageOptimizationService: Renamed WebP only: {$oldPath} -> {$newPath}");
+                                } else {
+                                    Log::error("ImageOptimizationService: Failed to rename WebP: {$oldPath} -> {$newPath}");
+                                    $stats['errors']++;
+                                }
+                            }
+                        } else {
+                            // Already WebP and correct name. Just mark optimized.
+                            if (!$media->getCustomProperty('optimized')) {
                                 $media->setCustomProperty('optimized', true);
                                 $media->save();
-                                continue;
                             }
                         }
+                        // Skip heavy processing for WebP
+                        continue;
+                    }
+
+                    // Check if renaming is needed (for non-WebP, we will handle it during processing)
+                    if ($media->file_name !== $newFileName) {
+                        $stats['renamed']++;
+                        $needsSave = true;
                     }
 
                     // 2. Process Image (Resize & Convert)
