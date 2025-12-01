@@ -17,7 +17,7 @@ class TranslateYachtContent implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 300; // 5 minutes per yacht
+    public $timeout = 900; // 15 minutes per yacht
 
     /**
      * Create a new job instance.
