@@ -21,7 +21,7 @@ class ImportGaleonBulk extends Page implements HasForms
 
     protected static ?int $navigationSort = 100;
 
-    protected static ?string $navigationLabel = 'Bulk Import Yachts';
+    protected static ?string $navigationLabel = 'Import New Yachts (Bulk)';
 
     protected static string $view = 'filament.pages.import-galeon-bulk';
 

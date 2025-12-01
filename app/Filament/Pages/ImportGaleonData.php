@@ -14,7 +14,7 @@ class ImportGaleonData extends Page
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-down-tray';
 
-    protected static ?string $navigationLabel = 'Import Galeon Data';
+    protected static ?string $navigationLabel = 'Import Used Yachts';
 
     protected static ?string $navigationGroup = 'Migration';
 

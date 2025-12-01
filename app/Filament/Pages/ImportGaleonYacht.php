@@ -16,6 +16,8 @@ class ImportGaleonYacht extends Page implements HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-down-tray';
 
+    protected static ?string $navigationLabel = 'Import New Yacht (Single)';
+
     protected static ?string $navigationGroup = 'Migration';
 
     protected static ?int $navigationSort = 99;
