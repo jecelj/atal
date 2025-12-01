@@ -7,7 +7,6 @@ use App\Models\NewYacht;
 use App\Models\UsedYacht;
 use App\Models\Brand;
 use App\Models\YachtModel;
-use App\Models\Location;
 use App\Models\FormFieldConfiguration;
 use App\Models\Language;
 use Illuminate\Http\Request;
@@ -40,7 +39,7 @@ class SyncController extends Controller
         $query->where('state', 'published');
 
         // Eager load relationships
-        $yachts = $query->with(['brand', 'yachtModel', 'location', 'media'])->get();
+        $yachts = $query->with(['brand', 'yachtModel', 'media'])->get();
 
         return response()->json([
             'yachts' => $yachts->map(fn($yacht) => $this->formatYacht($yacht, $lang)),
@@ -145,11 +144,6 @@ class SyncController extends Controller
                 'id' => $yacht->yachtModel->id,
                 'name' => $yacht->yachtModel->name,
                 'slug' => Str::slug($yacht->yachtModel->name),
-            ] : null,
-            'location' => $yacht->location ? [
-                'id' => $yacht->location->id,
-                'name' => $yacht->location->name,
-                'slug' => $yacht->location->slug,
             ] : null,
             'translations' => $translations,
             'media' => $media,
@@ -264,36 +258,6 @@ class SyncController extends Controller
                     'slug' => Str::slug($model->name),
                     'brand_id' => $model->brand_id,
                     'brand_slug' => Str::slug($model->brand->name),
-                    'translations' => $translations,
-                ];
-            }),
-            'timestamp' => now()->toIso8601String(),
-        ]);
-    }
-
-    /**
-     * Export locations
-     * GET /api/sync/locations
-     */
-    public function locations(Request $request)
-    {
-        $locations = Location::all();
-
-        return response()->json([
-            'locations' => $locations->map(function ($location) {
-                $languages = Language::all();
-                $translations = [];
-
-                // Location name is not translatable, use same name for all languages
-                foreach ($languages as $language) {
-                    $translations[$language->code] = [
-                        'name' => $location->name,
-                    ];
-                }
-
-                return [
-                    'id' => $location->id,
-                    'slug' => $location->slug,
                     'translations' => $translations,
                 ];
             }),

@@ -12,7 +12,6 @@ Route::prefix('sync')->middleware('validate.api.key')->group(function () {
     Route::get('yachts', [\App\Http\Controllers\Api\SyncController::class, 'yachts']);
     Route::get('brands', [\App\Http\Controllers\Api\SyncController::class, 'brands']);
     Route::get('models', [\App\Http\Controllers\Api\SyncController::class, 'models']);
-    Route::get('locations', [\App\Http\Controllers\Api\SyncController::class, 'locations']);
     Route::get('fields', [\App\Http\Controllers\Api\SyncController::class, 'fields']);
 });
 

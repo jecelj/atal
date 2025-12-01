@@ -28,17 +28,36 @@ class GaleonMigrationService
             // Ensure model exists
             $model = $this->ensureModelExists($data['model'], $brand->id);
 
-            // Create or update yacht
-            $yacht = NewYacht::updateOrCreate(
-                ['slug' => $data['slug']],
-                [
+            // Find or create yacht to preserve existing translations
+            $yacht = NewYacht::where('slug', $data['slug'])->first();
+
+            if ($yacht) {
+                // Preserve existing translations for translatable fields
+                $translatableFields = ['name', 'description', 'specifications'];
+                foreach ($translatableFields as $field) {
+                    $existing = $yacht->getTranslations($field);
+                    // Map incoming data keys to proper fields
+                    $incomingKey = $field === 'description' ? 'full_description' : $field;
+                    $existing['en'] = $data[$incomingKey] ?? $existing['en'] ?? '';
+                    $yacht->setTranslations($field, $existing);
+                }
+                // Update non-translatable fields
+                $yacht->state = $data['state'];
+                $yacht->brand_id = $brand->id;
+                $yacht->yacht_model_id = $model->id;
+                $yacht->save();
+            } else {
+                // Create new yacht with translatable fields
+                $yacht = NewYacht::create([
                     'slug' => $data['slug'],
                     'name' => ['en' => $data['name']],
+                    'description' => ['en' => $data['full_description'] ?? ''],
+                    'specifications' => ['en' => $data['specifications'] ?? ''],
                     'brand_id' => $brand->id,
                     'yacht_model_id' => $model->id,
                     'state' => $data['state'],
-                ]
-            );
+                ]);
+            }
 
             Log::info('Yacht record created/updated', ['yacht_id' => $yacht->id]);
 
@@ -128,7 +147,15 @@ class GaleonMigrationService
             if ($value !== null && $value !== '') {
                 // Multilingual fields
                 if (in_array($key, ['sub_titile', 'full_description', 'specifications'])) {
-                    $customFields[$key] = ['en' => $value];
+                    // Preserve existing translations
+                    $existing = $customFields[$key] ?? [];
+                    if (is_array($existing)) {
+                        $existing['en'] = $value;
+                        $customFields[$key] = $existing;
+                    } else {
+                        // Was not array or didn't exist
+                        $customFields[$key] = ['en' => $value];
+                    }
                 } else {
                     // Non-multilingual fields (lenght, etc.)
                     $customFields[$key] = $value;
@@ -271,8 +298,8 @@ class GaleonMigrationService
     {
         Log::info("Downloading gallery", ['collection' => $collection, 'count' => count($urls)]);
 
-        // Ensure correct order by sorting keys (if they are indices)
-        ksort($urls);
+        // Ensure correct order by reversing the array as requested
+        $urls = array_reverse($urls);
 
         foreach ($urls as $url) {
             $this->downloadAndUploadMedia($url, $yacht, $collection);
@@ -304,17 +331,35 @@ class GaleonMigrationService
                 $location = $this->ensureLocationExists($locationName);
             }
 
-            // Create or update yacht
-            $yacht = \App\Models\UsedYacht::updateOrCreate(
-                ['slug' => $data['slug']],
-                [
+            // Find or create UsedYacht to preserve existing translations
+            $yacht = \App\Models\UsedYacht::where('slug', $data['slug'])->first();
+
+            if ($yacht) {
+                // Preserve existing translations for translatable fields
+                $translatableFields = ['name', 'sub_titile', 'full_description', 'specifications'];
+                foreach ($translatableFields as $field) {
+                    $existing = $yacht->getTranslations($field);
+                    $existing['en'] = $data[$field] ?? $existing['en'] ?? '';
+                    $yacht->{$field} = $existing;
+                }
+                // Update non-translatable fields
+                $yacht->state = $data['state'] ?? 'published';
+                $yacht->brand_id = $brand->id;
+                if ($location) {
+                    $yacht->location_id = $location->id;
+                }
+                $yacht->save();
+            } else {
+                // Create new UsedYacht with translatable fields
+                $yacht = \App\Models\UsedYacht::create([
                     'slug' => $data['slug'],
                     'name' => ['en' => $data['name']],
-                    'state' => 'published',
+                    'state' => $data['state'] ?? 'published',
                     'brand_id' => $brand->id,
-                    'location_id' => $location?->id,
-                ]
-            );
+                    'location_id' => $location ? $location->id : null,
+                ]);
+            }
+
 
             Log::info('Used Yacht record created/updated', ['yacht_id' => $yacht->id]);
 
