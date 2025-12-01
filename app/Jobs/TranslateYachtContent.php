@@ -45,7 +45,7 @@ class TranslateYachtContent implements ShouldQueue
         $updated = false;
 
         // Standard translatable fields
-        $translatableFields = ['name', 'description', 'specifications'];
+        $translatableFields = ['name', 'description'];
 
         // 1. Translate standard fields
         foreach ($translatableFields as $field) {
