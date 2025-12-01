@@ -38,6 +38,7 @@ class TranslateYachtContent implements ShouldQueue
 
         if (!$defaultLanguage) {
             Log::error('No default language found for translation');
+            $this->logProgress('Error: No default language found', 'error');
             return;
         }
 
@@ -59,6 +60,8 @@ class TranslateYachtContent implements ShouldQueue
                 $existingTranslation = $this->yacht->getTranslation($field, $language->code, false);
 
                 if (empty($existingTranslation) || $this->force) {
+                    $start = microtime(true);
+                    $this->logProgress("Translating {$field} to {$language->name}...", 'processing');
                     Log::info("Translating {$field} for yacht {$this->yacht->id} to {$language->code}");
 
                     $translatedContent = $translationService->translate(
@@ -68,9 +71,15 @@ class TranslateYachtContent implements ShouldQueue
                     );
 
                     if ($translatedContent) {
+                        $duration = round(microtime(true) - $start, 2);
                         $this->yacht->setTranslation($field, $language->code, $translatedContent);
                         $updated = true;
+                        $this->logProgress("Translated {$field} to {$language->name} ({$duration}s)", 'done');
+                    } else {
+                        $this->logProgress("Failed to translate {$field} to {$language->name}", 'error');
                     }
+                } else {
+                    $this->logProgress("Skipping {$field} ({$language->name}) - already exists", 'skipped');
                 }
             }
         }
@@ -83,6 +92,7 @@ class TranslateYachtContent implements ShouldQueue
 
         foreach ($configFields as $config) {
             $fieldKey = $config->field_key;
+            $fieldLabel = $config->label;
 
             if (!isset($customFields[$fieldKey]) || !is_array($customFields[$fieldKey])) {
                 continue;
@@ -99,6 +109,8 @@ class TranslateYachtContent implements ShouldQueue
                 $existingTranslation = $fieldData[$language->code] ?? null;
 
                 if (empty($existingTranslation) || $this->force) {
+                    $start = microtime(true);
+                    $this->logProgress("Translating {$fieldLabel} to {$language->name}...", 'processing');
                     Log::info("Translating custom field {$fieldKey} for yacht {$this->yacht->id} to {$language->code}");
 
                     $translatedContent = $translationService->translate(
@@ -108,9 +120,15 @@ class TranslateYachtContent implements ShouldQueue
                     );
 
                     if ($translatedContent) {
+                        $duration = round(microtime(true) - $start, 2);
                         $customFields[$fieldKey][$language->code] = $translatedContent;
                         $updated = true;
+                        $this->logProgress("Translated {$fieldLabel} to {$language->name} ({$duration}s)", 'done');
+                    } else {
+                        $this->logProgress("Failed to translate {$fieldLabel} to {$language->name}", 'error');
                     }
+                } else {
+                    $this->logProgress("Skipping {$fieldLabel} ({$language->name}) - already exists", 'skipped');
                 }
             }
         }
@@ -119,6 +137,23 @@ class TranslateYachtContent implements ShouldQueue
             $this->yacht->custom_fields = $customFields;
             $this->yacht->save();
             Log::info("Translation completed for yacht {$this->yacht->id}");
+            $this->logProgress("All translations completed successfully!", 'completed');
+        } else {
+            $this->logProgress("No new translations needed.", 'completed');
         }
+    }
+
+    protected function logProgress(string $message, string $status = 'info'): void
+    {
+        $key = "translation_progress_{$this->yacht->id}";
+        $logs = \Illuminate\Support\Facades\Cache::get($key, []);
+
+        $logs[] = [
+            'message' => $message,
+            'status' => $status,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        \Illuminate\Support\Facades\Cache::put($key, $logs, 3600);
     }
 }
