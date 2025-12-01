@@ -271,6 +271,9 @@ class GaleonMigrationService
     {
         Log::info("Downloading gallery", ['collection' => $collection, 'count' => count($urls)]);
 
+        // Ensure correct order by sorting keys (if they are indices)
+        ksort($urls);
+
         foreach ($urls as $url) {
             $this->downloadAndUploadMedia($url, $yacht, $collection);
         }
