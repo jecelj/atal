@@ -38,6 +38,11 @@ class ImageOptimizationService
                         continue;
                     }
 
+                    // CHECK: Already optimized?
+                    if ($media->getCustomProperty('optimized') === true) {
+                        continue;
+                    }
+
                     $stats['processed']++;
                     $needsSave = false;
 
@@ -65,16 +70,10 @@ class ImageOptimizationService
 
                             if (file_exists($currentPath) && filesize($currentPath) > 10240) {
                                 // It's already WebP, correctly named, and seems valid (>10KB).
-                                // We can skip processing unless we want to force resize.
-                                // Let's check dimensions to be sure.
-                                $imageInfo = @getimagesize($currentPath);
-                                if ($imageInfo) {
-                                    $width = $imageInfo[0];
-                                    if ($width <= 2500) {
-                                        // Already optimized. Skip.
-                                        continue;
-                                    }
-                                }
+                                // Mark as optimized and skip.
+                                $media->setCustomProperty('optimized', true);
+                                $media->save();
+                                continue;
                             }
                         }
                     }
@@ -192,6 +191,11 @@ class ImageOptimizationService
                         $media->file_name = $newFileName;
                         $media->mime_type = 'image/webp';
                         $media->size = filesize($targetPath);
+                        $media->setCustomProperty('optimized', true); // Mark as optimized
+                        $media->save();
+                    } else {
+                        // Even if no save was needed (e.g. just validation passed), mark as optimized
+                        $media->setCustomProperty('optimized', true);
                         $media->save();
                     }
 

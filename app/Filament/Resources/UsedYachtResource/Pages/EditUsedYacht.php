@@ -24,6 +24,42 @@ class EditUsedYacht extends EditRecord
                     // Open modal via widget
                     $this->dispatch('open-translation-modal', yachtId: $record->id);
                 }),
+            Actions\Action::make('optimizeImages')
+                ->label('Optimize Images')
+                ->icon('heroicon-m-photo')
+                ->color('warning')
+                ->action(function () {
+                    $this->save();
+                    $record = $this->getRecord();
+
+                    try {
+                        $service = app(\App\Services\ImageOptimizationService::class);
+                        $stats = $service->processYachtImages($record);
+
+                        $message = "Images processed: {$stats['processed']}";
+                        if ($stats['renamed'] > 0)
+                            $message .= ", Renamed: {$stats['renamed']}";
+                        if ($stats['converted'] > 0)
+                            $message .= ", Converted: {$stats['converted']}";
+                        if ($stats['resized'] > 0)
+                            $message .= ", Resized: {$stats['resized']}";
+                        if ($stats['errors'] > 0)
+                            $message .= ", Errors: {$stats['errors']}";
+
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title('Optimization Complete')
+                            ->body($message)
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('Optimization Failed')
+                            ->body($e->getMessage())
+                            ->send();
+                    }
+                }),
             Actions\DeleteAction::make(),
         ];
     }
@@ -55,37 +91,5 @@ class EditUsedYacht extends EditRecord
                 }),
             $this->getCancelFormAction(),
         ];
-    }
-    protected function afterSave(): void
-    {
-        $record = $this->getRecord();
-
-        // Run image optimization
-        try {
-            $service = app(\App\Services\ImageOptimizationService::class);
-            $stats = $service->processYachtImages($record);
-
-            if ($stats['processed'] > 0) {
-                $message = "Images processed: {$stats['processed']}";
-                if ($stats['renamed'] > 0)
-                    $message .= ", Renamed: {$stats['renamed']}";
-                if ($stats['converted'] > 0)
-                    $message .= ", Converted to WebP: {$stats['converted']}";
-                if ($stats['resized'] > 0)
-                    $message .= ", Resized: {$stats['resized']}";
-
-                \Filament\Notifications\Notification::make()
-                    ->success()
-                    ->title('Image Optimization Complete')
-                    ->body($message)
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            \Filament\Notifications\Notification::make()
-                ->warning()
-                ->title('Image Optimization Warning')
-                ->body('Some images could not be processed: ' . $e->getMessage())
-                ->send();
-        }
     }
 }
