@@ -21,12 +21,6 @@ class EditNewYacht extends EditRecord
                     $this->save();
                     $record = $this->getRecord();
 
-                    // Clear previous progress
-                    \Illuminate\Support\Facades\Cache::forget("translation_progress_{$record->id}");
-
-                    // Dispatch job
-                    \App\Jobs\TranslateYachtContent::dispatch($record, false);
-
                     // Open modal via widget
                     $this->dispatch('open-translation-modal', yachtId: $record->id);
                 }),
