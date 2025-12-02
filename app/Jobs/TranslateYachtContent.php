@@ -33,6 +33,8 @@ class TranslateYachtContent implements ShouldQueue
      */
     public function handle(TranslationService $translationService): void
     {
+        Log::info("Starting translation job for Yacht ID: {$this->yacht->id} ({$this->yacht->name})");
+
         $languages = Language::all();
         $defaultLanguage = $languages->where('is_default', true)->first();
 
