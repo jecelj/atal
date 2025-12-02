@@ -53,7 +53,7 @@ class TranslationService
         $chunks = explode("\n\n", $text);
         $translatedChunks = [];
 
-        foreach ($chunks as $chunk) {
+        foreach ($chunks as $index => $chunk) {
             if (trim($chunk) === '') {
                 $translatedChunks[] = '';
                 continue;
@@ -65,10 +65,21 @@ class TranslationService
                 $translatedSubChunks = [];
                 foreach ($subChunks as $subChunk) {
                     $translatedSubChunks[] = $this->performTranslation($subChunk, $targetLanguage, $sourceLanguage, $context);
+                    // Free memory after each sub-chunk
+                    unset($subChunk);
                 }
                 $translatedChunks[] = implode(' ', $translatedSubChunks);
+                unset($subChunks, $translatedSubChunks);
             } else {
                 $translatedChunks[] = $this->performTranslation($chunk, $targetLanguage, $sourceLanguage, $context);
+            }
+
+            // Free memory after each chunk
+            unset($chunks[$index]);
+
+            // Force garbage collection every 5 chunks to prevent memory leaks
+            if ($index % 5 === 0) {
+                gc_collect_cycles();
             }
         }
 
