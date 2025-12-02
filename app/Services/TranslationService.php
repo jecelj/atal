@@ -35,6 +35,52 @@ class TranslationService
             return null;
         }
 
+        // If text is very long (> 4000 chars), split it
+        if (strlen($text) > 4000) {
+            return $this->translateLargeText($text, $targetLanguage, $sourceLanguage, $context);
+        }
+
+        return $this->performTranslation($text, $targetLanguage, $sourceLanguage, $context);
+    }
+
+    protected function translateLargeText(
+        string $text,
+        string $targetLanguage,
+        string $sourceLanguage,
+        ?string $context
+    ): ?string {
+        // Split by paragraphs to preserve structure
+        $chunks = explode("\n\n", $text);
+        $translatedChunks = [];
+
+        foreach ($chunks as $chunk) {
+            if (trim($chunk) === '') {
+                $translatedChunks[] = '';
+                continue;
+            }
+
+            // If a single paragraph is still too huge, split by sentences (basic)
+            if (strlen($chunk) > 4000) {
+                $subChunks = preg_split('/(?<=[.?!])\s+/', $chunk);
+                $translatedSubChunks = [];
+                foreach ($subChunks as $subChunk) {
+                    $translatedSubChunks[] = $this->performTranslation($subChunk, $targetLanguage, $sourceLanguage, $context);
+                }
+                $translatedChunks[] = implode(' ', $translatedSubChunks);
+            } else {
+                $translatedChunks[] = $this->performTranslation($chunk, $targetLanguage, $sourceLanguage, $context);
+            }
+        }
+
+        return implode("\n\n", $translatedChunks);
+    }
+
+    protected function performTranslation(
+        string $text,
+        string $targetLanguage,
+        string $sourceLanguage,
+        ?string $context
+    ): ?string {
         try {
             $systemPrompt = $this->settings->openai_context ?:
                 'You are a professional translator. Translate the given text accurately while maintaining the tone and context.';
@@ -75,7 +121,7 @@ class TranslationService
         } catch (\Exception $e) {
             Log::error('Translation failed', [
                 'error' => $e->getMessage(),
-                'text' => $text,
+                'text' => substr($text, 0, 100) . '...', // Log only start of text
                 'target' => $targetLanguage,
             ]);
 
