@@ -300,8 +300,17 @@ class GaleonMigrationService
 
         // Images are already in correct order from WordPress export
         // (sorted by menu_order for used yachts, or by Smart Slider ordering for new yachts)
-        foreach ($urls as $url) {
-            $this->downloadAndUploadMedia($url, $yacht, $collection);
+        foreach ($urls as $urlData) {
+            // Handle both string URLs (new yachts) and array URLs (used yachts)
+            if (is_array($urlData)) {
+                $url = $urlData['url'] ?? null;
+            } else {
+                $url = $urlData;
+            }
+
+            if (!empty($url)) {
+                $this->downloadAndUploadMedia($url, $yacht, $collection);
+            }
         }
     }
     /**
