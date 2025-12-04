@@ -208,7 +208,7 @@ function atal_save_all_translations($post_id, $translations_data, $multilingual_
  * Register translatable fields in Falang
  * 
  * Auto-detects multilingual fields from field definitions
- * and registers them with Falang
+ * and registers them with Falang (both systems)
  */
 function atal_register_falang_fields()
 {
@@ -263,6 +263,71 @@ function atal_register_falang_fields()
 
     atal_log("Falang field registration complete. Total multilingual fields: $multilingual_count");
     atal_log("Registered fields: " . implode(', ', $registered_fields));
+
+    // CRITICAL: Also register falang_postmeta for UI display
+    atal_register_falang_postmeta();
+}
+
+/**
+ * Register Falang Post Meta configuration
+ * 
+ * This configures which fields appear in Falang UI and associates them with CPTs.
+ * Separate from falang_fields - this is for UI display and CPT association.
+ */
+function atal_register_falang_postmeta()
+{
+    atal_log('Registering Falang post meta configuration...');
+
+    // Get field definitions from cache
+    $field_groups = get_option('atal_sync_field_definitions');
+
+    if (empty($field_groups)) {
+        atal_log('WARNING: No field definitions found for postmeta registration.');
+        return;
+    }
+
+    // Get existing falang_postmeta or create new
+    $falang_postmeta = get_option('falang_postmeta', []);
+
+    // Ensure it's an array
+    if (!is_array($falang_postmeta)) {
+        $falang_postmeta = [];
+    }
+
+    $total_registered = 0;
+
+    // Register fields per CPT
+    foreach ($field_groups as $post_type => $group_data) {
+        // Initialize CPT array if not exists
+        if (!isset($falang_postmeta[$post_type])) {
+            $falang_postmeta[$post_type] = [];
+        }
+
+        $cpt_fields = 0;
+
+        foreach ($group_data['fields'] as $field) {
+            // Only register text-based fields for translation
+            if (in_array($field['type'], ['text', 'textarea', 'wysiwyg'])) {
+                // CRITICAL: Use field 'name' (meta key), NOT 'key' (ACF internal)
+                $field_name = $field['name'];
+
+                // Register field for this CPT (value = 1 means enabled)
+                $falang_postmeta[$post_type][$field_name] = 1;
+                $cpt_fields++;
+                $total_registered++;
+
+                atal_log("Registered postmeta: CPT=$post_type, field=$field_name");
+            }
+        }
+
+        atal_log("Registered $cpt_fields fields for CPT: $post_type");
+    }
+
+    // Save to database
+    update_option('falang_postmeta', $falang_postmeta);
+
+    atal_log("Falang postmeta registration complete. Total fields: $total_registered");
+    atal_log("Configured CPTs: " . implode(', ', array_keys($falang_postmeta)));
 }
 
 /**
