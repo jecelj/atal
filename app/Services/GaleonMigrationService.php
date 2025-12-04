@@ -437,11 +437,16 @@ class GaleonMigrationService
      */
     protected function handleUsedYachtMedia($yacht, $media)
     {
+        Log::info("handleUsedYachtMedia called", ['yacht_id' => $yacht->id, 'media_count' => count($media)]);
+
         // Note: We don't clear all collections at once because we don't know their names yet.
         // We clear them individually inside the loop.
 
         foreach ($media as $fieldKey => $items) {
+            Log::info("Processing media field", ['field' => $fieldKey, 'items_count' => is_array($items) ? count($items) : 0]);
+
             if (empty($items) || !is_array($items)) {
+                Log::info("Skipping empty/invalid items for field {$fieldKey}");
                 continue;
             }
 
