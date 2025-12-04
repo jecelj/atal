@@ -336,10 +336,17 @@ class GaleonMigrationService
 
             if ($yacht) {
                 // Preserve existing translations for translatable fields
-                $translatableFields = ['name', 'sub_titile', 'full_description', 'specifications'];
+                // Only use fields that are actually in Yacht model's $translatable array
+                $translatableFields = ['name', 'description', 'specifications'];
                 foreach ($translatableFields as $field) {
                     $existing = $yacht->getTranslations($field);
-                    $existing['en'] = $data[$field] ?? $existing['en'] ?? '';
+                    // Map incoming data to model fields
+                    $incomingKey = $field;
+                    if ($field === 'description' && isset($data['full_description'])) {
+                        $existing['en'] = $data['full_description'];
+                    } elseif (isset($data[$field])) {
+                        $existing['en'] = $data[$field];
+                    }
                     $yacht->{$field} = $existing;
                 }
                 // Update non-translatable fields
@@ -368,9 +375,17 @@ class GaleonMigrationService
             unset($customFields['brand']);
             unset($customFields['location']);
 
-            // 2. Handle Multilingual Fields (Rich Text)
+            // 2. Add sub_titile and full_description from main data if present
+            if (isset($data['sub_titile'])) {
+                $customFields['sub_titile'] = $data['sub_titile'];
+            }
+            if (isset($data['full_description'])) {
+                $customFields['full_description'] = $data['full_description'];
+            }
+
+            // 3. Handle Multilingual Fields (Rich Text)
             // Known rich text fields from configuration
-            $richTextFields = ['short_description', 'equipment_and_other_information'];
+            $richTextFields = ['short_description', 'equipment_and_other_information', 'sub_titile', 'full_description'];
 
             foreach ($customFields as $key => $value) {
                 if (in_array($key, $richTextFields)) {
