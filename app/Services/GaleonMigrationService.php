@@ -298,9 +298,8 @@ class GaleonMigrationService
     {
         Log::info("Downloading gallery", ['collection' => $collection, 'count' => count($urls)]);
 
-        // Ensure correct order by reversing the array as requested
-        $urls = array_reverse($urls);
-
+        // Images are already in correct order from WordPress export
+        // (sorted by menu_order for used yachts, or by Smart Slider ordering for new yachts)
         foreach ($urls as $url) {
             $this->downloadAndUploadMedia($url, $yacht, $collection);
         }
@@ -433,17 +432,15 @@ class GaleonMigrationService
         $yacht->clearMediaCollection(); // Clear all collections
 
         foreach ($media as $fieldKey => $items) {
-            // In Master, we might map these fields to specific collections
-            // or just use the field key as collection name
+            if (empty($items) || !is_array($items)) {
+                continue;
+            }
 
-            // Common mappings
+            // Use the field key as collection name
             $collection = $fieldKey;
 
-            foreach ($items as $item) {
-                if (!empty($item['url'])) {
-                    $this->downloadAndUploadMedia($item['url'], $yacht, $collection);
-                }
-            }
+            // Use downloadAndUploadGallery to handle sorting and logging
+            $this->downloadAndUploadGallery($items, $yacht, $collection);
         }
     }
 
