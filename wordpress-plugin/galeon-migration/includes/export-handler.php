@@ -411,14 +411,30 @@ class Galeon_Export_Handler
                 $gallery_images = [];
 
                 foreach ($value as $item) {
+                    // Handle WP_Post objects (ACF gallery with 'Post Object' return format)
+                    if (is_object($item) && $item instanceof WP_Post) {
+                        $attachment_id = $item->ID;
+                        $image_url = wp_get_attachment_url($attachment_id);
+
+                        if ($image_url) {
+                            $gallery_images[] = [
+                                'url' => $image_url,
+                                'name' => basename($image_url),
+                                'attachment_id' => $attachment_id,
+                            ];
+                        }
+                        continue;
+                    }
+
+                    // Handle arrays
                     if (!is_array($item)) {
                         $is_gallery = false;
                         break;
                     }
 
-                    // Check for ACF Galleries 4 structure
+                    // Check for ACF Galleries 4 structure (array format)
                     if (isset($item['metadata']['full']['file_url'])) {
-                        $attachment_id = $item['attachment']['ID'] ?? null;
+                        $attachment_id = isset($item['attachment']['ID']) ? $item['attachment']['ID'] : null;
                         $gallery_images[] = [
                             'url' => $item['metadata']['full']['file_url'],
                             'name' => basename($item['metadata']['full']['file_url']),
@@ -427,7 +443,7 @@ class Galeon_Export_Handler
                     }
                     // Check for standard ACF gallery structure
                     elseif (isset($item['url'])) {
-                        $attachment_id = $item['ID'] ?? $item['id'] ?? null;
+                        $attachment_id = isset($item['ID']) ? $item['ID'] : (isset($item['id']) ? $item['id'] : null);
                         $gallery_images[] = [
                             'url' => $item['url'],
                             'name' => basename($item['url']),
