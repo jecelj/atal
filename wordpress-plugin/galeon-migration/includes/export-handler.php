@@ -434,7 +434,19 @@ class Galeon_Export_Handler
 
                     // Check for ACF Galleries 4 structure (array format)
                     if (isset($item['metadata']['full']['file_url'])) {
-                        $attachment_id = isset($item['attachment']['ID']) ? $item['attachment']['ID'] : null;
+                        // item['attachment'] can be a WP_Post object or array
+                        if (isset($item['attachment'])) {
+                            if (is_object($item['attachment']) && isset($item['attachment']->ID)) {
+                                $attachment_id = $item['attachment']->ID;
+                            } elseif (is_array($item['attachment']) && isset($item['attachment']['ID'])) {
+                                $attachment_id = $item['attachment']['ID'];
+                            } else {
+                                $attachment_id = null;
+                            }
+                        } else {
+                            $attachment_id = null;
+                        }
+
                         $gallery_images[] = [
                             'url' => $item['metadata']['full']['file_url'],
                             'name' => basename($item['metadata']['full']['file_url']),
