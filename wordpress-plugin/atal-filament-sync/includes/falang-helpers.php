@@ -71,8 +71,8 @@ function atal_get_default_language_falang()
  */
 function atal_save_translation_falang($post_id, $lang, $field_name, $value, $field_type = 'acf')
 {
-    if (!class_exists('Falang\Core\Translation')) {
-        atal_log("ERROR: Falang Translation class not found");
+    if (!class_exists('Falang\Core\Falang')) {
+        atal_log("ERROR: Falang not found");
         return false;
     }
 
@@ -86,16 +86,74 @@ function atal_save_translation_falang($post_id, $lang, $field_name, $value, $fie
     try {
         atal_log("Saving Falang translation: post=$post_id, lang=$lang, field=$field_name, type=$field_type");
 
-        // Falang API: save_translation($post_id, $lang, $field, $value)
-        $result = Falang\Core\Translation::save_translation($post_id, $lang, $field_name, $value);
+        global $wpdb;
+        $table = $wpdb->prefix . 'falang_translations';
 
-        if ($result) {
-            atal_log("Translation saved successfully");
-        } else {
-            atal_log("WARNING: Translation save returned false");
+        // Get language ID
+        $falang = \Falang\Core\Falang::instance();
+        $languages = $falang->get_languages_list();
+        $lang_id = null;
+
+        foreach ($languages as $language) {
+            if ($language->slug === $lang) {
+                $lang_id = $language->term_id;
+                break;
+            }
         }
 
-        return $result;
+        if (!$lang_id) {
+            atal_log("ERROR: Language ID not found for: $lang");
+            return false;
+        }
+
+        // Determine field type for Falang
+        $falang_type = ($field_type === 'core') ? 'post' : 'post_meta';
+
+        // Check if translation exists
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE object_id = %d AND language_id = %d AND field_name = %s AND field_type = %s",
+            $post_id,
+            $lang_id,
+            $field_name,
+            $falang_type
+        ));
+
+        if ($existing) {
+            // Update existing translation
+            $wpdb->update(
+                $table,
+                [
+                    'field_value' => $value,
+                    'published' => 1  // Set published status
+                ],
+                [
+                    'object_id' => $post_id,
+                    'language_id' => $lang_id,
+                    'field_name' => $field_name,
+                    'field_type' => $falang_type
+                ],
+                ['%s', '%d'],
+                ['%d', '%d', '%s', '%s']
+            );
+            atal_log("Translation updated successfully");
+        } else {
+            // Insert new translation
+            $wpdb->insert(
+                $table,
+                [
+                    'object_id' => $post_id,
+                    'language_id' => $lang_id,
+                    'field_name' => $field_name,
+                    'field_type' => $falang_type,
+                    'field_value' => $value,
+                    'published' => 1  // Set published status
+                ],
+                ['%d', '%d', '%s', '%s', '%s', '%d']
+            );
+            atal_log("Translation inserted successfully");
+        }
+
+        return true;
     } catch (Exception $e) {
         atal_log("ERROR saving translation: " . $e->getMessage());
         return false;
@@ -164,34 +222,47 @@ function atal_register_falang_fields()
         return;
     }
 
-    $falang_fields = [
-        // WordPress core fields
-        'post_title' => ['type' => 'core'],
-        'post_content' => ['type' => 'core'],
-        'post_excerpt' => ['type' => 'core'],
-    ];
+    if (!class_exists('Falang\Core\Falang')) {
+        atal_log('ERROR: Falang not active, cannot register fields');
+        return;
+    }
+
+    // Get Falang model manager
+    $model_manager = \Falang\Core\Falang::instance()->get_model('post_meta_model');
+
+    if (!$model_manager) {
+        atal_log('ERROR: Could not get Falang post_meta_model');
+        return;
+    }
 
     // Auto-detect multilingual custom fields
     $multilingual_count = 0;
+    $registered_fields = [];
+
     foreach ($field_groups as $post_type => $group_data) {
         foreach ($group_data['fields'] as $field) {
             // Only register text-based fields for translation
             if (in_array($field['type'], ['text', 'textarea', 'wysiwyg'])) {
                 // CRITICAL: Use field 'name' (meta key), NOT 'key' (ACF internal)
                 $field_name = $field['name'];
-                $falang_fields[$field_name] = ['type' => 'acf'];
-                $multilingual_count++;
 
-                atal_log("Registered multilingual field: $field_name (type: {$field['type']})");
+                // Register field with Falang
+                try {
+                    // Add to Falang translatable post meta
+                    $model_manager->add_translatable_field($field_name);
+                    $registered_fields[] = $field_name;
+                    $multilingual_count++;
+
+                    atal_log("Registered multilingual field: $field_name (type: {$field['type']})");
+                } catch (Exception $e) {
+                    atal_log("ERROR registering field $field_name: " . $e->getMessage());
+                }
             }
         }
     }
 
-    // Save to Falang settings
-    update_option('falang_fields', $falang_fields);
-
     atal_log("Falang field registration complete. Total multilingual fields: $multilingual_count");
-    atal_log("Registered fields: " . implode(', ', array_keys($falang_fields)));
+    atal_log("Registered fields: " . implode(', ', $registered_fields));
 }
 
 /**
