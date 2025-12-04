@@ -470,8 +470,10 @@ class Galeon_Export_Handler
                 }
 
                 if ($is_gallery && !empty($gallery_images)) {
-                    // Sort gallery images by menu_order from WordPress attachments
-                    $gallery_images = $this->sort_gallery_by_menu_order($gallery_images);
+                    // Sort gallery images by menu_order
+                    // REVERTED: ACF Gallery field returns images in the correct drag-and-drop order.
+                    // Sorting by menu_order (which is usually 0) destroys this order.
+                    // $gallery_images = $this->sort_gallery_by_menu_order($gallery_images);
 
                     // Remove attachment_id from final output (only needed for sorting)
                     foreach ($gallery_images as &$image) {
