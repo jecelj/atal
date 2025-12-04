@@ -437,8 +437,8 @@ class GaleonMigrationService
      */
     protected function handleUsedYachtMedia($yacht, $media)
     {
-        // Clear existing media to prevent duplicates
-        $yacht->clearMediaCollection(); // Clear all collections
+        // Note: We don't clear all collections at once because we don't know their names yet.
+        // We clear them individually inside the loop.
 
         foreach ($media as $fieldKey => $items) {
             if (empty($items) || !is_array($items)) {
@@ -447,6 +447,10 @@ class GaleonMigrationService
 
             // Use the field key as collection name
             $collection = $fieldKey;
+
+            // CRITICAL: Clear this specific collection before adding new images
+            // Otherwise new images are appended to old ones, messing up order
+            $yacht->clearMediaCollection($collection);
 
             // Use downloadAndUploadGallery to handle sorting and logging
             $this->downloadAndUploadGallery($items, $yacht, $collection);
