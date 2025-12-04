@@ -273,7 +273,7 @@ class GaleonMigrationService
             file_put_contents($tempPath, $response->body());
 
             // Add to media library
-            $yacht->addMedia($tempPath)
+            $mediaItem = $yacht->addMedia($tempPath)
                 ->toMediaCollection($collection);
 
             // Clean up temp file
@@ -283,23 +283,29 @@ class GaleonMigrationService
 
             Log::info("Media uploaded successfully", ['collection' => $collection]);
 
+            return $mediaItem;
+
         } catch (\Exception $e) {
             Log::error("Media upload failed", [
                 'url' => $url,
                 'error' => $e->getMessage(),
             ]);
+
+            return null;
         }
     }
 
     /**
      * Download and upload gallery images
      */
-    protected function downloadAndUploadGallery(array $urls, $yacht, $collection)
+    protected function downloadAndUploadGallery($urls, $yacht, $collection)
     {
-        Log::info("Downloading gallery", ['collection' => $collection, 'count' => count($urls)]);
+        // Extract URLs if they are in object format
+        // Used yachts export format: [{url: "...", name: "..."}, ...]
+        // New yachts export format: ["url1", "url2", ...]
 
-        // Images are already in correct order from WordPress export
-        // (sorted by menu_order for used yachts, or by Smart Slider ordering for new yachts)
+        $order = 1;
+
         foreach ($urls as $urlData) {
             // Handle both string URLs (new yachts) and array URLs (used yachts)
             if (is_array($urlData)) {
@@ -309,7 +315,13 @@ class GaleonMigrationService
             }
 
             if (!empty($url)) {
-                $this->downloadAndUploadMedia($url, $yacht, $collection);
+                $mediaItem = $this->downloadAndUploadMedia($url, $yacht, $collection);
+
+                // Explicitly set order column to ensure correct sorting
+                if ($mediaItem) {
+                    $mediaItem->order_column = $order++;
+                    $mediaItem->save();
+                }
             }
         }
     }
