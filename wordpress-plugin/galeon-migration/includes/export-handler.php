@@ -539,47 +539,84 @@ class Galeon_Export_Handler
      */
     private function sort_gallery_by_menu_order($gallery_images)
     {
-        global $wpdb;
+        try {
+            global $wpdb;
 
-        // Extract attachment IDs
-        $attachment_ids = array_filter(array_column($gallery_images, 'attachment_id'));
+            // Validate input
+            if (!is_array($gallery_images) || empty($gallery_images)) {
+                $this->log("Invalid or empty gallery_images array");
+                return $gallery_images;
+            }
 
-        if (empty($attachment_ids)) {
-            // No attachment IDs found, return original order
-            $this->log("No attachment IDs found for sorting, keeping original order");
+            // Extract attachment IDs
+            $attachment_ids = array_filter(array_column($gallery_images, 'attachment_id'));
+
+            if (empty($attachment_ids)) {
+                // No attachment IDs found, return original order
+                $this->log("No attachment IDs found for sorting, keeping original order");
+                return $gallery_images;
+            }
+
+            // Query WordPress database for menu_order
+            $placeholders = implode(',', array_fill(0, count($attachment_ids), '%d'));
+
+            // Use call_user_func_array for PHP 5.3+ compatibility
+            $query = call_user_func_array(
+                array($wpdb, 'prepare'),
+                array_merge(
+                    array("SELECT ID, menu_order FROM {$wpdb->posts} WHERE ID IN ($placeholders)"),
+                    array_values($attachment_ids)
+                )
+            );
+
+            $results = $wpdb->get_results($query, OBJECT_K);
+
+            if (empty($results)) {
+                $this->log("No menu_order results found from database");
+                return $gallery_images;
+            }
+
+            // Add menu_order to each image
+            foreach ($gallery_images as &$image) {
+                if (!empty($image['attachment_id']) && isset($results[$image['attachment_id']])) {
+                    $image['menu_order'] = (int) $results[$image['attachment_id']]->menu_order;
+                } else {
+                    $image['menu_order'] = 0; // Default to 0 if not found
+                }
+            }
+
+            // Sort by menu_order using compatible comparison
+            usort($gallery_images, function ($a, $b) {
+                $a_order = isset($a['menu_order']) ? $a['menu_order'] : 0;
+                $b_order = isset($b['menu_order']) ? $b['menu_order'] : 0;
+
+                if ($a_order == $b_order) {
+                    return 0;
+                }
+                return ($a_order < $b_order) ? -1 : 1;
+            });
+
+            // Remove menu_order from images (only needed for sorting)
+            foreach ($gallery_images as &$image) {
+                unset($image['menu_order']);
+            }
+
+            $this->log("Sorted " . count($gallery_images) . " gallery images by menu_order");
+
+            return $gallery_images;
+
+        } catch (Exception $e) {
+            // Log error and return original order as fallback
+            $this->log("Error sorting gallery: " . $e->getMessage());
+
+            // Clean up any menu_order fields that might have been added
+            foreach ($gallery_images as &$image) {
+                if (isset($image['menu_order'])) {
+                    unset($image['menu_order']);
+                }
+            }
+
             return $gallery_images;
         }
-
-        // Query WordPress database for menu_order
-        $placeholders = implode(',', array_fill(0, count($attachment_ids), '%d'));
-        $query = $wpdb->prepare(
-            "SELECT ID, menu_order FROM {$wpdb->posts} WHERE ID IN ($placeholders)",
-            ...$attachment_ids
-        );
-
-        $results = $wpdb->get_results($query, OBJECT_K);
-
-        // Add menu_order to each image
-        foreach ($gallery_images as &$image) {
-            if (!empty($image['attachment_id']) && isset($results[$image['attachment_id']])) {
-                $image['menu_order'] = (int) $results[$image['attachment_id']]->menu_order;
-            } else {
-                $image['menu_order'] = 0; // Default to 0 if not found
-            }
-        }
-
-        // Sort by menu_order
-        usort($gallery_images, function ($a, $b) {
-            return $a['menu_order'] <=> $b['menu_order'];
-        });
-
-        // Remove menu_order from images (only needed for sorting)
-        foreach ($gallery_images as &$image) {
-            unset($image['menu_order']);
-        }
-
-        $this->log("Sorted " . count($gallery_images) . " gallery images by menu_order");
-
-        return $gallery_images;
     }
 }
