@@ -150,6 +150,9 @@ class ImportGaleonData extends Page
                 throw new \Exception('Invalid data structure (expected array of yachts)');
             }
 
+            // Disable WebP conversion to prevent timeouts
+            \App\Listeners\ConvertImageToWebP::$shouldConvert = false;
+
             $service = app(GaleonMigrationService::class);
             $successCount = 0;
             $failCount = 0;
@@ -178,6 +181,9 @@ class ImportGaleonData extends Page
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
+        } finally {
+            // Always re-enable WebP conversion
+            \App\Listeners\ConvertImageToWebP::$shouldConvert = true;
         }
     }
 }

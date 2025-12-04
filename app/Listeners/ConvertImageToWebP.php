@@ -7,8 +7,18 @@ use Illuminate\Support\Facades\Log;
 
 class ConvertImageToWebP
 {
+    /**
+     * Flag to control whether conversion should run.
+     * Useful for bulk imports where we want to avoid timeouts.
+     */
+    public static bool $shouldConvert = true;
+
     public function handle(MediaHasBeenAddedEvent $event): void
     {
+        if (!self::$shouldConvert) {
+            return;
+        }
+
         // Increase memory and time limit for image processing to prevent 500 errors
         ini_set('memory_limit', '512M');
         set_time_limit(300);
