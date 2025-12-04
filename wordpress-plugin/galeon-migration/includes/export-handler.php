@@ -418,16 +418,20 @@ class Galeon_Export_Handler
 
                     // Check for ACF Galleries 4 structure
                     if (isset($item['metadata']['full']['file_url'])) {
+                        $attachment_id = $item['attachment']['ID'] ?? null;
                         $gallery_images[] = [
                             'url' => $item['metadata']['full']['file_url'],
                             'name' => basename($item['metadata']['full']['file_url']),
+                            'attachment_id' => $attachment_id,
                         ];
                     }
                     // Check for standard ACF gallery structure
                     elseif (isset($item['url'])) {
+                        $attachment_id = $item['ID'] ?? $item['id'] ?? null;
                         $gallery_images[] = [
                             'url' => $item['url'],
                             'name' => basename($item['url']),
+                            'attachment_id' => $attachment_id,
                         ];
                     }
                     // Not a gallery item
@@ -438,6 +442,14 @@ class Galeon_Export_Handler
                 }
 
                 if ($is_gallery && !empty($gallery_images)) {
+                    // Sort gallery images by menu_order from WordPress attachments
+                    $gallery_images = $this->sort_gallery_by_menu_order($gallery_images);
+
+                    // Remove attachment_id from final output (only needed for sorting)
+                    foreach ($gallery_images as &$image) {
+                        unset($image['attachment_id']);
+                    }
+
                     $data['media'][$key] = $gallery_images;
                 } else {
                     $data['custom_fields'][$key] = $value;
@@ -517,5 +529,57 @@ class Galeon_Export_Handler
             'yachts' => $exported_yachts,
             'errors' => $failed_yachts,
         ];
+    }
+
+    /**
+     * Sort gallery images by WordPress attachment menu_order
+     * 
+     * @param array $gallery_images Array of images with attachment_id
+     * @return array Sorted array of images
+     */
+    private function sort_gallery_by_menu_order($gallery_images)
+    {
+        global $wpdb;
+
+        // Extract attachment IDs
+        $attachment_ids = array_filter(array_column($gallery_images, 'attachment_id'));
+
+        if (empty($attachment_ids)) {
+            // No attachment IDs found, return original order
+            $this->log("No attachment IDs found for sorting, keeping original order");
+            return $gallery_images;
+        }
+
+        // Query WordPress database for menu_order
+        $placeholders = implode(',', array_fill(0, count($attachment_ids), '%d'));
+        $query = $wpdb->prepare(
+            "SELECT ID, menu_order FROM {$wpdb->posts} WHERE ID IN ($placeholders)",
+            ...$attachment_ids
+        );
+
+        $results = $wpdb->get_results($query, OBJECT_K);
+
+        // Add menu_order to each image
+        foreach ($gallery_images as &$image) {
+            if (!empty($image['attachment_id']) && isset($results[$image['attachment_id']])) {
+                $image['menu_order'] = (int) $results[$image['attachment_id']]->menu_order;
+            } else {
+                $image['menu_order'] = 0; // Default to 0 if not found
+            }
+        }
+
+        // Sort by menu_order
+        usort($gallery_images, function ($a, $b) {
+            return $a['menu_order'] <=> $b['menu_order'];
+        });
+
+        // Remove menu_order from images (only needed for sorting)
+        foreach ($gallery_images as &$image) {
+            unset($image['menu_order']);
+        }
+
+        $this->log("Sorted " . count($gallery_images) . " gallery images by menu_order");
+
+        return $gallery_images;
     }
 }
