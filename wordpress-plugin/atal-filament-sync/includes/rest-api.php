@@ -82,7 +82,7 @@ function atal_sync_rest_status($request)
     return new WP_REST_Response([
         'configured' => !empty($api_url) && !empty($api_key),
         'api_url' => $api_url,
-        'polylang_active' => function_exists('pll_languages_list'),
+        'falang_active' => atal_is_falang_active(),
         'scf_active' => function_exists('SCF'),
     ], 200);
 }

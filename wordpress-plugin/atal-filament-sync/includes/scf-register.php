@@ -180,3 +180,16 @@ function atal_import_fields()
 
     return ['imported' => count($data['field_groups']), 'message' => 'Successfully synced field definitions'];
 }
+
+// Register Falang translatable fields after ACF fields are registered
+add_action('init', 'atal_sync_register_falang_fields', 30);
+
+function atal_sync_register_falang_fields()
+{
+    // Only register if Falang is active
+    if (!atal_is_falang_active()) {
+        return;
+    }
+
+    atal_register_falang_fields();
+}
