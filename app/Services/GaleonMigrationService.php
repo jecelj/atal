@@ -304,7 +304,9 @@ class GaleonMigrationService
         // Used yachts export format: [{url: "...", name: "..."}, ...]
         // New yachts export format: ["url1", "url2", ...]
 
-        $order = 1;
+        // Start with the highest number for the first image
+        // This is because the gallery seems to display in DESC order (newest/highest order first)
+        $order = count($urls);
 
         foreach ($urls as $urlData) {
             // Handle both string URLs (new yachts) and array URLs (used yachts)
@@ -317,9 +319,10 @@ class GaleonMigrationService
             if (!empty($url)) {
                 $mediaItem = $this->downloadAndUploadMedia($url, $yacht, $collection);
 
-                // Explicitly set order column to ensure correct sorting
+                // Explicitly set order column
+                // We decrement so the first image gets the highest number
                 if ($mediaItem) {
-                    $mediaItem->order_column = $order++;
+                    $mediaItem->order_column = $order--;
                     $mediaItem->save();
                 }
             }
