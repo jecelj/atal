@@ -227,8 +227,32 @@ function atal_register_falang_fields()
         return;
     }
 
-    // Register using Falang Content Elements API (proper way)
-    atal_register_falang_content_elements();
+    // Get existing falang_fields or create new
+    $falang_fields = get_option('falang_fields', []);
+    $total_registered = 0;
+
+    foreach ($field_groups as $post_type => $group_data) {
+        foreach ($group_data['fields'] as $field) {
+            // Only register text-based fields for translation
+            if (in_array($field['type'], ['text', 'textarea', 'wysiwyg'])) {
+                $meta_key = $field['name'];
+
+                // Register as translatable field
+                $falang_fields[$meta_key] = [
+                    'type' => 'acf',
+                    'active' => '1'
+                ];
+
+                $total_registered++;
+                atal_log("Registered Falang field: $meta_key (CPT: $post_type)");
+            }
+        }
+    }
+
+    // Save to database
+    update_option('falang_fields', $falang_fields);
+
+    atal_log("Falang fields registration complete. Total: $total_registered");
 
     // Also register falang_postmeta for UI display
     atal_register_falang_postmeta();
