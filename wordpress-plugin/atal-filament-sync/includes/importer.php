@@ -637,6 +637,34 @@ function atal_import_news($data)
     $published_at = $data['published_at'];
     $featured_image_url = $data['featured_image'];
     $translations = $data['translations'] ?? [];
+    $custom_fields = $data['custom_fields'] ?? [];
+
+    // --- DETERMINE WP DEFAULT LANGUAGE CONTENT ---
+    // If WP default language differs from Master default, we need to swap content.
+    $wp_default_lang = atal_get_default_language_falang();
+
+    if (isset($translations[$wp_default_lang])) {
+        $wp_default_trans = $translations[$wp_default_lang];
+
+        if (!empty($wp_default_trans['title'])) {
+            $title = $wp_default_trans['title'];
+            atal_log("Swapped Main Post Title to WP Default ($wp_default_lang): $title");
+        }
+        if (isset($wp_default_trans['description'])) {
+            $content = $wp_default_trans['description'];
+        }
+        if (isset($wp_default_trans['excerpt'])) {
+            $excerpt = $wp_default_trans['excerpt'];
+        }
+
+        // Override Custom Fields values for WP Default Language
+        if (!empty($wp_default_trans['custom_fields'])) {
+            foreach ($wp_default_trans['custom_fields'] as $cf_key => $cf_val) {
+                $custom_fields[$cf_key] = $cf_val;
+            }
+            atal_log("Merged Custom Fields for WP Default ($wp_default_lang)");
+        }
+    }
 
     $imported = 0;
 
@@ -689,7 +717,7 @@ function atal_import_news($data)
     }
 
     // Handle Custom Fields (Default Language)
-    if (!empty($data['custom_fields'])) {
+    if (!empty($custom_fields)) {
         // Get field definitions to know types
         $field_groups = get_option('atal_sync_field_definitions');
         $field_types = [];
@@ -701,7 +729,7 @@ function atal_import_news($data)
             }
         }
 
-        foreach ($data['custom_fields'] as $key => $value) {
+        foreach ($custom_fields as $key => $value) {
             if (empty($value)) {
                 if (function_exists('update_field')) {
                     update_field($key, $value, $post_id);

@@ -134,12 +134,12 @@ class WordPressSyncService
         // 2. Prepare Data for Translations
         $translationsData = [];
         foreach ($languages as $language) {
-            if ($language->id === $defaultLanguage->id)
-                continue;
+            // INCLUDE ALL LANGUAGES, even default one.
+            // This ensures the plugin has access to all content needed to populate its own default language post if it differs from Master.
 
             $translationsData[$language->code] = [
                 'title' => $this->getTranslation($news, 'title', $language->code),
-                'description' => $this->getTranslation($news, 'content', $language->code), // Plugin expects 'description' for content
+                'description' => $this->getTranslation($news, 'content', $language->code),
                 'excerpt' => $this->getTranslation($news, 'excerpt', $language->code),
                 'custom_fields' => [],
             ];
@@ -155,9 +155,6 @@ class WordPressSyncService
             // Get value for Other Languages (if multilingual)
             if ($config->is_multilingual) {
                 foreach ($languages as $language) {
-                    if ($language->id === $defaultLanguage->id)
-                        continue;
-
                     $val = $this->resolveFieldValue($news, $config, $language->code);
                     if ($val) {
                         $translationsData[$language->code]['custom_fields'][$config->field_key] = $val;
