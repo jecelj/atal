@@ -320,11 +320,12 @@ function atal_import_single_yacht($yacht_data)
                 $model_term = atal_get_or_create_term_falang($model_name, 'yacht_brand', $brand_term);
 
                 if ($model_term) {
-                    wp_set_object_terms($post_id, [(int) $model_term], 'yacht_brand');
+                    // Assign BOTH Brand and Model terms
+                    wp_set_object_terms($post_id, [(int) $brand_term, (int) $model_term], 'yacht_brand');
 
-                    // Also save to ACF field
+                    // Also save to ACF field (typically expects ID or array of IDs)
                     if (function_exists('update_field')) {
-                        update_field('brand', [(int) $model_term], $post_id);
+                        update_field('brand', [(int) $brand_term, (int) $model_term], $post_id);
                     }
                 }
             } else {
