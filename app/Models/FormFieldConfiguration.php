@@ -20,11 +20,13 @@ class FormFieldConfiguration extends Model
         'order',
         'options',
         'validation_rules',
+        'sync_as_taxonomy',
     ];
 
     protected $casts = [
         'is_required' => 'boolean',
         'is_multilingual' => 'boolean',
+        'sync_as_taxonomy' => 'boolean',
         'options' => 'array',
         'validation_rules' => 'array',
         'order' => 'integer',

@@ -130,6 +130,45 @@ class SyncController extends Controller
             }
         }
 
+        // Build taxonomies payload
+        $taxonomies = [];
+        foreach ($configs as $config) {
+            if ($config->sync_as_taxonomy && $config->field_type === 'select') {
+                // Get raw value from custom_fields (it's usually the 'value' from options)
+                $value = $customFields[$config->field_key] ?? null;
+
+                // Handle array value (if multilingual field stored as array, take default or first)
+                if (is_array($value)) {
+                    $value = array_values($value)[0] ?? null;
+                }
+
+                if (!$value)
+                    continue;
+
+                // Find option config
+                $option = collect($config->options)->firstWhere('value', $value);
+                if (!$option)
+                    continue;
+
+                // Build translations for the term
+                $termTranslations = [];
+                foreach ($languages as $language) {
+                    if ($language->is_default)
+                        continue;
+                    // Check for label_code, fallback to label
+                    $termLabel = $option['label_' . $language->code] ?? null;
+                    if ($termLabel) {
+                        $termTranslations[$language->code] = $termLabel;
+                    }
+                }
+
+                $taxonomies[$config->field_key] = [
+                    'term' => $option['label'], // Default language label
+                    'translations' => $termTranslations,
+                ];
+            }
+        }
+
         return [
             'id' => $yacht->id,
             'type' => $yacht instanceof NewYacht ? 'new' : 'used',
@@ -147,6 +186,7 @@ class SyncController extends Controller
             ] : null,
             'translations' => $translations,
             'media' => $media,
+            'taxonomies' => $taxonomies,
         ];
     }
 

@@ -185,6 +185,42 @@ class WordPressSyncService
                     ],
                 ];
 
+                // Add taxonomies payload
+                $languages = \App\Models\Language::all();
+                $taxonomies = [];
+                foreach ($fieldConfigs as $config) {
+                    if ($config->sync_as_taxonomy && $config->field_type === 'select') {
+                        $value = $newsCustomFields[$config->field_key] ?? null;
+
+                        if (is_array($value)) {
+                            $value = array_values($value)[0] ?? null;
+                        }
+
+                        if (!$value)
+                            continue;
+
+                        $option = collect($config->options)->firstWhere('value', $value);
+                        if (!$option)
+                            continue;
+
+                        $termTranslations = [];
+                        foreach ($languages as $language) {
+                            if ($language->is_default)
+                                continue;
+                            $termLabel = $option['label_' . $language->code] ?? null;
+                            if ($termLabel) {
+                                $termTranslations[$language->code] = $termLabel;
+                            }
+                        }
+
+                        $taxonomies[$config->field_key] = [
+                            'term' => $option['label'],
+                            'translations' => $termTranslations,
+                        ];
+                    }
+                }
+                $payload['data']['taxonomies'] = $taxonomies;
+
                 $response = Http::timeout(30)
                     ->withHeaders($headers)
                     ->post($site->url, $payload);

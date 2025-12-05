@@ -134,6 +134,45 @@ class UsedYachtSyncController extends Controller
             })->toArray();
         }
 
+        // Build taxonomies payload
+        $configs = FormFieldConfiguration::forUsedYachts()->get();
+        $languages = \App\Models\Language::all();
+        $taxonomies = [];
+
+        foreach ($configs as $config) {
+            if ($config->sync_as_taxonomy && $config->field_type === 'select') {
+                $value = $yacht->custom_fields[$config->field_key] ?? null;
+
+                if (is_array($value)) {
+                    $value = array_values($value)[0] ?? null;
+                }
+
+                if (!$value)
+                    continue;
+
+                $option = collect($config->options)->firstWhere('value', $value);
+                if (!$option)
+                    continue;
+
+                $termTranslations = [];
+                foreach ($languages as $language) {
+                    if ($language->is_default)
+                        continue;
+                    $termLabel = $option['label_' . $language->code] ?? null;
+                    if ($termLabel) {
+                        $termTranslations[$language->code] = $termLabel;
+                    }
+                }
+
+                $taxonomies[$config->field_key] = [
+                    'term' => $option['label'],
+                    'translations' => $termTranslations,
+                ];
+            }
+        }
+
+        $data['taxonomies'] = $taxonomies;
+
         return $data;
     }
 

@@ -72,14 +72,35 @@ class ManageNewYachtFields extends Page
                             ->label('Multilingual')
                             ->helperText('Enable translations for this field')
                             ->default(false),
+                        Forms\Components\Toggle::make('sync_as_taxonomy')
+                            ->label('Sync as Taxonomy')
+                            ->helperText('Sync options as WordPress Taxonomy terms (enables translation via Falang)')
+                            ->default(false)
+                            ->visible(fn(Forms\Get $get) => $get('field_type') === 'select'),
                         Forms\Components\Repeater::make('options')
                             ->label('Select Options')
-                            ->schema([
-                                Forms\Components\TextInput::make('value')
-                                    ->required(),
-                                Forms\Components\TextInput::make('label')
-                                    ->required(),
-                            ])
+                            ->schema(function () {
+                                $schema = [
+                                    Forms\Components\TextInput::make('value')
+                                        ->required(),
+                                    Forms\Components\TextInput::make('label')
+                                        ->label('Label (Default)')
+                                        ->required(),
+                                ];
+
+                                // Add fields for other languages
+                                try {
+                                    $languages = \App\Models\Language::where('is_default', false)->get();
+                                    foreach ($languages as $language) {
+                                        $schema[] = Forms\Components\TextInput::make('label_' . $language->code)
+                                            ->label("Label ({$language->name})");
+                                    }
+                                } catch (\Exception $e) {
+                                    // Fallback if migration/table issue
+                                }
+
+                                return $schema;
+                            })
                             ->visible(fn(Forms\Get $get) => $get('field_type') === 'select')
                             ->columns(2),
                         Forms\Components\TagsInput::make('validation_rules')
@@ -113,6 +134,7 @@ class ManageNewYachtFields extends Page
                 'label' => $field['label'],
                 'is_required' => $field['is_required'] ?? false,
                 'is_multilingual' => $field['is_multilingual'] ?? false,
+                'sync_as_taxonomy' => $field['sync_as_taxonomy'] ?? false,
                 'order' => $index,
                 'options' => $field['options'] ?? null,
                 'validation_rules' => $field['validation_rules'] ?? null,
