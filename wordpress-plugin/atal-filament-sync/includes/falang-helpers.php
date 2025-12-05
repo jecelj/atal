@@ -74,14 +74,20 @@ function atal_save_translation_falang($post_id, $lang, $field_name, $value, $fie
     if (!class_exists('Falang\Core\Translation')) {
         atal_log("ERROR: Falang Translation class not found");
 
-        // DEBUG: List all Falang classes to find the correct one
+        // DEBUG: List all Falang/Faboba classes
         $classes = [];
         foreach (get_declared_classes() as $class) {
-            if (strpos($class, 'Falang') !== false) {
+            if (stripos($class, 'Falang') !== false || stripos($class, 'Faboba') !== false) {
                 $classes[] = $class;
             }
         }
-        atal_log("Available Falang classes: " . implode(', ', $classes));
+        atal_log("Available Falang/Faboba classes: " . print_r($classes, true));
+
+        // DEBUG: Check Falang instance methods
+        if (class_exists('Falang\Core\Falang')) {
+            $falang = Falang\Core\Falang::instance();
+            atal_log("Falang instance methods: " . print_r(get_class_methods($falang), true));
+        }
 
         return false;
     }
