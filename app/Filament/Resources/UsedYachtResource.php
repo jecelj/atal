@@ -534,17 +534,17 @@ class UsedYachtResource extends Resource
                     ->label('Img Opt.')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
-                    ->falseIcon('heroicon-o-x-circle')
-                    ->trueColor('gray')
-                    ->falseColor('danger')
+                    ->falseIcon('heroicon-o-exclamation-triangle')
+                    ->trueColor('success')
+                    ->falseColor('warning')
                     ->placeholder('No Info'),
                 Tables\Columns\IconColumn::make('translation_status')
                     ->label('Translations')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
-                    ->falseIcon('heroicon-o-x-circle')
-                    ->trueColor('gray')
-                    ->falseColor('danger')
+                    ->falseIcon('heroicon-o-exclamation-triangle')
+                    ->trueColor('success')
+                    ->falseColor('warning')
                     ->placeholder('No Info'),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
