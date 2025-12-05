@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galeon Adriatic Migration
  * Description: One-time migration tool to export yachts from galeonadriatic.com to Filament master
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Kreativne komunikacije
  */
 
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('GALEON_MIGRATION_VERSION', '1.0.0');
+define('GALEON_MIGRATION_VERSION', '1.0.1');
 define('GALEON_MIGRATION_DIR', plugin_dir_path(__FILE__));
 
 // Include files
@@ -251,7 +251,8 @@ function galeon_handle_bulk_export()
                 <ul>
                     <?php foreach ($result['errors'] as $error): ?>
                         <li><?php echo esc_html($error['title']); ?> (ID: <?php echo esc_html($error['id']); ?>) -
-                            <?php echo esc_html($error['error']); ?></li>
+                            <?php echo esc_html($error['error']); ?>
+                        </li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -402,42 +403,44 @@ function galeon_handle_bulk_used_export()
                 <li>Failed: <?php echo esc_html($result['failed']); ?></li>
             </ul>
         </div>
-        
+
         <?php if (!empty($result['errors'])): ?>
-        <div class="notice notice-warning">
-            <p><strong>Failed exports:</strong></p>
-            <ul>
-                <?php foreach ($result['errors'] as $error): ?>
-                    <li><?php echo esc_html($error['title']); ?> (ID: <?php echo esc_html($error['id']); ?>) - <?php echo esc_html($error['error']); ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
+            <div class="notice notice-warning">
+                <p><strong>Failed exports:</strong></p>
+                <ul>
+                    <?php foreach ($result['errors'] as $error): ?>
+                        <li><?php echo esc_html($error['title']); ?> (ID: <?php echo esc_html($error['id']); ?>) -
+                            <?php echo esc_html($error['error']); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
         <?php endif; ?>
-        
+
         <div style="margin-top: 20px;">
             <button type="button" id="copy-bulk-used-json-btn" class="button button-primary" style="margin-bottom: 10px;">
                 📋 Copy All Used Yachts JSON to Clipboard
             </button>
             <span id="copy-bulk-used-status" style="margin-left: 10px; color: green; display: none;">✓ Copied!</span>
         </div>
-        
-        <pre id="bulk-used-json-output" style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; max-height: 600px; overflow: auto;"><?php echo esc_html($json_output); ?></pre>
-        
+
+        <pre id="bulk-used-json-output"
+            style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; max-height: 600px; overflow: auto;"><?php echo esc_html($json_output); ?></pre>
+
         <script>
-        document.getElementById('copy-bulk-used-json-btn').addEventListener('click', function() {
-            const jsonText = document.getElementById('bulk-used-json-output').textContent;
-            
-            navigator.clipboard.writeText(jsonText).then(function() {
-                const status = document.getElementById('copy-bulk-used-status');
-                status.style.display = 'inline';
-                
-                setTimeout(function() {
-                    status.style.display = 'none';
-                }, 2000);
-            }).catch(function(err) {
-                alert('Failed to copy: ' + err);
+            document.getElementById('copy-bulk-used-json-btn').addEventListener('click', function () {
+                const jsonText = document.getElementById('bulk-used-json-output').textContent;
+
+                navigator.clipboard.writeText(jsonText).then(function () {
+                    const status = document.getElementById('copy-bulk-used-status');
+                    status.style.display = 'inline';
+
+                    setTimeout(function () {
+                        status.style.display = 'none';
+                    }, 2000);
+                }).catch(function (err) {
+                    alert('Failed to copy: ' + err);
+                });
             });
-        });
         </script>
         <?php
     } else {

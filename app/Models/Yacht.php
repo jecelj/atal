@@ -30,12 +30,16 @@ class Yacht extends Model implements HasMedia
         'price',
         'year',
         'custom_fields',
+        'img_opt_status',
+        'translation_status',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'year' => 'integer',
         'custom_fields' => 'array',
+        'img_opt_status' => 'boolean',
+        'translation_status' => 'boolean',
     ];
 
     public function brand(): BelongsTo

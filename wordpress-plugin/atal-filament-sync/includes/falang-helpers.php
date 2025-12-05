@@ -71,49 +71,52 @@ function atal_get_default_language_falang()
  */
 function atal_save_translation_falang($post_id, $lang, $field_name, $value, $field_type = 'acf')
 {
-    if (!class_exists('Falang\Core\Translation')) {
-        atal_log("ERROR: Falang Translation class not found");
-
-        // DEBUG: List all Falang/Faboba classes
-        $classes = [];
-        foreach (get_declared_classes() as $class) {
-            if (stripos($class, 'Falang') !== false || stripos($class, 'Faboba') !== false) {
-                $classes[] = $class;
-            }
-        }
-        atal_log("Available Falang/Faboba classes: " . print_r($classes, true));
-
-        // DEBUG: Check Falang instance methods
-        if (class_exists('Falang\Core\Falang')) {
-            $falang = Falang\Core\Falang::instance();
-            atal_log("Falang instance methods: " . print_r(get_class_methods($falang), true));
-        }
-
-        return false;
-    }
-
     // Skip if this is the default language (already saved via update_post/update_field)
     $default_lang = atal_get_default_language_falang();
     if ($lang === $default_lang) {
-        atal_log("Skipping translation save for default language: $lang");
         return true;
     }
 
+    if (!class_exists('Falang\Model\Falang_Model')) {
+        atal_log("ERROR: Falang Model class not found");
+        return false;
+    }
+
     try {
-        atal_log("Saving Falang translation: post=$post_id, lang=$lang, field=$field_name, type=$field_type");
-        atal_log("Value: " . (is_array($value) ? json_encode($value) : substr($value, 0, 50) . '...'));
+        // 1. Get Locale from Slug (e.g., 'en' -> 'en_US')
+        $model = new Falang\Model\Falang_Model();
+        $language = $model->get_language_by_slug($lang);
 
-        // Falang API: save_translation($post_id, $lang, $field, $value)
-        $result = Falang\Core\Translation::save_translation($post_id, $lang, $field_name, $value);
-
-        if ($result) {
-            atal_log("Translation saved successfully for $field_name ($lang)");
-        } else {
-            atal_log("WARNING: Translation save returned false for $field_name ($lang)");
-            // Try to get error info if possible (Falang doesn't usually provide it via return)
+        if (!$language || empty($language->locale)) {
+            atal_log("ERROR: Could not find locale for language slug: $lang");
+            return false;
         }
 
-        return $result;
+        $locale = $language->locale;
+
+        // 2. Construct Meta Key Prefix (e.g., '_en_US_')
+        // We use the logic found in Falang_Core::create_prefix
+        $prefix = '_' . $locale . '_';
+
+        // 3. Construct Full Meta Key
+        $meta_key = $prefix . $field_name;
+
+        // 4. Update Post Meta
+        // Falang stores translations directly in wp_postmeta with the prefix
+        $result = update_post_meta($post_id, $meta_key, $value);
+
+        // 5. Mark as Published for this language
+        // Falang requires a '_locale_published' meta key set to 1
+        update_post_meta($post_id, $prefix . 'published', 1);
+
+        if ($result !== false) {
+            // atal_log("Saved translation: $meta_key"); // Uncomment for verbose logging
+            return true;
+        } else {
+            // update_post_meta returns false if value is unchanged, which is fine
+            return true;
+        }
+
     } catch (Exception $e) {
         atal_log("ERROR saving translation: " . $e->getMessage());
         return false;
@@ -144,10 +147,16 @@ function atal_save_all_translations($post_id, $translations_data, $multilingual_
         // Save core WordPress fields
         if (!empty($translation['title'])) {
             $success = atal_save_translation_falang($post_id, $lang, 'post_title', $translation['title'], 'core') && $success;
+
+            // Also save slug (post_name)
+            $slug = sanitize_title($translation['title']);
+            $success = atal_save_translation_falang($post_id, $lang, 'post_name', $slug, 'core') && $success;
         }
 
         if (!empty($translation['description'])) {
             $success = atal_save_translation_falang($post_id, $lang, 'post_content', $translation['description'], 'core') && $success;
+        } else {
+            atal_log("WARNING: Description is empty for language $lang (Post ID: $post_id)");
         }
 
         // Save custom fields (only multilingual ones)
@@ -195,6 +204,8 @@ function atal_register_falang_fields()
 
     // Process each post type
     $total_fields = 0;
+    $excluded_fields = ['brand', 'model', 'gallery_exterior', 'gallery_interior', 'featured_image', 'video_url'];
+
     foreach ($field_groups as $post_type => $group_data) {
         atal_log("Processing post type: $post_type");
 
@@ -217,9 +228,15 @@ function atal_register_falang_fields()
         // Auto-detect multilingual custom fields (meta_keys)
         $meta_keys = [];
         foreach ($group_data['fields'] as $field) {
+            $field_name = $field['name'];
+
+            // Skip excluded fields
+            if (in_array($field_name, $excluded_fields)) {
+                continue;
+            }
+
             // Only register text-based fields for translation
             if (in_array($field['type'], ['text', 'textarea', 'wysiwyg'])) {
-                $field_name = $field['name'];
                 $meta_keys[] = $field_name;
                 $total_fields++;
 
@@ -253,9 +270,15 @@ function atal_get_multilingual_fields()
     }
 
     $multilingual_fields = [];
+    $excluded_fields = ['brand', 'model', 'video_url'];
 
     foreach ($field_groups as $post_type => $group_data) {
         foreach ($group_data['fields'] as $field) {
+            // Skip excluded fields
+            if (in_array($field['name'], $excluded_fields)) {
+                continue;
+            }
+
             // Only text-based fields are multilingual
             if (in_array($field['type'], ['text', 'textarea', 'wysiwyg'])) {
                 $multilingual_fields[] = $field['name'];

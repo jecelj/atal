@@ -16,6 +16,24 @@ class ListUsedYachts extends ListRecords
     {
         return [
             Actions\CreateAction::make()->label('Add Used Yacht'),
+            Actions\Action::make('checkStatus')
+                ->label('Preveri stanje zapisov')
+                ->icon('heroicon-o-check-circle')
+                ->color('warning')
+                ->action(function () {
+                    $records = \App\Models\UsedYacht::all();
+                    $service = new \App\Services\StatusCheckService();
+
+                    foreach ($records as $record) {
+                        $service->checkAndUpdateStatus($record);
+                    }
+
+                    \Filament\Notifications\Notification::make()
+                        ->success()
+                        ->title('Status Checked')
+                        ->body('All records have been updated.')
+                        ->send();
+                }),
             Actions\Action::make('syncToWordPress')
                 ->label('Sync to WordPress')
                 ->icon('heroicon-o-arrow-path')

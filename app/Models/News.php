@@ -19,6 +19,8 @@ class News extends Model implements HasMedia
         'published_at',
         'is_active',
         'custom_fields',
+        'img_opt_status',
+        'translation_status',
     ];
 
     protected $casts = [
@@ -28,6 +30,8 @@ class News extends Model implements HasMedia
         'published_at' => 'datetime',
         'is_active' => 'boolean',
         'custom_fields' => 'array',
+        'img_opt_status' => 'boolean',
+        'translation_status' => 'boolean',
     ];
 
     public function syncSites()

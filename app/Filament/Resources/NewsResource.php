@@ -379,6 +379,24 @@ class NewsResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
 
+                Tables\Columns\IconColumn::make('img_opt_status')
+                    ->label('Img Opt.')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('gray')
+                    ->falseColor('danger')
+                    ->placeholder('No Info'),
+
+                Tables\Columns\IconColumn::make('translation_status')
+                    ->label('Translations')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('gray')
+                    ->falseColor('danger')
+                    ->placeholder('No Info'),
+
                 Tables\Columns\TextColumn::make('syncSites.name')
                     ->badge()
                     ->label('Synced To'),
