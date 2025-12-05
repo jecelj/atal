@@ -86,12 +86,24 @@ class StatusCheckService
 
         foreach ($translatableFields as $field) {
             // Get value in default language
-            $defaultValue = $record->getTranslation($field, $defaultCode, false);
+            if (method_exists($record, 'getTranslation')) {
+                $defaultValue = $record->getTranslation($field, $defaultCode, false);
+            } else {
+                // Handle array-cast fields (like in News model)
+                $fieldValue = $record->$field;
+                $defaultValue = $fieldValue[$defaultCode] ?? null;
+            }
 
             if (!empty($defaultValue)) {
                 // If default has value, ALL other languages must have value
                 foreach ($activeLanguages as $lang) {
-                    $transValue = $record->getTranslation($field, $lang->code, false);
+                    if (method_exists($record, 'getTranslation')) {
+                        $transValue = $record->getTranslation($field, $lang->code, false);
+                    } else {
+                        $fieldValue = $record->$field;
+                        $transValue = $fieldValue[$lang->code] ?? null;
+                    }
+
                     if (empty($transValue)) {
                         return false;
                     }
