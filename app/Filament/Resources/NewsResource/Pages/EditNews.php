@@ -24,6 +24,16 @@ class EditNews extends EditRecord
                     // Open modal via widget
                     $this->dispatch('open-translation-modal', yachtId: $record->id, type: 'news');
                 }),
+            Actions\Action::make('optimizeImages')
+                ->label('Optimize Images')
+                ->icon('heroicon-m-photo')
+                ->color('warning')
+                ->action(function () {
+                    // DON'T save here - optimization works on saved media
+                    $record = $this->getRecord();
+                    // Open modal via widget
+                    $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'news');
+                }),
             Actions\DeleteAction::make(),
         ];
     }
@@ -32,6 +42,7 @@ class EditNews extends EditRecord
     {
         return [
             \App\Filament\Widgets\TranslationProgressWidget::class,
+            \App\Filament\Widgets\ImageOptimizationProgressWidget::class,
         ];
     }
 }

@@ -29,36 +29,11 @@ class EditUsedYacht extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    $this->save();
+                    // Just get the current record
                     $record = $this->getRecord();
 
-                    try {
-                        $service = app(\App\Services\ImageOptimizationService::class);
-                        $stats = $service->processYachtImages($record);
-
-                        $message = "Images processed: {$stats['processed']}";
-                        if ($stats['renamed'] > 0)
-                            $message .= ", Renamed: {$stats['renamed']}";
-                        if ($stats['converted'] > 0)
-                            $message .= ", Converted: {$stats['converted']}";
-                        if ($stats['resized'] > 0)
-                            $message .= ", Resized: {$stats['resized']}";
-                        if ($stats['errors'] > 0)
-                            $message .= ", Errors: {$stats['errors']}";
-
-                        \Filament\Notifications\Notification::make()
-                            ->success()
-                            ->title('Optimization Complete')
-                            ->body($message)
-                            ->send();
-
-                    } catch (\Exception $e) {
-                        \Filament\Notifications\Notification::make()
-                            ->danger()
-                            ->title('Optimization Failed')
-                            ->body($e->getMessage())
-                            ->send();
-                    }
+                    // Open modal via widget
+                    $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'used_yacht');
                 }),
             Actions\DeleteAction::make(),
         ];
@@ -68,6 +43,7 @@ class EditUsedYacht extends EditRecord
     {
         return [
             \App\Filament\Widgets\TranslationProgressWidget::class,
+            \App\Filament\Widgets\ImageOptimizationProgressWidget::class,
         ];
     }
 
