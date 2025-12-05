@@ -11,6 +11,7 @@ use Livewire\Component;
 class TranslationProgress extends Component
 {
     public $yachtId;
+    public $type = 'yacht'; // 'yacht' or 'news'
     public $logs = [];
     public $pendingTranslations = [];
     public $total = 0;
@@ -18,16 +19,17 @@ class TranslationProgress extends Component
     public $isCompleted = false;
     public $isStarted = false;
 
-    public function mount($yachtId)
+    public function mount($yachtId, $type = 'yacht')
     {
         $this->yachtId = $yachtId;
+        $this->type = $type;
         $this->prepareTranslations();
     }
 
     public function prepareTranslations()
     {
-        $yacht = Yacht::find($this->yachtId);
-        if (!$yacht)
+        $record = $this->getRecord();
+        if (!$record)
             return;
 
         $languages = Language::all();
@@ -41,14 +43,14 @@ class TranslationProgress extends Component
         }
 
         // 1. Standard fields
-        $translatableFields = ['name', 'description'];
+        $translatableFields = $this->getTranslatableFields();
         foreach ($translatableFields as $field) {
-            $sourceContent = $yacht->getTranslation($field, $defaultLanguage->code, false);
+            $sourceContent = $this->getTranslation($record, $field, $defaultLanguage->code);
             if (empty($sourceContent))
                 continue;
 
             foreach ($targetLanguages as $language) {
-                $existing = $yacht->getTranslation($field, $language->code, false);
+                $existing = $this->getTranslation($record, $field, $language->code);
                 if (empty($existing)) {
                     $this->pendingTranslations[] = [
                         'type' => 'standard',
@@ -63,11 +65,9 @@ class TranslationProgress extends Component
             }
         }
 
-        // 2. Custom fields
-        $customFields = $yacht->custom_fields ?? [];
-        $configFields = $yacht->type === 'new'
-            ? FormFieldConfiguration::forNewYachts()->where('is_multilingual', true)->get()
-            : FormFieldConfiguration::forUsedYachts()->where('is_multilingual', true)->get();
+        // 2. Custom fields (Only relevant if custom_fields exist)
+        $customFields = $record->custom_fields ?? [];
+        $configFields = $this->getConfigFields($record);
 
         foreach ($configFields as $config) {
             $fieldKey = $config->field_key;
@@ -105,6 +105,59 @@ class TranslationProgress extends Component
         }
     }
 
+    protected function getTranslation($record, $field, $locale)
+    {
+        if (method_exists($record, 'getTranslation')) {
+            return $record->getTranslation($field, $locale, false);
+        }
+
+        // Manual array handling for News
+        $value = $record->$field;
+        return is_array($value) ? ($value[$locale] ?? null) : null;
+    }
+
+    protected function setTranslation($record, $field, $locale, $value)
+    {
+        if (method_exists($record, 'setTranslation')) {
+            $record->setTranslation($field, $locale, $value);
+            return;
+        }
+
+        // Manual array handling for News
+        $data = $record->$field;
+        if (!is_array($data))
+            $data = [];
+        $data[$locale] = $value;
+        $record->$field = $data;
+    }
+
+    protected function getRecord()
+    {
+        if ($this->type === 'news') {
+            return \App\Models\News::find($this->yachtId);
+        }
+        return Yacht::find($this->yachtId);
+    }
+
+    protected function getTranslatableFields()
+    {
+        if ($this->type === 'news') {
+            return ['title'];
+        }
+        return ['name', 'description'];
+    }
+
+    protected function getConfigFields($record)
+    {
+        if ($this->type === 'news') {
+            return FormFieldConfiguration::forNews()->where('is_multilingual', true)->get();
+        }
+
+        return $record->type === 'new'
+            ? FormFieldConfiguration::forNewYachts()->where('is_multilingual', true)->get()
+            : FormFieldConfiguration::forUsedYachts()->where('is_multilingual', true)->get();
+    }
+
     public function startTranslation()
     {
         $this->isStarted = true;
@@ -119,7 +172,7 @@ class TranslationProgress extends Component
         }
 
         $item = array_shift($this->pendingTranslations);
-        $yacht = Yacht::find($this->yachtId);
+        $record = $this->getRecord();
         $service = app(TranslationService::class);
         $languages = Language::all();
         $defaultLanguage = $languages->where('is_default', true)->first();
@@ -137,13 +190,13 @@ class TranslationProgress extends Component
 
             if ($translated) {
                 if ($item['type'] === 'standard') {
-                    $yacht->setTranslation($item['field'], $item['language_code'], $translated);
-                    $yacht->save();
+                    $this->setTranslation($record, $item['field'], $item['language_code'], $translated);
+                    $record->save();
                 } else {
-                    $customFields = $yacht->custom_fields ?? [];
+                    $customFields = $record->custom_fields ?? [];
                     $customFields[$item['field']][$item['language_code']] = $translated;
-                    $yacht->custom_fields = $customFields;
-                    $yacht->save();
+                    $record->custom_fields = $customFields;
+                    $record->save();
                 }
 
                 $this->addLog("Translated {$fieldName} to {$item['language_name']} ({$duration}s)", 'done');
