@@ -1910,7 +1910,35 @@ function atal_import_attach_image($postId, $url)
 }
 
 /**
- * Add Falang Translation for a Term
+ * Get Falang Locale from Slug (e.g. 'sl' -> 'sl_SI', 'en' -> 'en_US')
+ */
+function atal_get_falang_locale($slug)
+{
+    if (!class_exists('Falang\Model\Falang_Model')) {
+        // Fallback mapping if class not available
+        $map = [
+            'sl' => 'sl_SI',
+            'en' => 'en_US',
+            'de' => 'de_DE',
+            'it' => 'it_IT',
+            'hr' => 'hr_HR',
+            'fr' => 'fr_FR'
+        ];
+        return $map[$slug] ?? $slug . '_' . strtoupper($slug);
+    }
+
+    try {
+        $model = new Falang\Model\Falang_Model();
+        $language = $model->get_language_by_slug($slug);
+        return $language->locale ?? null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * Add Falang Translation for a Term (Meta-based)
+ * Follows pattern from falang-helpers.php
  * 
  * @param int $originalId The term ID
  * @param string $langCode Language code (e.g. 'sl', 'en', 'de')
@@ -1919,63 +1947,30 @@ function atal_import_attach_image($postId, $url)
  */
 function atal_add_falang_translation($originalId, $langCode, $translatedValue, $type = 'term')
 {
-    global $wpdb;
-
     if (empty($translatedValue))
         return;
 
-    // Map type to reference table/field
-    $refTable = '';
-    $refField = '';
-
-    if ($type === 'term') {
-        // In WP terms are in wp_terms, but taxonomies link them. 
-        // Falang typically translates `wp_terms` (name, slug) or `wp_term_taxonomy` (description).
-        // Usually it's `terms` for Name.
-        $refTable = 'terms';
-        $refField = 'name';
-    } else {
-        return; // Only terms supported for now
-    }
-
-    // Check if Falang content table exists
-    $table = $wpdb->prefix . 'falang_content';
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table'") != $table) {
-        error_log("Atal Push: Falang table '$table' not found. Falang may not be active.");
+    // 1. Get Locale
+    $locale = atal_get_falang_locale($langCode);
+    if (!$locale) {
+        error_log("Atal Push: Could not find locale for language '$langCode'");
         return;
     }
 
-    // Check for existing translation
-    // We check language, reference_id, reference_table
-    $existing = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, title, content FROM $table WHERE language = %s AND reference_id = %d AND reference_table = %s",
-        $langCode,
-        $originalId,
-        $refTable
-    ));
+    // 2. Construct Meta Key Prefix (e.g., '_en_US_')
+    $prefix = '_' . $locale . '_';
 
-    // Prepare data
-    // Falang Free/Pro structure might vary slightly but 'title' usually holds the main text for simple objects.
-    // For 'terms', the 'name' is often mapped to 'title' column in Falang, OR it might be in 'content' serialized.
-    // Let's assume 'title' column denotes the main field (Name).
+    if ($type === 'term') {
+        // Falang for Terms usually translates 'name', 'description'
+        // Meta key: _en_US_name
+        $meta_key = $prefix . 'name';
 
-    $data = [
-        'language' => $langCode,
-        'reference_id' => $originalId,
-        'reference_table' => $refTable,
-        'published' => 1,
-        'title' => $translatedValue, // Assumption: 'title' col stores the term Name
-        'content' => '', // Empty content for now
-    ];
+        update_term_meta($originalId, $meta_key, $translatedValue);
 
-    // If table has specific columns for fields (some versions do), we might need to adjust.
-    // But standard Fabrik Falang uses title/content/introtext cols.
+        // Mark as published
+        update_term_meta($originalId, $prefix . 'published', 1);
 
-    if ($existing) {
-        $wpdb->update($table, $data, ['id' => $existing->id]);
-        error_log("Atal Push: Updated Falang translation for term {$originalId} ({$langCode})");
-    } else {
-        $wpdb->insert($table, $data);
-        error_log("Atal Push: Inserted Falang translation for term {$originalId} ({$langCode})");
+        error_log("Atal Push: Saved meta translation for term {$originalId} ({$locale}): name");
     }
 }
+
