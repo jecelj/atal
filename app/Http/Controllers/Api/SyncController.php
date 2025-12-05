@@ -194,7 +194,7 @@ class SyncController extends Controller
             ] : null,
             'translations' => $translations,
             'media' => $media,
-            'taxonomies' => $taxonomies,
+            'media' => $media,
         ];
     }
 
