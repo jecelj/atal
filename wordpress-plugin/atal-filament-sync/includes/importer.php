@@ -338,32 +338,6 @@ function atal_import_single_yacht($yacht_data)
         }
     }
 
-    // --- GENERIC TAXONOMIES SYNC (Dynamic from 'taxonomies' payload) ---
-    if (isset($yacht_data['taxonomies']) && is_array($yacht_data['taxonomies'])) {
-        foreach ($yacht_data['taxonomies'] as $taxonomy => $term_data) {
-            if (empty($term_data['term']))
-                continue;
-
-            $term_name = $term_data['term'];
-            $translations = $term_data['translations'] ?? []; // ['sl' => '...', 'de' => '...']
-
-            // 1. Create/Get Term (Default lang)
-            // Use existing helper
-            $term_id = atal_get_or_create_term_falang($term_name, $taxonomy);
-
-            if ($term_id) {
-                // Assign to post
-                wp_set_object_terms($post_id, [(int) $term_id], $taxonomy);
-                atal_log("Assigned term '$term_name' to taxonomy '$taxonomy'");
-
-                // 2. Add Translations
-                foreach ($translations as $lang => $trans_label) {
-                    atal_add_falang_translation($term_id, $lang, $trans_label);
-                }
-            }
-        }
-    }
-
     // --- SAVE TRANSLATIONS FOR OTHER LANGUAGES ---
     $multilingual_fields = atal_get_multilingual_fields();
     atal_save_all_translations($post_id, $yacht_data['translations'], $multilingual_fields);

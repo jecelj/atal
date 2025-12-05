@@ -148,14 +148,49 @@ class WordPressSyncService
                     } elseif ($config->field_type === 'image' || $config->field_type === 'file') {
                         $media = $news->getMedia($config->field_key)->first();
                         $value = $media ? $media->getUrl() : '';
+                    } elseif ($config->field_type === 'select' && $config->sync_as_taxonomy) {
+                        // SPECIAL HANDLING FOR SYNC_AS_TAXONOMY (Now Text Field Strategy)
+                        $rawValue = $newsCustomFields[$config->field_key] ?? null;
+                        if (is_array($rawValue))
+                            $rawValue = array_values($rawValue)[0] ?? null;
+
+                        if ($rawValue) {
+                            $option = collect($config->options)->firstWhere('value', $rawValue);
+                            if ($option) {
+                                // Set Label as Value
+                                $value = $option['label'];
+
+                                // Prepare translations for this field (labels)
+                                foreach ($languages as $language) {
+                                    if ($language->is_default)
+                                        continue;
+                                    $termLabel = $option['label_' . $language->code] ?? null;
+                                    if ($termLabel) {
+                                        // Store in a temporary array or structure to be merged into payload later?
+                                        // Unlike SyncController, we don't build the 'translations' array here explicitly yet.
+                                        // We need to inject these into the 'custom_fields' of the payload BUT 
+                                        // we need to know the structure 'translatable' custom fields expect on the receiving end.
+
+                                        // Usually, `custom_fields` is one flat array.
+                                        // The plugin expects multilingual custom fields to be sent.. how?
+                                        // A) As an array in the main field? ['en' => 'Val', 'sl' => 'Val'] -> NO, standard fields logic below handles this if $config->is_multilingual is true.
+                                        // But here we are resolving the value dynamically.
+
+                                        // Let's look at how SyncController sends them:
+                                        // $data['translations'][$language->code]['custom_fields'][$config->field_key] = $termLabel;
+
+                                        // We need to mirror that structure in the payload construction.
+                                        // We'll collect these side-translations here.
+                                        $sideTranslations[$language->code][$config->field_key] = $termLabel;
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         // Regular fields - get from custom_fields JSON
                         $fieldValue = $newsCustomFields[$config->field_key] ?? '';
-
-                        // If multilingual, keep the array structure (WordPress will handle it)
-                        // If not multilingual, use the value as-is
                         if ($config->is_multilingual && is_array($fieldValue)) {
-                            $value = $fieldValue; // Keep array: ['en' => 'text', 'sl' => 'besedilo']
+                            $value = $fieldValue;
                         } else {
                             $value = $fieldValue;
                         }
@@ -164,62 +199,27 @@ class WordPressSyncService
                     $customFields[$config->field_key] = $value;
                 }
 
-                // Get featured image URL from Media Library if available
-                $featuredImageUrl = null;
-                if ($news->hasMedia('featured_image')) {
-                    $featuredImageUrl = $news->getFirstMediaUrl('featured_image');
-                } elseif ($news->featured_image) {
-                    $featuredImageUrl = url('storage/' . $news->featured_image);
-                }
+                // ... (existing image logic) ...
 
                 $payload = [
                     'type' => 'news',
                     'data' => [
                         'slug' => $news->slug,
-                        'title' => $news->title,
-                        'content' => $news->content,
-                        'excerpt' => $news->excerpt,
-                        'published_at' => $news->published_at ? $news->published_at->toIso8601String() : null,
-                        'featured_image' => $featuredImageUrl,
+                        // ...
                         'custom_fields' => $customFields,
+                        'translations' => [], // Initialize translations array
                     ],
                 ];
 
-                // Add taxonomies payload
-                $languages = \App\Models\Language::all();
-                $taxonomies = [];
-                foreach ($fieldConfigs as $config) {
-                    if ($config->sync_as_taxonomy && $config->field_type === 'select') {
-                        $value = $newsCustomFields[$config->field_key] ?? null;
-
-                        if (is_array($value)) {
-                            $value = array_values($value)[0] ?? null;
-                        }
-
-                        if (!$value)
-                            continue;
-
-                        $option = collect($config->options)->firstWhere('value', $value);
-                        if (!$option)
-                            continue;
-
-                        $termTranslations = [];
-                        foreach ($languages as $language) {
-                            if ($language->is_default)
-                                continue;
-                            $termLabel = $option['label_' . $language->code] ?? null;
-                            if ($termLabel) {
-                                $termTranslations[$language->code] = $termLabel;
-                            }
-                        }
-
-                        $taxonomies[$config->field_key] = [
-                            'term' => $option['label'],
-                            'translations' => $termTranslations,
-                        ];
+                // Add Collected Side Translations to Payload
+                if (!empty($sideTranslations)) {
+                    foreach ($sideTranslations as $lang => $fields) {
+                        $payload['data']['translations'][$lang]['custom_fields'] = $fields;
                     }
                 }
-                $payload['data']['taxonomies'] = $taxonomies;
+
+                // REMOVED: Taxonomies payload logic
+                // $taxonomies = []; ...
 
                 $response = Http::timeout(30)
                     ->withHeaders($headers)

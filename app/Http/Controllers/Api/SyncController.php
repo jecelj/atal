@@ -130,14 +130,13 @@ class SyncController extends Controller
             }
         }
 
-        // Build taxonomies payload
-        $taxonomies = [];
+        // Transform sync_as_taxonomy fields to simple Text fields with Translations
         foreach ($configs as $config) {
             if ($config->sync_as_taxonomy && $config->field_type === 'select') {
-                // Get raw value from custom_fields (it's usually the 'value' from options)
                 $value = $customFields[$config->field_key] ?? null;
 
-                // Handle array value (if multilingual field stored as array, take default or first)
+                // If value is array (from multiple select), take first or process accordingly
+                // For now assuming single select behavior as per requirement
                 if (is_array($value)) {
                     $value = array_values($value)[0] ?? null;
                 }
@@ -145,29 +144,38 @@ class SyncController extends Controller
                 if (!$value)
                     continue;
 
-                // Find option config
                 $option = collect($config->options)->firstWhere('value', $value);
                 if (!$option)
                     continue;
 
-                // Build translations for the term
-                $termTranslations = [];
+                // 1. Set Default Language Value (Label)
+                // Find the default language code
+                $defaultLangCode = $languages->firstWhere('is_default', true)->code ?? 'en'; // Fallback to 'en'
+                if (isset($translations[$defaultLangCode])) {
+                    $translations[$defaultLangCode]['custom_fields'][$config->field_key] = $option['label'];
+                }
+
+
+                // 2. Set Translated Values
                 foreach ($languages as $language) {
                     if ($language->is_default)
                         continue;
-                    // Check for label_code, fallback to label
+
                     $termLabel = $option['label_' . $language->code] ?? null;
                     if ($termLabel) {
-                        $termTranslations[$language->code] = $termLabel;
+                        // Ensure translations array exists
+                        if (!isset($translations[$language->code]['custom_fields'])) {
+                            $translations[$language->code]['custom_fields'] = [];
+                        }
+
+                        $translations[$language->code]['custom_fields'][$config->field_key] = $termLabel;
                     }
                 }
-
-                $taxonomies[$config->field_key] = [
-                    'term' => $option['label'], // Default language label
-                    'translations' => $termTranslations,
-                ];
             }
         }
+
+        // REMOVED: Taxonomies payload generation (Simplified strategy)
+        // $taxonomies = []; ...
 
         return [
             'id' => $yacht->id,
