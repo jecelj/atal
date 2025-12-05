@@ -9,6 +9,13 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ImageOptimizationService
 {
+    /**
+     * Track processed files to avoid reprocessing the same physical file
+     * when it's used in multiple collections.
+     * Maps: original_path => ['new_path' => string, 'new_filename' => string]
+     */
+    protected array $processedFiles = [];
+
     public function processYachtImages(Yacht $yacht): array
     {
         // Increase limits for heavy processing
@@ -30,8 +37,14 @@ class ImageOptimizationService
         // Group media by collection to handle indexing
         $collections = $yacht->getMedia('*')->groupBy('collection_name');
 
+        Log::info("ImageOptimizationService: Starting optimization for yacht {$yacht->id}");
+
         foreach ($collections as $collectionName => $mediaItems) {
+            Log::info("ImageOptimizationService: Processing collection '{$collectionName}' with " . $mediaItems->count() . " items");
+
             foreach ($mediaItems as $index => $media) {
+                Log::info("ImageOptimizationService: [START] Processing media ID {$media->id} (index {$index}), file: {$media->file_name}, size: {$media->size} bytes, mime: {$media->mime_type}");
+
                 try {
                     // Skip non-images
                     if (!str_starts_with($media->mime_type, 'image/')) {
@@ -55,6 +68,31 @@ class ImageOptimizationService
                     // SPECIAL HANDLING FOR WEBP: Check size and recompress if needed
                     if ($media->mime_type === 'image/webp') {
                         $originalPath = $media->getPath();
+                        Log::info("ImageOptimizationService: WebP detected for media {$media->id}, path: {$originalPath}");
+
+                        // CRITICAL: Check if this file was already processed in this run
+                        if (isset($this->processedFiles[$originalPath])) {
+                            $processedInfo = $this->processedFiles[$originalPath];
+                            Log::info("ImageOptimizationService: File '{$originalPath}' was already processed. Linking media {$media->id} to existing file: {$processedInfo['new_path']}");
+
+                            // Update media record to point to the already-processed file
+                            $media->file_name = $processedInfo['new_filename'];
+                            $media->size = filesize($processedInfo['new_path']);
+                            $media->setCustomProperty('optimized', true);
+                            $media->save();
+
+                            $stats['renamed']++; // Count as renamed since we updated the reference
+                            Log::info("ImageOptimizationService: [END] Successfully linked media ID {$media->id} to already processed file");
+                            continue;
+                        }
+
+                        // Check if file actually exists
+                        if (!file_exists($originalPath)) {
+                            Log::warning("ImageOptimizationService: File not found for media {$media->id} at '{$originalPath}' and not in processed cache. Skipping.");
+                            $stats['errors']++;
+                            continue;
+                        }
+
                         $fileSize = $media->size;
 
                         // If WebP is larger than 500KB, recompress it
@@ -120,7 +158,13 @@ class ImageOptimizationService
                                         $stats['renamed']++;
                                     }
 
-                                    Log::info("ImageOptimizationService: Recompressed WebP from {$fileSize} to {$newSize} bytes");
+                                    // Cache this file so other media records can reuse it
+                                    $this->processedFiles[$originalPath] = [
+                                        'new_path' => $targetPath,
+                                        'new_filename' => $newFileName,
+                                    ];
+
+                                    Log::info("ImageOptimizationService: Recompressed WebP from {$fileSize} to {$newSize} bytes. Cached for reuse.");
                                 } else {
                                     Log::error("ImageOptimizationService: Failed to save recompressed WebP");
                                     $stats['errors']++;
@@ -146,7 +190,14 @@ class ImageOptimizationService
                                         $media->save();
 
                                         $stats['renamed']++;
-                                        Log::info("ImageOptimizationService: Renamed WebP only: {$oldPath} -> {$newPath}");
+
+                                        // Cache this file so other media records can reuse it
+                                        $this->processedFiles[$oldPath] = [
+                                            'new_path' => $newPath,
+                                            'new_filename' => $newFileName,
+                                        ];
+
+                                        Log::info("ImageOptimizationService: Renamed WebP only: {$oldPath} -> {$newPath}. Cached for reuse.");
                                     } else {
                                         Log::error("ImageOptimizationService: Failed to rename WebP: {$oldPath} -> {$newPath}");
                                         $stats['errors']++;
@@ -285,18 +336,29 @@ class ImageOptimizationService
                         $media->size = filesize($targetPath);
                         $media->setCustomProperty('optimized', true); // Mark as optimized
                         $media->save();
+
+                        // Cache this file so other media records can reuse it
+                        $this->processedFiles[$originalPath] = [
+                            'new_path' => $targetPath,
+                            'new_filename' => $newFileName,
+                        ];
                     } else {
                         // Even if no save was needed (e.g. just validation passed), mark as optimized
                         $media->setCustomProperty('optimized', true);
                         $media->save();
                     }
 
+                    Log::info("ImageOptimizationService: [END] Successfully processed media ID {$media->id}");
+
                 } catch (\Throwable $e) {
-                    Log::error("ImageOptimizationService: Error processing media {$media->id}: " . $e->getMessage());
+                    Log::error("ImageOptimizationService: [ERROR] Failed processing media {$media->id}: " . $e->getMessage());
+                    Log::error("ImageOptimizationService: Stack trace: " . $e->getTraceAsString());
                     $stats['errors']++;
                 }
             }
         }
+
+        Log::info("ImageOptimizationService: Optimization complete for yacht {$yacht->id}", $stats);
 
         return $stats;
     }

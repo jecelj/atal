@@ -29,7 +29,8 @@ class EditNewYacht extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    $this->save();
+                    // DON'T save here - it triggers afterSave() which runs optimization
+                    // Just get the current record
                     $record = $this->getRecord();
 
                     try {
