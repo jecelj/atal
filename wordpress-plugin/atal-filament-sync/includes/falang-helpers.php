@@ -85,14 +85,16 @@ function atal_save_translation_falang($post_id, $lang, $field_name, $value, $fie
 
     try {
         atal_log("Saving Falang translation: post=$post_id, lang=$lang, field=$field_name, type=$field_type");
+        atal_log("Value: " . (is_array($value) ? json_encode($value) : substr($value, 0, 50) . '...'));
 
         // Falang API: save_translation($post_id, $lang, $field, $value)
         $result = Falang\Core\Translation::save_translation($post_id, $lang, $field_name, $value);
 
         if ($result) {
-            atal_log("Translation saved successfully");
+            atal_log("Translation saved successfully for $field_name ($lang)");
         } else {
-            atal_log("WARNING: Translation save returned false");
+            atal_log("WARNING: Translation save returned false for $field_name ($lang)");
+            // Try to get error info if possible (Falang doesn't usually provide it via return)
         }
 
         return $result;
