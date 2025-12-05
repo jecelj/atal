@@ -3,7 +3,7 @@
  * Plugin Name: Kreativne komunikacije - Yachts & News Sync
  * Plugin URI: https://atal.at
  * Description: Syncs yachts and news from Filament Admin to WordPress with Falang multilingual support
- * Version: 2.0.5
+ * Version: 2.0.0
  * Author: Kreativne komunikacije
  * Text Domain: kk-sync
  * Requires PHP: 8.0
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('ATAL_SYNC_VERSION', '2.0.5');
+define('ATAL_SYNC_VERSION', '2.0.0');
 define('ATAL_SYNC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ATAL_SYNC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -29,6 +29,10 @@ require_once ATAL_SYNC_PLUGIN_DIR . 'includes/rest-api.php';
 
 // Activation hook
 register_activation_hook(__FILE__, 'atal_sync_activate');
+
+// Force Falang field registration on admin init
+add_action('admin_init', 'atal_register_falang_fields', 999);
+
 
 function atal_sync_activate()
 {
