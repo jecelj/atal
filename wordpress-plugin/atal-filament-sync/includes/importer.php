@@ -630,185 +630,131 @@ function atal_import_news($data)
     }
 
     $slug = $data['slug'];
-    $titles = $data['title'];
-    $contents = $data['content'] ?? [];
-    $excerpts = $data['excerpt'] ?? [];
+    // In new payload, title/content/excerpt are strings (default language)
+    $title = $data['title'];
+    $content = $data['content'] ?? '';
+    $excerpt = $data['excerpt'] ?? '';
     $published_at = $data['published_at'];
     $featured_image_url = $data['featured_image'];
+    $translations = $data['translations'] ?? [];
 
-    $translation_ids = [];
     $imported = 0;
 
-    // Get available languages from the data
-    $languages = array_keys($titles);
+    // --- FIND OR CREATE POST (Default Language Only) ---
+    // Check if post already exists
+    $existing_posts = get_posts([
+        'post_type' => 'news',
+        'meta_key' => '_atal_news_slug',
+        'meta_value' => $slug,
+        'posts_per_page' => 1,
+        'post_status' => 'any',
+    ]);
 
-    // Filter languages based on active site languages
-    $active_languages = atal_get_active_languages();
-    $languages = array_intersect($languages, $active_languages);
+    $post_id = 0;
 
-    if (empty($languages)) {
-        atal_log("No matching languages found for this site. Active: " . implode(', ', $active_languages));
-        return ['error' => 'No matching languages found'];
+    $post_data = [
+        'post_title' => $title,
+        'post_content' => $content,
+        'post_excerpt' => $excerpt,
+        'post_status' => 'publish',
+        'post_type' => 'news',
+        'post_date' => $published_at ? date('Y-m-d H:i:s', strtotime($published_at)) : date('Y-m-d H:i:s'),
+        'post_name' => $slug,
+    ];
+
+    if (!empty($existing_posts)) {
+        // Update
+        $post_id = $existing_posts[0]->ID;
+        $post_data['ID'] = $post_id;
+        wp_update_post($post_data);
+        atal_log("Updated News ID: $post_id");
+    } else {
+        // Create
+        $post_id = wp_insert_post($post_data);
+        if (is_wp_error($post_id)) {
+            atal_log("Error creating news: " . $post_id->get_error_message());
+            return ['error' => $post_id->get_error_message()];
+        }
+        update_post_meta($post_id, '_atal_news_slug', $slug);
+        atal_log("Created News ID: $post_id");
+        $imported++;
     }
 
-    foreach ($languages as $lang) {
-        atal_log("Processing News ($lang): $slug");
+    // Set Featured Image
+    if ($featured_image_url) {
+        $attachment_id = atal_import_image($featured_image_url, $post_id);
+        if ($attachment_id) {
+            set_post_thumbnail($post_id, $attachment_id);
+        }
+    }
 
-        // Check if post already exists
-        $existing_posts = get_posts([
-            'post_type' => 'news',
-            'meta_key' => '_atal_news_slug',
-            'meta_value' => $slug,
-            'posts_per_page' => -1,
-            'post_status' => 'any',
-        ]);
-
-        $post_id = 0;
-
-        foreach ($existing_posts as $p) {
-            $p_lang = function_exists('pll_get_post_language') ? pll_get_post_language($p->ID) : 'en';
-            if ($p_lang === $lang) {
-                $post_id = $p->ID;
-                break;
+    // Handle Custom Fields (Default Language)
+    if (!empty($data['custom_fields'])) {
+        // Get field definitions to know types
+        $field_groups = get_option('atal_sync_field_definitions');
+        $field_types = [];
+        if (!empty($field_groups)) {
+            foreach ($field_groups as $group) {
+                foreach ($group['fields'] as $field) {
+                    $field_types[$field['name']] = $field['type'];
+                }
             }
         }
 
-        $post_data = [
-            'post_title' => $titles[$lang] ?? '',
-            'post_content' => $contents[$lang] ?? '',
-            'post_excerpt' => $excerpts[$lang] ?? '',
-            'post_status' => 'publish',
-            'post_type' => 'news',
-            'post_date' => $published_at ? date('Y-m-d H:i:s', strtotime($published_at)) : date('Y-m-d H:i:s'),
-            'post_name' => $slug, // WordPress will handle duplicates by appending suffix if needed, but we want to keep it clean
-        ];
-
-        if ($post_id) {
-            // Update
-            $post_data['ID'] = $post_id;
-            wp_update_post($post_data);
-            atal_log("Updated News ID: $post_id");
-        } else {
-            // Create
-            $post_id = wp_insert_post($post_data);
-            if (is_wp_error($post_id)) {
-                atal_log("Error creating news: " . $post_id->get_error_message());
+        foreach ($data['custom_fields'] as $key => $value) {
+            if (empty($value)) {
+                if (function_exists('update_field')) {
+                    update_field($key, $value, $post_id);
+                }
                 continue;
             }
-            update_post_meta($post_id, '_atal_news_slug', $slug);
-            atal_log("Created News ID: $post_id");
-            $imported++;
-        }
 
-        // Set Language
-        if (function_exists('pll_set_post_language')) {
-            pll_set_post_language($post_id, $lang);
-        }
+            $type = $field_types[$key] ?? 'text';
 
-        // Set Featured Image
-        if ($featured_image_url) {
-            $attachment_id = atal_import_image($featured_image_url, $post_id);
-            if ($attachment_id) {
-                set_post_thumbnail($post_id, $attachment_id);
-            }
-        }
-
-        // Handle Custom Fields
-        if (!empty($data['custom_fields'])) {
-            // Get field definitions to know types
-            $field_groups = get_option('atal_sync_field_definitions');
-            $field_types = [];
-            if (!empty($field_groups)) {
-                foreach ($field_groups as $group) {
-                    foreach ($group['fields'] as $field) {
-                        $field_types[$field['name']] = $field['type'];
+            if (function_exists('update_field')) {
+                if ($type === 'image' || $type === 'file') {
+                    if (is_string($value) && !empty($value) && parse_url($value, PHP_URL_SCHEME)) {
+                        $attachment_id = atal_import_image($value, $post_id);
+                        if ($attachment_id) {
+                            update_field($key, $attachment_id, $post_id);
+                        }
                     }
-                }
-            }
-
-            foreach ($data['custom_fields'] as $key => $value) {
-                // If value is a multilingual array, extract the value for current language
-                if (is_array($value) && isset($value[$lang])) {
-                    $value = $value[$lang];
-                }
-
-                // Skip if value is empty
-                if (empty($value)) {
-                    if (function_exists('update_field')) {
-                        update_field($key, $value, $post_id);
+                } elseif ($type === 'gallery') {
+                    if (is_array($value)) {
+                        $gallery_ids = atal_import_gallery($value, $post_id);
+                        update_field($key, $gallery_ids, $post_id);
                     }
-                    continue;
-                }
-
-                $type = $field_types[$key] ?? 'text';
-
-                if (function_exists('update_field')) {
-                    if ($type === 'image' || $type === 'file') {
-                        if (is_string($value) && !empty($value) && parse_url($value, PHP_URL_SCHEME)) {
-                            atal_log("Importing file/image for field: $key");
-                            $attachment_id = atal_import_image($value, $post_id);
-                            if ($attachment_id) {
-                                atal_log("File imported. Attachment ID: $attachment_id");
-                                update_field($key, $attachment_id, $post_id);
+                } elseif ($type === 'repeater') {
+                    // ... (Repeater logic matches previous implementation if needed, omitted for brevity if not used in News often)
+                    // Assuming News doesn't use heavy repeaters yet or logic is same.
+                    // Copying logic from before for safety:
+                    if (is_array($value)) {
+                        delete_post_meta($post_id, $key);
+                        global $wpdb;
+                        $wpdb->query($wpdb->prepare(
+                            "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+                            $post_id,
+                            $wpdb->esc_like($key . '_') . '%'
+                        ));
+                        update_post_meta($post_id, $key, count($value));
+                        foreach ($value as $index => $row) {
+                            foreach ($row as $sub_field_name => $sub_field_value) {
+                                $meta_key = "{$key}_{$index}_{$sub_field_name}";
+                                update_post_meta($post_id, $meta_key, $sub_field_value);
                             }
                         }
-                    } elseif ($type === 'gallery') {
-                        if (is_array($value)) {
-                            atal_log("Importing gallery for field: $key. Count: " . count($value));
-                            $gallery_ids = atal_import_gallery($value, $post_id);
-                            update_field($key, $gallery_ids, $post_id);
-                        }
-                    } elseif ($type === 'repeater') {
-                        // Handle repeater fields (e.g., video_url)
-                        if (is_array($value)) {
-                            atal_log("Updating repeater field: $key. Count: " . count($value));
-
-                            // SCF/ACF repeater format in database:
-                            // video_url = 3 (count)
-                            // video_url_0_url = "..."
-                            // video_url_1_url = "..."
-                            // video_url_2_url = "..."
-
-                            // First, delete existing repeater data
-                            delete_post_meta($post_id, $key);
-
-                            // Delete all sub-field meta
-                            global $wpdb;
-                            $wpdb->query($wpdb->prepare(
-                                "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
-                                $post_id,
-                                $wpdb->esc_like($key . '_') . '%'
-                            ));
-
-                            // Set the count
-                            update_post_meta($post_id, $key, count($value));
-
-                            // Add each row manually
-                            foreach ($value as $index => $row) {
-                                // For video_url, row is ['url' => '...']
-                                foreach ($row as $sub_field_name => $sub_field_value) {
-                                    $meta_key = "{$key}_{$index}_{$sub_field_name}";
-                                    update_post_meta($post_id, $meta_key, $sub_field_value);
-                                }
-                            }
-
-                            atal_log("Repeater field $key updated with " . count($value) . " rows");
-                        }
-                    } else {
-                        atal_log("Updating field: $key | Type: $type | Value: " . (is_string($value) ? substr($value, 0, 50) : 'array'));
-                        update_field($key, $value, $post_id);
                     }
+                } else {
+                    update_field($key, $value, $post_id);
                 }
             }
         }
-
-        $translation_ids[$lang] = $post_id;
     }
 
-    // Link translations
-    if (function_exists('pll_save_post_translations') && count($translation_ids) > 1) {
-        pll_save_post_translations($translation_ids);
-    }
+    // --- SAVE TRANSLATIONS (FALANG) ---
+    // Use the same helper as Yachts
+    $multilingual_fields = atal_get_multilingual_fields();
+    atal_save_all_translations($post_id, $translations, $multilingual_fields);
 
     return [
         'imported' => $imported,
