@@ -52,36 +52,115 @@ class ImageOptimizationService
                     $newFileNameBase = "{$baseName}-{$collectionName}-" . ($index + 1);
                     $newFileName = "{$newFileNameBase}.webp";
 
-                    // SPECIAL HANDLING FOR WEBP: Rename only, do not re-process
+                    // SPECIAL HANDLING FOR WEBP: Check size and recompress if needed
                     if ($media->mime_type === 'image/webp') {
-                        if ($media->file_name !== $newFileName) {
-                            $oldPath = $media->getPath();
-                            $directory = dirname($oldPath);
-                            $newPath = $directory . DIRECTORY_SEPARATOR . $newFileName;
+                        $originalPath = $media->getPath();
+                        $fileSize = $media->size;
 
-                            if (file_exists($oldPath)) {
-                                // Rename file on disk
-                                if (rename($oldPath, $newPath)) {
+                        // If WebP is larger than 500KB, recompress it
+                        if ($fileSize > 512000) {
+                            Log::info("ImageOptimizationService: WebP file {$media->id} is {$fileSize} bytes (>500KB), recompressing...");
+
+                            try {
+                                // Load WebP image
+                                $image = imagecreatefromwebp($originalPath);
+                                if (!$image) {
+                                    Log::error("ImageOptimizationService: Failed to load WebP {$media->id} for recompression");
+                                    $stats['errors']++;
+                                    continue;
+                                }
+
+                                $width = imagesx($image);
+                                $height = imagesy($image);
+
+                                // Resize if width > 2000px
+                                if ($width > 2000) {
+                                    $newWidth = 2000;
+                                    $newHeight = (int) round(($height / $width) * 2000);
+                                    Log::info("ImageOptimizationService: Resizing WebP from {$width}x{$height} to {$newWidth}x{$newHeight}");
+
+                                    $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+
+                                    // Preserve transparency
+                                    imagealphablending($resizedImage, false);
+                                    imagesavealpha($resizedImage, true);
+
+                                    imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                                    imagedestroy($image);
+                                    $image = $resizedImage;
+                                    $stats['resized']++;
+                                }
+
+                                // Determine target path (with new filename if renamed)
+                                $directory = dirname($originalPath);
+                                $targetPath = $directory . DIRECTORY_SEPARATOR . $newFileName;
+
+                                // Save with 80% quality
+                                $success = imagewebp($image, $targetPath, 80);
+                                imagedestroy($image);
+
+                                if ($success && file_exists($targetPath)) {
+                                    clearstatcache(true, $targetPath);
+                                    $newSize = filesize($targetPath);
+
+                                    // Delete old file if path changed
+                                    if ($originalPath !== $targetPath && file_exists($originalPath)) {
+                                        unlink($originalPath);
+                                    }
+
+                                    // Update media record
                                     $media->name = $newFileNameBase;
                                     $media->file_name = $newFileName;
+                                    $media->size = $newSize;
                                     $media->setCustomProperty('optimized', true);
                                     $media->save();
 
-                                    $stats['renamed']++;
-                                    Log::info("ImageOptimizationService: Renamed WebP only: {$oldPath} -> {$newPath}");
+                                    $stats['converted']++;
+                                    if ($media->file_name !== $newFileName) {
+                                        $stats['renamed']++;
+                                    }
+
+                                    Log::info("ImageOptimizationService: Recompressed WebP from {$fileSize} to {$newSize} bytes");
                                 } else {
-                                    Log::error("ImageOptimizationService: Failed to rename WebP: {$oldPath} -> {$newPath}");
+                                    Log::error("ImageOptimizationService: Failed to save recompressed WebP");
                                     $stats['errors']++;
                                 }
+
+                            } catch (\Throwable $e) {
+                                Log::error("ImageOptimizationService: Error recompressing WebP {$media->id}: " . $e->getMessage());
+                                $stats['errors']++;
                             }
                         } else {
-                            // Already WebP and correct name. Just mark optimized.
-                            if (!$media->getCustomProperty('optimized')) {
-                                $media->setCustomProperty('optimized', true);
-                                $media->save();
+                            // WebP is small enough, just rename if needed
+                            if ($media->file_name !== $newFileName) {
+                                $oldPath = $media->getPath();
+                                $directory = dirname($oldPath);
+                                $newPath = $directory . DIRECTORY_SEPARATOR . $newFileName;
+
+                                if (file_exists($oldPath)) {
+                                    // Rename file on disk
+                                    if (rename($oldPath, $newPath)) {
+                                        $media->name = $newFileNameBase;
+                                        $media->file_name = $newFileName;
+                                        $media->setCustomProperty('optimized', true);
+                                        $media->save();
+
+                                        $stats['renamed']++;
+                                        Log::info("ImageOptimizationService: Renamed WebP only: {$oldPath} -> {$newPath}");
+                                    } else {
+                                        Log::error("ImageOptimizationService: Failed to rename WebP: {$oldPath} -> {$newPath}");
+                                        $stats['errors']++;
+                                    }
+                                }
+                            } else {
+                                // Already WebP, correct name, and small enough. Just mark optimized.
+                                if (!$media->getCustomProperty('optimized')) {
+                                    $media->setCustomProperty('optimized', true);
+                                    $media->save();
+                                }
                             }
                         }
-                        // Skip heavy processing for WebP
+                        // Skip heavy processing for WebP (already handled above)
                         continue;
                     }
 
