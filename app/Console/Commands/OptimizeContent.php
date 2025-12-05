@@ -6,6 +6,7 @@ use App\Jobs\OptimizeYachtImages;
 use App\Models\Yacht;
 use App\Models\News;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class OptimizeContent extends Command
 {
@@ -45,6 +46,8 @@ class OptimizeContent extends Command
             $yachts = $query->get();
 
             foreach ($yachts as $yacht) {
+                if ($force)
+                    Log::info("Dispatching optimization for Yacht {$yacht->id} with FORCE=TRUE");
                 OptimizeYachtImages::dispatch($yacht, $force);
                 $totalQueued++;
             }

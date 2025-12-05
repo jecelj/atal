@@ -37,7 +37,7 @@ class OptimizeYachtImages implements ShouldQueue
         // Increase memory limit
         ini_set('memory_limit', '512M');
 
-        Log::info("OptimizeImages: Starting optimization for model " . class_basename($this->model) . " ID {$this->model->id}");
+        Log::info("OptimizeImages: Starting optimization for model " . class_basename($this->model) . " ID {$this->model->id} with FORCE=" . ($this->force ? 'TRUE' : 'FALSE'));
 
         try {
             // Check if already optimized (skip if not forced)
