@@ -30,29 +30,46 @@ class OptimizeContent extends Command
 
         $totalQueued = 0;
 
-        // Optimize Yachts
+        // Optimize Yachts (New and Used)
         if (!$type || $type === 'yachts') {
             $this->info('⛵ Processing Yachts...');
 
-            $query = Yacht::query();
-
+            // Process New Yachts
+            $newYachtsQuery = \App\Models\NewYacht::query();
             if ($onlyUnoptimized) {
-                $query->where(function ($q) {
+                $newYachtsQuery->where(function ($q) {
                     $q->where('img_opt_status', false)
                         ->orWhereNull('img_opt_status');
                 });
             }
+            $newYachts = $newYachtsQuery->get();
 
-            $yachts = $query->get();
-
-            foreach ($yachts as $yacht) {
+            foreach ($newYachts as $yacht) {
                 if ($force)
-                    Log::info("Dispatching optimization for Yacht {$yacht->id} with FORCE=TRUE");
+                    Log::info("Dispatching optimization for NewYacht {$yacht->id} with FORCE=TRUE");
                 OptimizeYachtImages::dispatch($yacht, $force);
                 $totalQueued++;
             }
+            $this->line("  • Queued {$newYachts->count()} new yachts");
 
-            $this->line("  • Queued {$yachts->count()} yachts");
+            // Process Used Yachts
+            $usedYachtsQuery = \App\Models\UsedYacht::query();
+            if ($onlyUnoptimized) {
+                $usedYachtsQuery->where(function ($q) {
+                    $q->where('img_opt_status', false)
+                        ->orWhereNull('img_opt_status');
+                });
+            }
+            $usedYachts = $usedYachtsQuery->get();
+
+            foreach ($usedYachts as $yacht) {
+                if ($force)
+                    Log::info("Dispatching optimization for UsedYacht {$yacht->id} with FORCE=TRUE");
+                OptimizeYachtImages::dispatch($yacht, $force);
+                $totalQueued++;
+            }
+            $this->line("  • Queued {$usedYachts->count()} used yachts");
+
             $this->newLine();
         }
 
