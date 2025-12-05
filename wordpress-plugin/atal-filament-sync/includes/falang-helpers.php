@@ -73,6 +73,16 @@ function atal_save_translation_falang($post_id, $lang, $field_name, $value, $fie
 {
     if (!class_exists('Falang\Core\Translation')) {
         atal_log("ERROR: Falang Translation class not found");
+
+        // DEBUG: List all Falang classes to find the correct one
+        $classes = [];
+        foreach (get_declared_classes() as $class) {
+            if (strpos($class, 'Falang') !== false) {
+                $classes[] = $class;
+            }
+        }
+        atal_log("Available Falang classes: " . implode(', ', $classes));
+
         return false;
     }
 
