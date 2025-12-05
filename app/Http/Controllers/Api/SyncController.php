@@ -327,11 +327,15 @@ class SyncController extends Controller
                 ->get();
 
             $fields = $configs->map(function ($config) {
+                // If sync_as_taxonomy is true, we want to force this field to be a TEXT field in WordPress
+                // so it can hold the translated string (e.g. "Diesel") instead of a select value or taxonomy ID.
+                $type = $config->sync_as_taxonomy ? 'text' : $this->mapFieldType($config->field_type);
+
                 return [
                     'key' => 'field_' . $config->field_key,
                     'name' => $config->field_key,
                     'label' => $config->label,
-                    'type' => $this->mapFieldType($config->field_type),
+                    'type' => $type,
                     'required' => $config->is_required,
                     'group' => $config->group ?? 'General',
                     'options' => $config->options ?? [],
