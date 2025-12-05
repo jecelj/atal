@@ -23,7 +23,7 @@ class OptimizeYachtImages implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public Yacht $yacht,
+        public \Illuminate\Database\Eloquent\Model $model,
         public bool $force = false
     ) {
         //
@@ -37,30 +37,32 @@ class OptimizeYachtImages implements ShouldQueue
         // Increase memory limit
         ini_set('memory_limit', '512M');
 
-        Log::info("OptimizeYachtImages: Starting optimization for yacht {$this->yacht->id}");
+        Log::info("OptimizeImages: Starting optimization for model " . class_basename($this->model) . " ID {$this->model->id}");
 
         try {
             // Check if already optimized (skip if not forced)
-            if (!$this->force && $this->yacht->img_opt_status === true) {
-                Log::info("OptimizeYachtImages: Yacht {$this->yacht->id} already optimized, skipping");
+            if (!$this->force && $this->model->img_opt_status === true) {
+                Log::info("OptimizeImages: Model {$this->model->id} already optimized, skipping");
                 return;
             }
 
             // Run optimization
             $service = app(ImageOptimizationService::class);
-            $stats = $service->processYachtImages($this->yacht);
+            $stats = $service->processYachtImages($this->model);
 
-            Log::info("OptimizeYachtImages: Completed for yacht {$this->yacht->id}", $stats);
+            Log::info("OptimizeImages: Completed for model {$this->model->id}", $stats);
 
             // Update status
             $statusService = app(StatusCheckService::class);
-            $statusService->checkAndUpdateStatus($this->yacht);
+            if (method_exists($statusService, 'checkAndUpdateStatus')) {
+                $statusService->checkAndUpdateStatus($this->model);
+            }
 
-            Log::info("OptimizeYachtImages: Successfully optimized yacht {$this->yacht->id}");
+            Log::info("OptimizeImages: Successfully optimized model {$this->model->id}");
 
         } catch (\Throwable $e) {
-            Log::error("OptimizeYachtImages: Failed for yacht {$this->yacht->id}: " . $e->getMessage());
-            Log::error("OptimizeYachtImages: Stack trace: " . $e->getTraceAsString());
+            Log::error("OptimizeImages: Failed for model {$this->model->id}: " . $e->getMessage());
+            Log::error("OptimizeImages: Stack trace: " . $e->getTraceAsString());
 
             // Re-throw to mark job as failed
             throw $e;

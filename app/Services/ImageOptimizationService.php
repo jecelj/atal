@@ -16,7 +16,7 @@ class ImageOptimizationService
      */
     protected array $processedFiles = [];
 
-    public function processYachtImages(Yacht $yacht): array
+    public function processYachtImages($model): array
     {
         // Increase limits for heavy processing
         ini_set('memory_limit', '512M');
@@ -30,14 +30,22 @@ class ImageOptimizationService
             'errors' => 0,
         ];
 
-        $brandName = $yacht->brand ? Str::slug($yacht->brand->name) : 'yacht';
-        $modelName = $yacht->yachtModel ? Str::slug($yacht->yachtModel->name) : $yacht->id;
-        $baseName = "{$brandName}-{$modelName}";
+        // Determine base name based on model type
+        if ($model instanceof Yacht) {
+            $brandName = $model->brand ? Str::slug($model->brand->name) : 'yacht';
+            $modelName = $model->yachtModel ? Str::slug($model->yachtModel->name) : $model->id;
+            $baseName = "{$brandName}-{$modelName}";
+        } elseif ($model instanceof \App\Models\News) {
+            $baseName = $model->slug ?: "news-{$model->id}";
+        } else {
+            // Fallback for other models
+            $baseName = class_basename($model) . "-{$model->id}";
+        }
 
         // Group media by collection to handle indexing
-        $collections = $yacht->getMedia('*')->groupBy('collection_name');
+        $collections = $model->getMedia('*')->groupBy('collection_name');
 
-        Log::info("ImageOptimizationService: Starting optimization for yacht {$yacht->id}");
+        Log::info("ImageOptimizationService: Starting optimization for model " . class_basename($model) . " ID {$model->id}");
 
         foreach ($collections as $collectionName => $mediaItems) {
             Log::info("ImageOptimizationService: Processing collection '{$collectionName}' with " . $mediaItems->count() . " items");
@@ -375,7 +383,7 @@ class ImageOptimizationService
             }
         }
 
-        Log::info("ImageOptimizationService: Optimization complete for yacht {$yacht->id}", $stats);
+        Log::info("ImageOptimizationService: Optimization complete for model " . class_basename($model) . " ID {$model->id}", $stats);
 
         return $stats;
     }
