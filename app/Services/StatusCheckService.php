@@ -55,8 +55,8 @@ class StatusCheckService
                 return false;
             }
 
-            // Check size (must be < 500KB = 512000 bytes)
-            if ($media->size > 512000) {
+            // Check size (must be < 1MB = 1048576 bytes)
+            if ($media->size > 1048576) {
                 return false;
             }
         }
