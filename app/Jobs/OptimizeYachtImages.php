@@ -48,7 +48,7 @@ class OptimizeYachtImages implements ShouldQueue
 
             // Run optimization
             $service = app(ImageOptimizationService::class);
-            $stats = $service->processYachtImages($this->model);
+            $stats = $service->processYachtImages($this->model, $this->force);
 
             Log::info("OptimizeImages: Completed for model {$this->model->id}", $stats);
 

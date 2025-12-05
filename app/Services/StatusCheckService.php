@@ -50,13 +50,24 @@ class StatusCheckService
                 continue;
             }
 
+            $isValid = true;
+
             // Check format (must be WebP)
             if ($media->mime_type !== 'image/webp') {
-                return false;
+                $isValid = false;
             }
 
             // Check size (must be < 1MB = 1048576 bytes)
             if ($media->size > 1048576) {
+                $isValid = false;
+            }
+
+            if (!$isValid) {
+                // If invalid, we MUST clear the optimized flag so it gets picked up again
+                if ($media->getCustomProperty('optimized')) {
+                    $media->forgetCustomProperty('optimized');
+                    $media->save();
+                }
                 return false;
             }
         }

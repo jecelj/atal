@@ -16,7 +16,7 @@ class ImageOptimizationService
      */
     protected array $processedFiles = [];
 
-    public function processYachtImages($model): array
+    public function processYachtImages($model, bool $force = false): array
     {
         // Increase limits for heavy processing
         ini_set('memory_limit', '512M');
@@ -60,7 +60,7 @@ class ImageOptimizationService
                     }
 
                     // CHECK: Already optimized?
-                    if ($media->getCustomProperty('optimized') === true) {
+                    if (!$force && $media->getCustomProperty('optimized') === true) {
                         continue;
                     }
 
