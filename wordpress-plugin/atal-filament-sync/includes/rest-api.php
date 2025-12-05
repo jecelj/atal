@@ -57,8 +57,18 @@ function atal_sync_rest_import($request)
     if ($type === 'news' && !empty($data)) {
         atal_log("Calling atal_import_news()");
         $result = atal_import_news($data);
+    } elseif (!empty($data) && ($type === 'new' || $type === 'used')) {
+        // PUSH Mode for Yachts
+        atal_log("Calling atal_import_single_yacht() (Push Mode) - type: $type");
+        // Ensure type matches format expected by importer
+        $data['type'] = $type;
+        $success = atal_import_single_yacht($data);
+        $result = [
+            'imported' => $success ? 1 : 0,
+            'errors' => $success ? [] : ['Failed to import yacht']
+        ];
     } else {
-        atal_log("Calling atal_import_yachts() - type: " . ($type ?? 'NULL'));
+        atal_log("Calling atal_import_yachts() (Pull Mode) - type: " . ($type ?? 'NULL'));
         // Default to yacht import (pull mode)
         $result = atal_import_yachts($type ?? 'new');
     }

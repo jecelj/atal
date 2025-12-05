@@ -303,3 +303,64 @@ function atal_is_falang_active()
     $languages = atal_get_active_languages_falang();
     return count($languages) > 0;
 }
+
+/**
+ * Get Falang Locale from Slug (e.g. 'sl' -> 'sl_SI', 'en' -> 'en_US')
+ */
+function atal_get_falang_locale($slug)
+{
+    if (!class_exists('Falang\Model\Falang_Model')) {
+        // Fallback mapping if class not available
+        $map = [
+            'sl' => 'sl_SI',
+            'en' => 'en_US',
+            'de' => 'de_DE',
+            'it' => 'it_IT',
+            'hr' => 'hr_HR',
+            'fr' => 'fr_FR'
+        ];
+        return $map[$slug] ?? $slug . '_' . strtoupper($slug);
+    }
+
+    try {
+        $model = new Falang\Model\Falang_Model();
+        $language = $model->get_language_by_slug($slug);
+        return $language->locale ?? null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * Add Falang Translation for a Term (Meta-based)
+ * 
+ * @param int $originalId The term ID
+ * @param string $langCode Language code (e.g. 'sl', 'en', 'de')
+ * @param string $translatedValue The translated label
+ */
+function atal_add_falang_translation($originalId, $langCode, $translatedValue)
+{
+    if (empty($translatedValue))
+        return;
+
+    // 1. Get Locale
+    $locale = atal_get_falang_locale($langCode);
+    if (!$locale) {
+        atal_log("Atal Sync: Could not find locale for language '$langCode'");
+        return;
+    }
+
+    // 2. Construct Meta Key Prefix (e.g., '_en_US_')
+    $prefix = '_' . $locale . '_';
+
+    // Falang for Terms usually translates 'name'
+    // Meta key: _en_US_name
+    $meta_key = $prefix . 'name';
+
+    update_term_meta($originalId, $meta_key, $translatedValue);
+
+    // Mark as published
+    update_term_meta($originalId, $prefix . 'published', 1);
+
+    atal_log("Atal Sync: Saved meta translation for term {$originalId} ({$locale}): name");
+}
