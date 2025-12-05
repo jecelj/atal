@@ -224,8 +224,25 @@ class ImageOptimizationService
                     // 2. Process Image (Resize & Convert)
                     $originalPath = $media->getPath();
 
+                    // CRITICAL: Check if this file was already processed in this run
+                    if (isset($this->processedFiles[$originalPath])) {
+                        $processedInfo = $this->processedFiles[$originalPath];
+                        Log::info("ImageOptimizationService: File '{$originalPath}' was already processed. Linking media {$media->id} to existing file: {$processedInfo['new_path']}");
+
+                        // Update media record to point to the already-processed file
+                        $media->file_name = $processedInfo['new_filename'];
+                        $media->mime_type = 'image/webp'; // It was converted to WebP
+                        $media->size = filesize($processedInfo['new_path']);
+                        $media->setCustomProperty('optimized', true);
+                        $media->save();
+
+                        $stats['renamed']++; // Count as renamed since we updated the reference
+                        Log::info("ImageOptimizationService: [END] Successfully linked media ID {$media->id} to already processed file");
+                        continue;
+                    }
+
                     if (!file_exists($originalPath)) {
-                        Log::warning("ImageOptimizationService: File not found for media {$media->id}");
+                        Log::warning("ImageOptimizationService: File not found for media {$media->id} at '{$originalPath}' and not in processed cache. Skipping.");
                         $stats['errors']++;
                         continue;
                     }
