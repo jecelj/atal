@@ -232,22 +232,32 @@ class WordPressSyncService
     protected function resolveFieldValue($news, $config, $langCode)
     {
         // Handle media field types
+        $defaultLang = \App\Models\Language::where('is_default', true)->value('code') ?? 'sl';
+
         if ($config->field_type === 'gallery') {
-            // Galleries are usually not translatable in this context (same images for all), 
-            // but if we supported it, we'd need to fetch by collection name + lang? 
-            // Current implementation assumes shared media.
-            // Just return for default language, or null for others?
-            // Existing logic: $mediaItems = $news->getMedia($config->field_key);
-            // This gets all media in collection.
-            if ($langCode !== 'sl')
-                return null; // Only send media in default payload? 
-            // Actually, plugin handles media import. 
-            // Let's stick to sending media only in main custom_fields for now, unless we have specific requirements.
-            // BUT: If the SyncController sends it in custom_fields, that's fine.
-            return null; // Handle media separately/globally
+            // Only sync media for default language
+            if ($langCode !== $defaultLang) {
+                return null;
+            }
+
+            $mediaItems = $news->getMedia($config->field_key);
+            $urls = [];
+            foreach ($mediaItems as $media) {
+                $urls[] = $media->getUrl();
+            }
+            return $urls;
+
         } elseif ($config->field_type === 'image' || $config->field_type === 'file') {
-            // Same for single images
+            // Only sync media for default language
+            if ($langCode !== $defaultLang) {
+                return null;
+            }
+
+            if ($news->hasMedia($config->field_key)) {
+                return $news->getFirstMediaUrl($config->field_key);
+            }
             return null;
+
         } elseif ($config->field_type === 'select' && $config->sync_as_taxonomy) {
             // Text Strategy for Custom Fields (Selects synced as text)
             $customFields = $news->custom_fields ?? [];
