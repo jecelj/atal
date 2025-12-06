@@ -82,7 +82,22 @@ function atal_sync_register_scf_fields()
                 $acf_field['save_terms'] = 1; // Important: Save terms to post
                 $acf_field['load_terms'] = 1; // Load terms from post
             } elseif ($field['type'] === 'repeater') {
-                // Handle repeater fields (e.g., video_url)
+                // SPECIAL HANDLING: New Yachts 'video_url' repeater -> Flatten to 3 text fields
+                if ($post_type === 'new_yachts' && $field['name'] === 'video_url') {
+                    for ($i = 1; $i <= 3; $i++) {
+                        $fields[] = [
+                            'key' => $field['key'] . '_' . $i,
+                            'label' => 'Video URL ' . $i,
+                            'name' => 'video_url_' . $i,
+                            'type' => 'text', // Or 'url'
+                            'instructions' => 'Enter YouTube/Vimeo URL',
+                            'required' => 0,
+                        ];
+                    }
+                    continue; // Skip adding the repeater itself
+                }
+
+                // Handle other repeater fields
                 $acf_field['type'] = 'repeater';
                 $acf_field['layout'] = 'table';
                 $acf_field['button_label'] = 'Add Row';
