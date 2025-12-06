@@ -52,6 +52,23 @@ function atal_sync_register_scf_fields()
                 continue; // Skip model field
             }
 
+            // SPECIAL HANDLING: New Yachts 'video_url' -> Flatten to 3 text fields
+            // Check based on NAME, regardless of type (it might be text/repeater)
+            if (($post_type === 'new_yachts' || $post_type === 'new-yachts') && $field['name'] === 'video_url') {
+                atal_log("FLATTENING video_url for {$post_type} (Type was: {$field['type']})");
+                for ($i = 1; $i <= 3; $i++) {
+                    $fields[] = [
+                        'key' => 'field_' . $post_type . '_video_url_' . $i, // Explicit key
+                        'label' => 'Video URL ' . $i,
+                        'name' => 'video_url_' . $i,
+                        'type' => 'text',
+                        'instructions' => 'Enter YouTube/Vimeo URL',
+                        'required' => 0,
+                    ];
+                }
+                continue; // Skip adding the original video_url field
+            }
+
             $acf_field = [
                 'key' => $field['key'] ?? 'field_' . $post_type . '_' . $field['name'],
                 'label' => $field['label'],
@@ -82,20 +99,7 @@ function atal_sync_register_scf_fields()
                 $acf_field['save_terms'] = 1; // Important: Save terms to post
                 $acf_field['load_terms'] = 1; // Load terms from post
             } elseif ($field['type'] === 'repeater') {
-                // SPECIAL HANDLING: New Yachts 'video_url' repeater -> Flatten to 3 text fields
-                if ($post_type === 'new_yachts' && $field['name'] === 'video_url') {
-                    for ($i = 1; $i <= 3; $i++) {
-                        $fields[] = [
-                            'key' => $field['key'] . '_' . $i,
-                            'label' => 'Video URL ' . $i,
-                            'name' => 'video_url_' . $i,
-                            'type' => 'text', // Or 'url'
-                            'instructions' => 'Enter YouTube/Vimeo URL',
-                            'required' => 0,
-                        ];
-                    }
-                    continue; // Skip adding the repeater itself
-                }
+                atal_log("Processing repeater field: {$field['name']} for Post Type: {$post_type}");
 
                 // Handle other repeater fields
                 $acf_field['type'] = 'repeater';
