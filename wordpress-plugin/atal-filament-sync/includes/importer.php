@@ -254,6 +254,40 @@ function atal_import_single_yacht($yacht_data)
     // --- SAVE DEFAULT LANGUAGE CUSTOM FIELDS ---
     if (function_exists('update_field') && isset($default_translation['custom_fields'])) {
         foreach ($default_translation['custom_fields'] as $key => $value) {
+            // SPECIAL HANDLING: New Yachts 'video_url' (Repeater -> Flatten)
+            // Handle this regardless of identified type to be robust
+            if ($key === 'video_url' && $post_type === 'new_yachts') {
+                $rows = $value;
+                if (is_string($rows)) {
+                    // Try to decode if it's a JSON string
+                    $decoded = json_decode($rows, true);
+                    if (is_array($decoded)) {
+                        $rows = $decoded;
+                    }
+                }
+
+                if (is_array($rows)) {
+                    $count = 1;
+                    foreach ($rows as $row) {
+                        if ($count > 3)
+                            break;
+                        $url = $row['url'] ?? (is_string($row) ? $row : '');
+                        update_field("video_url_{$count}", $url, $post_id);
+                        $count++;
+                    }
+                    // Clear remaining fields
+                    for ($i = $count; $i <= 3; $i++) {
+                        update_field("video_url_{$i}", '', $post_id);
+                    }
+                }
+
+                // Clean up the raw repeater field so it doesn't clutter DB/UI
+                delete_post_meta($post_id, 'video_url');
+                continue;
+            }
+
+            $type = $field_types[$key] ?? 'text';
+
             if ($key === '_debug_configured_fields') {
                 continue;
             }
@@ -262,8 +296,6 @@ function atal_import_single_yacht($yacht_data)
                 update_field($key, $value, $post_id);
                 continue;
             }
-
-            $type = $field_types[$key] ?? 'text';
 
             // Handle Media Fields
             if ($type === 'image' || $type === 'file') {
@@ -279,28 +311,7 @@ function atal_import_single_yacht($yacht_data)
                     update_field($key, $gallery_ids, $post_id);
                 }
             } elseif ($type === 'repeater') { // Repeater Logic
-                // SPECIAL HANDLING: New Yachts 'video_url' repeater -> Flatten to 3 text fields
-                if ($key === 'video_url' && $post_type === 'new_yachts') {
-                    if (is_array($value)) {
-                        $count = 1;
-                        foreach ($value as $row) {
-                            if ($count > 3)
-                                break;
-                            // Assuming row has 'url' key based on Master structure
-                            $url = $row['url'] ?? (is_string($row) ? $row : '');
-                            update_field("video_url_{$count}", $url, $post_id);
-                            $count++;
-                        }
-                        // Clear remaining fields if fewer than 3
-                        for ($i = $count; $i <= 3; $i++) {
-                            update_field("video_url_{$i}", '', $post_id);
-                        }
-                    }
-                    continue; // Skip standard repeater saving
-                }
-
-                // ... (Original repeater logic preserved for other fields if needed)
-                // Since simpler logic likely sufficient for other things or not used:
+                // Standard Repeater Logic
                 if (is_array($value)) {
                     delete_post_meta($post_id, $key);
                     global $wpdb;
