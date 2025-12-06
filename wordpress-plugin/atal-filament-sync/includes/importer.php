@@ -281,21 +281,22 @@ function atal_import_single_yacht($yacht_data)
             } elseif ($type === 'repeater') { // Repeater Logic
                 // SPECIAL HANDLING: New Yachts 'video_url' repeater -> Flatten to 3 text fields
                 if ($key === 'video_url' && $post_type === 'new_yachts') {
-                     if (is_array($value)) {
-                         $count = 1;
-                         foreach ($value as $row) {
-                             if ($count > 3) break;
-                             // Assuming row has 'url' key based on Master structure
-                             $url = $row['url'] ?? (is_string($row) ? $row : ''); 
-                             update_field("video_url_{$count}", $url, $post_id);
-                             $count++;
-                         }
-                         // Clear remaining fields if fewer than 3
-                         for ($i = $count; $i <= 3; $i++) {
-                             update_field("video_url_{$i}", '', $post_id);
-                         }
-                     }
-                     continue; // Skip standard repeater saving
+                    if (is_array($value)) {
+                        $count = 1;
+                        foreach ($value as $row) {
+                            if ($count > 3)
+                                break;
+                            // Assuming row has 'url' key based on Master structure
+                            $url = $row['url'] ?? (is_string($row) ? $row : '');
+                            update_field("video_url_{$count}", $url, $post_id);
+                            $count++;
+                        }
+                        // Clear remaining fields if fewer than 3
+                        for ($i = $count; $i <= 3; $i++) {
+                            update_field("video_url_{$i}", '', $post_id);
+                        }
+                    }
+                    continue; // Skip standard repeater saving
                 }
 
                 // ... (Original repeater logic preserved for other fields if needed)
@@ -311,8 +312,8 @@ function atal_import_single_yacht($yacht_data)
                     update_post_meta($post_id, $key, count($value));
                     foreach ($value as $index => $row) {
                         foreach ($row as $sub_field_name => $sub_field_value) {
-                             $meta_key = "{$key}_{$index}_{$sub_field_name}";
-                             update_post_meta($post_id, $meta_key, $sub_field_value);
+                            $meta_key = "{$key}_{$index}_{$sub_field_name}";
+                            update_post_meta($post_id, $meta_key, $sub_field_value);
                         }
                     }
                 }
@@ -811,21 +812,25 @@ function atal_import_news($data)
                             update_field($key, $attachment_id, $post_id);
                         }
                     }
-                } elseif ($type === 'gallery') {
+                } elseif ($type === 'repeater') {
+                    // ... (Repeater logic matches previous implementation if needed, omitted for brevity if not used in News often)
+                    // Assuming News doesn't use heavy repeaters yet or logic is same.
+                    // Copying logic from before for safety:
                     if (is_array($value)) {
-                        $gallery_ids = atal_import_gallery($value, $post_id);
-                        update_field($key, $gallery_ids, $post_id);
-                    }
-                if ($type === 'repeater') {
-                    // SPECIAL HANDLING: New Yachts 'video_url' repeater -> Flatten to 3 text fields
-                    // The field key 'video_url' comes from Master. We map it to video_url_1, video_url_2, video_url_3 (SCFs)
-                    if ($key === 'video_url' && $post_type === 'new_yachts') { // $post_type variable is available in this scope (defined at start of function)
-                         // Although this block is inside 'atal_import_news', wait... 
-                         // WRONG FUNCTION. This is atal_import_news. New Yachts are handled in atal_import_single_yacht.
-                         // But just in case, let's look at where we are. 
-                         // Ah, I am editing 'atal_import_news' function in previous context lines.
-                         // I need to find 'atal_import_single_yacht' loop for custom fields.
-                         // Let me abort this specific replace and target the correct function.
+                        delete_post_meta($post_id, $key);
+                        global $wpdb;
+                        $wpdb->query($wpdb->prepare(
+                            "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+                            $post_id,
+                            $wpdb->esc_like($key . '_') . '%'
+                        ));
+                        update_post_meta($post_id, $key, count($value));
+                        foreach ($value as $index => $row) {
+                            foreach ($row as $sub_field_name => $sub_field_value) {
+                                $meta_key = "{$key}_{$index}_{$sub_field_name}";
+                                update_post_meta($post_id, $meta_key, $sub_field_value);
+                            }
+                        }
                     }
                 } else {
                     update_field($key, $value, $post_id);
