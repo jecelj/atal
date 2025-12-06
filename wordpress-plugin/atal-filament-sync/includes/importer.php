@@ -667,18 +667,31 @@ function atal_import_news($data)
     }
 
     $imported = 0;
+    $post_id = 0;
+    $master_id = $data['id'] ?? null; // Get Master ID from payload
 
     // --- FIND OR CREATE POST (Default Language Only) ---
-    // Check if post already exists
-    $existing_posts = get_posts([
-        'post_type' => 'news',
-        'meta_key' => '_atal_news_slug',
-        'meta_value' => $slug,
-        'posts_per_page' => 1,
-        'post_status' => 'any',
-    ]);
+    // 1. Try to find by Master ID (Most robust)
+    if ($master_id) {
+        $existing_posts = get_posts([
+            'post_type' => 'news',
+            'meta_key' => '_atal_master_id',
+            'meta_value' => $master_id,
+            'posts_per_page' => 1,
+            'post_status' => 'any',
+        ]);
+    }
 
-    $post_id = 0;
+    // 2. Fallback: Try to find by Slug (Legacy/First sync)
+    if (empty($existing_posts)) {
+        $existing_posts = get_posts([
+            'post_type' => 'news',
+            'meta_key' => '_atal_news_slug',
+            'meta_value' => $slug,
+            'posts_per_page' => 1,
+            'post_status' => 'any',
+        ]);
+    }
 
     $post_data = [
         'post_title' => $title,
@@ -687,7 +700,7 @@ function atal_import_news($data)
         'post_status' => 'publish',
         'post_type' => 'news',
         'post_date' => $published_at ? date('Y-m-d H:i:s', strtotime($published_at)) : date('Y-m-d H:i:s'),
-        'post_name' => $slug,
+        'post_name' => $slug, // Always update slug to match Master
     ];
 
     if (!empty($existing_posts)) {
@@ -695,7 +708,14 @@ function atal_import_news($data)
         $post_id = $existing_posts[0]->ID;
         $post_data['ID'] = $post_id;
         wp_update_post($post_data);
-        atal_log("Updated News ID: $post_id");
+
+        // Ensure Master ID and Slug metas are up to date
+        if ($master_id) {
+            update_post_meta($post_id, '_atal_master_id', $master_id);
+        }
+        update_post_meta($post_id, '_atal_news_slug', $slug);
+
+        atal_log("Updated News ID: $post_id (Master ID: $master_id)");
     } else {
         // Create
         $post_id = wp_insert_post($post_data);
@@ -703,8 +723,14 @@ function atal_import_news($data)
             atal_log("Error creating news: " . $post_id->get_error_message());
             return ['error' => $post_id->get_error_message()];
         }
+
+        // Save metas
+        if ($master_id) {
+            update_post_meta($post_id, '_atal_master_id', $master_id);
+        }
         update_post_meta($post_id, '_atal_news_slug', $slug);
-        atal_log("Created News ID: $post_id");
+
+        atal_log("Created News ID: $post_id (Master ID: $master_id)");
         $imported++;
     }
 

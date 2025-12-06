@@ -11,8 +11,8 @@ add_action('init', 'atal_sync_register_cpts');
 
 function atal_sync_register_cpts()
 {
-    // Base64 encoded yacht icon (SVG)
-    $yacht_icon = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iYmxhY2siIHdpZHRoPSIyMHB4IiBoZWlnaHQ9IjIwcHgiPjxwYXRoIGQ9Ik0wIDBoMjR2MjRIMHoiIGZpbGw9Im5vbmUiLz48cGF0aCBkPSJNNCAxNmMwIDIuMjEgMS43OSA0IDQgNGg4YzIuMjEgMCA0LTEuNzkgNC00di0xSDR2MXptMi01aDEybC0xLTVIN2wtMSA1em0yLTguNUM4IDIuNSA4LjEgMy41IDkgNWg2Yy45LTEuNSAxLTIuNSAxLTIuNVMxNSAxIDEyIDEgOCAyLjUgOCAyLjV6Ii8+PC9zdmc+';
+    // Base64 encoded yacht icon (SVG - White for Admin Menu)
+    $yacht_icon = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTAgMGgyNHYyNEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik00IDE2YzAgMi4yMSAxLjc5IDQgNCA0aDhjMi4yMSAwIDQtMS43OSA0LTR2LTFINHYxem0yLTVoMTJsLTEtNUg3bC0xIDV6bTItOC41QzggMi41IDguMSAzLjUgOSA1aDZjLjktMS41IDEtMi41IDEtMi41UzE1IDEgMTIgMSA4IDIuNSA4IDIuNXoiLz48L3N2Zz4=';
 
     // New Yachts CPT
     register_post_type('new_yachts', [

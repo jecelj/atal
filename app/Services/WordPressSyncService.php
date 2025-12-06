@@ -181,6 +181,7 @@ class WordPressSyncService
                 $payload = [
                     'type' => 'news',
                     'data' => [
+                        'id' => $news->id, // Add Master ID for unique identification
                         'slug' => $news->slug,
                         'title' => $defaultData['title'] ?? ($defaultData['title']['en'] ?? ''), // Fallback if still array
                         'content' => $defaultData['content'] ?? '',
