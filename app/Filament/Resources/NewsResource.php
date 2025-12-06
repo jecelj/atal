@@ -28,6 +28,22 @@ class NewsResource extends Resource
     public static function form(Form $form): Form
     {
         $baseFields = [
+            Forms\Components\Section::make('Settings')
+                ->schema([
+                    Forms\Components\Toggle::make('is_active')
+                        ->default(true),
+
+                    Forms\Components\DatePicker::make('published_at')
+                        ->default(now()),
+
+                    Forms\Components\CheckboxList::make('syncSites')
+                        ->relationship('syncSites', 'name')
+                        ->label('Sync to Sites')
+                        ->helperText('Select which sites this news item should be synced to.')
+                        ->columns(3) // Provide a bit more horizontal space for checkboxes
+                        ->gridDirection('row'),
+                ]),
+
             Forms\Components\Section::make('Content')
                 ->schema([
                     Forms\Components\Tabs::make('Translations')
@@ -67,23 +83,7 @@ class NewsResource extends Resource
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->unique(ignoreRecord: true),
-                ])->columnSpan(2),
-
-            Forms\Components\Section::make('Settings')
-                ->schema([
-                    Forms\Components\Toggle::make('is_active')
-                        ->default(true),
-
-                    Forms\Components\DatePicker::make('published_at')
-                        ->default(now()),
-
-                    Forms\Components\CheckboxList::make('syncSites')
-                        ->relationship('syncSites', 'name')
-                        ->label('Sync to Sites')
-                        ->helperText('Select which sites this news item should be synced to.')
-                        ->columns(1)
-                        ->gridDirection('row'),
-                ])->columnSpan(1),
+                ]),
         ];
 
         // Add dynamic custom fields grouped by sections
@@ -93,7 +93,7 @@ class NewsResource extends Resource
             $baseFields[] = $section;
         }
 
-        return $form->schema($baseFields)->columns(3);
+        return $form->schema($baseFields)->columns(1);
     }
 
     protected static function getCustomFieldsSchema(): array
@@ -117,8 +117,7 @@ class NewsResource extends Resource
             if (!empty($sectionFields)) {
                 $sections[] = Forms\Components\Section::make($groupName ?: 'Additional Information')
                     ->schema($sectionFields)
-                    ->columns(2)
-                    ->columnSpan(2); // Span 2 columns to match Content section
+                    ->columns(2);
             }
         }
 
