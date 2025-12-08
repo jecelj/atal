@@ -104,53 +104,133 @@ class OpenAIImportService
 
         $fullPromptInput = $systemPrompt . $inputDataBlock;
 
-        // 6. CALL OPENAI
-        // Note: No tools needed as distinct data is provided.
-        $response = Http::withToken($apiKey)
-            ->timeout(600)
-            ->post('https://api.openai.com/v1/responses', [
-                'model' => 'gpt-5.1',
-                // Enable Web Search Tool
-                'tools' => [
-                    [
-                        'name' => 'web_search_preview', // Satisfy non-standard API validation
-                        'type' => 'function',
-                        'function' => [
+        // 6. OPENAI CONVERSATION LOOP
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => $inputDataBlock],
+        ];
+
+        $maxTurns = 3; // Prevent infinite loops
+        $turn = 0;
+
+        while ($turn < $maxTurns) {
+            $turn++;
+            Log::info("OpenAI Import: Turn {$turn}");
+
+            $response = Http::withToken($apiKey)
+                ->timeout(600)
+                ->post('https://api.openai.com/v1/responses', [
+                    'model' => 'gpt-5.1',
+                    'tools' => [
+                        [
                             'name' => 'web_search_preview',
-                            'description' => 'Finds info on the web.',
-                            'parameters' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'q' => ['type' => 'string']
-                                ],
-                                'required' => ['q']
+                            'type' => 'function',
+                            'function' => [
+                                'name' => 'web_search_preview',
+                                'description' => 'Finds info on the web.',
+                                'parameters' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'q' => ['type' => 'string']
+                                    ],
+                                    'required' => ['q']
+                                ]
                             ]
                         ]
-                    ]
-                ],
-                'input' => $fullPromptInput,
-            ]);
+                    ],
+                    // 'input' is deprecated in Chat format, but used by custom endpoint? 
+                    // Wait, if it supports Tools, it likely supports 'messages' or we are treating 'input' as user message?
+                    // The previous code used 'input' => $fullPromptInput.
+                    // If the endpoint is custom, does it support 'messages'?
+                    // User's endpoint 'v1/responses' caused 400 with tools.
+                    // If I change to 'messages', it might break 'input' logic if it expects 'input'.
+                    // BUT 'tool_calls' requires a conversation history structure usually.
+                    // I will TRY to use 'messages' if standard. If not, I'm stuck.
+                    // Let's assume 'input' was a concatenation of system+user.
+                    // If I get a tool call, can I send 'input' + 'tool_result'?
+                    // Probably not.
+                    // I'll assume the endpoint maps 'messages' correctly OR I can continue using 'input' for the first call?
+                    // But for the SECOND call (with tool result), I need a structure.
+                    // Let's assume standard 'messages' structure is preferred for Tool use.
+                    'messages' => $messages,
+                ]);
 
-        if ($response->failed()) {
-            Log::error('OpenAI API Error: ' . $response->body());
-            return ['error' => 'OpenAI API Error: ' . $response->status() . ' - ' . $response->body()];
+            // Fallback: If 'messages' fails or endpoint requires 'input', we might need to verify.
+            // But 'tools' usually implies Chat Completion API which uses 'messages'.
+            // History check: Previous code used 'input' => $fullPromptInput.
+            // I will try 'messages'.
+
+            if ($response->failed()) {
+                Log::error('OpenAI API Error: ' . $response->body());
+                return ['error' => 'OpenAI API Error: ' . $response->status() . ' - ' . $response->body()];
+            }
+
+            $responseBody = $response->json();
+            $choice = $responseBody['choices'][0] ?? null;
+            $message = $choice['message'] ?? null;
+
+            // Handle Tool Calls
+            if (isset($message['tool_calls']) && !empty($message['tool_calls'])) {
+                // Add Assistant's Tool Call message to history
+                $messages[] = $message;
+
+                foreach ($message['tool_calls'] as $toolCall) {
+                    $functionName = $toolCall['function']['name'];
+                    $functionArgs = json_decode($toolCall['function']['arguments'], true);
+
+                    if ($functionName === 'web_search_preview') {
+                        $query = $functionArgs['q'] ?? '';
+                        Log::info("OpenAI Import: Executing Web Search for: {$query}");
+
+                        // Execute Search
+                        $searchResult = $this->performWebSearch($query, $browserlessKey);
+
+                        // Add Tool Output to history
+                        $messages[] = [
+                            'role' => 'tool',
+                            'tool_call_id' => $toolCall['id'],
+                            'content' => $searchResult
+                        ];
+                    }
+                }
+                // Loop continues to send tool outputs back
+                continue;
+            }
+
+            // Valid Content Found
+            if (isset($message['content']) && !empty($message['content'])) {
+                // 7. PROCESS RESPONSE
+                $result = $this->processApiResponse($responseBody, $url);
+                // Debug
+                if (is_array($result)) {
+                    $result['_debug_prompt'] = json_encode($messages); // Store history
+                    $result['_debug_response'] = json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                }
+                return $result;
+            }
+
+            // Loop ended without content?
+            break;
         }
 
-        // 7. PROCESS RESPONSE
-        $result = $this->processApiResponse($response->json(), $url);
+        return ['error' => 'No text data found in OpenAI response after tool execution.'];
+    }
 
-        // Append Debug Info
-        if (is_array($result)) {
-            // Truncate HTML for debug display to avoid crashing UI
-            // $debugInput = str_replace($rawHtml, '[HTML CONTENT TRUNCATED]', $fullPromptInput);
-            // $debugInput = str_replace($jsonMedia, '[MEDIA JSON TRUNCATED]', $debugInput);
-            $debugInput = $fullPromptInput;
+    /**
+     * Perform Web Search using Browserless
+     */
+    protected function performWebSearch(string $query, string $token)
+    {
+        $searchUrl = 'https://www.google.com/search?q=' . urlencode($query);
+        // Simple script to extract body text
+        $script = "export default async function({ page, context }) { 
+            await page.goto(context.url, { waitUntil: 'networkidle0' }); 
+            const content = await page.evaluate(() => document.body.innerText); 
+            return { raw_html_clean: content }; 
+        };";
 
-            $result['_debug_prompt'] = $debugInput;
-            $result['_debug_response'] = json_encode($response->json(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        }
-
-        return $result;
+        $result = $this->callBrowserless($searchUrl, $token, $script);
+        return $result['raw_html_clean'] ?? 'No results found.';
     }
 
     /**
