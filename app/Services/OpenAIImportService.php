@@ -109,24 +109,8 @@ class OpenAIImportService
             ->timeout(600)
             ->post('https://api.openai.com/v1/responses', [
                 'model' => 'gpt-5.1',
-                // Enable Web Search Tool
-                'tools' => [
-                    [
-                        'name' => 'web_search_preview', // Satisfy non-standard API validation
-                        'type' => 'function',
-                        'function' => [
-                            'name' => 'web_search_preview',
-                            'description' => 'Finds info on the web.',
-                            'parameters' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'q' => ['type' => 'string']
-                                ],
-                                'required' => ['q']
-                            ]
-                        ]
-                    ]
-                ],
+                // 'tools' removed to prevent Client-Side Tool Calls.
+                // We rely on 'input' prompt and Model's internal capabilities (if any).
                 'input' => $fullPromptInput,
             ]);
 
