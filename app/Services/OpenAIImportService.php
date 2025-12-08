@@ -145,20 +145,14 @@ class OpenAIImportService
                     // User's endpoint 'v1/responses' caused 400 with tools.
                     // If I change to 'messages', it might break 'input' logic if it expects 'input'.
                     // BUT 'tool_calls' requires a conversation history structure usually.
-                    // I will TRY to use 'messages' if standard. If not, I'm stuck.
-                    // Let's assume 'input' was a concatenation of system+user.
-                    // If I get a tool call, can I send 'input' + 'tool_result'?
-                    // Probably not.
-                    // I'll assume the endpoint maps 'messages' correctly OR I can continue using 'input' for the first call?
                     // But for the SECOND call (with tool result), I need a structure.
-                    // Let's assume standard 'messages' structure is preferred for Tool use.
-                    'messages' => $messages,
+                    // API 400 Error says 'messages' moved to 'input'.
+                    // We assume 'input' accepts the array of message objects for this endpoint.
+                    'input' => $messages,
                 ]);
 
-            // Fallback: If 'messages' fails or endpoint requires 'input', we might need to verify.
-            // But 'tools' usually implies Chat Completion API which uses 'messages'.
-            // History check: Previous code used 'input' => $fullPromptInput.
-            // I will try 'messages'.
+            // Fallback: If 'input' requires a string, we might need to stringify, but Tool Use typically requires structured objects.
+            // We follow the Error Message hint explicitly.
 
             if ($response->failed()) {
                 Log::error('OpenAI API Error: ' . $response->body());
