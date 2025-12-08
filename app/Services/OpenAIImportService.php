@@ -113,6 +113,7 @@ class OpenAIImportService
                 // Enable Web Search Tool
                 'tools' => [
                     [
+                        'name' => 'web_search_preview', // Satisfy non-standard API validation
                         'type' => 'function',
                         'function' => [
                             'name' => 'web_search_preview',
