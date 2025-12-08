@@ -107,7 +107,7 @@ class OpenAIImportService
         // 6. CALL OPENAI
         // Note: No tools needed as distinct data is provided.
         $response = Http::withToken($apiKey)
-            ->timeout(240)
+            ->timeout(600)
             ->post('https://api.openai.com/v1/responses', [
                 'model' => 'gpt-5.1',
                 // Enable Web Search Tool
@@ -194,7 +194,7 @@ class OpenAIImportService
             'Content-Type' => 'application/json',
             // Cache control might not be needed for /function but harmless
         ])
-            ->timeout(120)
+            ->timeout(300)
             ->post("https://production-sfo.browserless.io/function?token={$token}", [
                 'code' => $script,
                 'context' => [

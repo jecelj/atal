@@ -84,6 +84,7 @@ class ListNewYachts extends ListRecords
                         ->required(),
                 ])
                 ->action(function (array $data) {
+                    set_time_limit(600); // Allow 10 minutes for OpenAI/Browserless processing
                     $service = new \App\Services\OpenAIImportService();
 
                     // Show spinner notification (optional, but UI handles spinner on action button)
