@@ -7,17 +7,17 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Pages\SettingsPage;
 
-class ManageOpenAiSettings extends SettingsPage
+class ManageExternalApiSettings extends SettingsPage
 {
-    protected static ?string $navigationIcon = 'heroicon-o-language';
+    protected static ?string $navigationIcon = 'heroicon-o-cloud';
 
     protected static string $settings = OpenAiSettings::class;
 
     protected static ?string $navigationGroup = 'Configuration';
 
-    protected static ?string $title = 'OpenAI Translation';
+    protected static ?string $title = 'External APIs';
 
-    protected static ?string $navigationLabel = 'OpenAI Translation';
+    protected static ?string $navigationLabel = 'External APIs';
 
     protected static ?int $navigationSort = 5;
 
@@ -25,8 +25,8 @@ class ManageOpenAiSettings extends SettingsPage
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('OpenAI API Configuration')
-                    ->description('Configure your OpenAI API credentials and settings for automatic translations.')
+                Forms\Components\Section::make('OpenAI Configuration')
+                    ->description('Configure your OpenAI API credentials and settings.')
                     ->schema([
                         Forms\Components\TextInput::make('openai_secret')
                             ->label('OpenAI API Key')
@@ -55,8 +55,32 @@ class ManageOpenAiSettings extends SettingsPage
                             ->required()
                             ->default('You are a professional translator. Translate the given text accurately while maintaining the tone and context.')
                             ->helperText('System prompt that guides the AI on how to translate. This helps maintain consistency and quality.'),
+                        Forms\Components\Textarea::make('openai_prompt')
+                            ->label('Yacht Import Prompt (With Images)')
+                            ->rows(20)
+                            ->helperText('System prompt for the Yacht Import feature (Default). Paste the full prompt instructions here.'),
+                        Forms\Components\Textarea::make('openai_prompt_no_images')
+                            ->label('Yacht Import Prompt (NO Images)')
+                            ->rows(20)
+                            ->helperText('System prompt for the Yacht Import feature when "Without Images" is selected. Paste the prompt instructions here. Usually faster and cheaper.'),
                     ])
-                    ->columns(1),
+                    ->collapsible(),
+
+                Forms\Components\Section::make('Browserless Configuration')
+                    ->description('API Key for Browserless.io service (used for advanced scraping if enabled).')
+                    ->schema([
+                        Forms\Components\TextInput::make('browserless_api_key')
+                            ->label('Browserless API Key')
+                            ->password()
+                            ->revealable()
+                            ->helperText('API Key from browserless.io'),
+                        Forms\Components\Textarea::make('browserless_script')
+                            ->label('Scrape Script (Node.js)')
+                            ->rows(15)
+                            ->helperText('Javascript code for Browserless /function endpoint. Receives { page, context }.')
+                            ->default("export default async function({ page }) {\n  await page.goto(context.url);\n  const content = await page.content();\n  return { content };\n};"),
+                    ])
+                    ->collapsible(),
             ]);
     }
 }

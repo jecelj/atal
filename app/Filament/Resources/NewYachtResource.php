@@ -237,6 +237,10 @@ class NewYachtResource extends Resource
             'date' => Forms\Components\DatePicker::make($fieldKey),
             'select' => Forms\Components\Select::make($fieldKey)
                 ->options(collect($config->options ?? [])->pluck('label', 'value')->toArray()),
+            'checkbox' => Forms\Components\CheckboxList::make($fieldKey)
+                ->options(collect($config->options ?? [])->pluck('label', 'value')->toArray())
+                ->columns(2)
+                ->gridDirection('row'),
             'repeater' => Forms\Components\Repeater::make($fieldKey)
                 ->schema([
                     Forms\Components\TextInput::make('url')

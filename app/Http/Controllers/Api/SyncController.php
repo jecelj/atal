@@ -132,43 +132,55 @@ class SyncController extends Controller
 
         // Transform sync_as_taxonomy fields to simple Text fields with Translations
         foreach ($configs as $config) {
-            if ($config->sync_as_taxonomy && $config->field_type === 'select') {
-                $value = $customFields[$config->field_key] ?? null;
+            if ($config->sync_as_taxonomy && in_array($config->field_type, ['select', 'checkbox'])) {
+                $rawValue = $customFields[$config->field_key] ?? null;
 
-                // If value is array (from multiple select), take first or process accordingly
-                // For now assuming single select behavior as per requirement
-                if (is_array($value)) {
-                    $value = array_values($value)[0] ?? null;
-                }
-
-                if (!$value)
+                if (!$rawValue)
                     continue;
 
-                $option = collect($config->options)->firstWhere('value', $value);
-                if (!$option)
-                    continue;
+                // Normalize to array
+                $values = is_array($rawValue) ? $rawValue : [$rawValue];
+                $options = collect($config->options);
 
-                // 1. Set Default Language Value (Label)
-                // Find the default language code
-                $defaultLangCode = $languages->firstWhere('is_default', true)->code ?? 'en'; // Fallback to 'en'
-                if (isset($translations[$defaultLangCode])) {
-                    $translations[$defaultLangCode]['custom_fields'][$config->field_key] = $option['label'];
+                // Helper to get labels for a set of values in a specific language
+                $getLabels = function ($values, $langCode = null) use ($options) {
+                    $labels = [];
+                    foreach ($values as $val) {
+                        $option = $options->firstWhere('value', $val);
+                        if ($option) {
+                            if ($langCode) {
+                                $labels[] = $option['label_' . $langCode] ?? $option['label']; // Fallback to default label
+                            } else {
+                                $labels[] = $option['label'];
+                            }
+                        }
+                    }
+                    return $labels; // Return array of labels
+                };
+
+                // 1. Set Default Language Value (Label(s))
+                $defaultLangCode = $languages->firstWhere('is_default', true)->code ?? 'en';
+                $defaultLabels = $getLabels($values);
+
+                if (!empty($defaultLabels)) {
+                    // Start keys with array if multiple, but WP might expect single value for meta if not tax.
+                    // But for taxonomy sync, we likely want an array or comma-list.
+                    // Let's send Array. WP importer should handle array of terms.
+                    $translations[$defaultLangCode]['custom_fields'][$config->field_key] = $config->field_type === 'checkbox' ? $defaultLabels : ($defaultLabels[0] ?? '');
                 }
-
 
                 // 2. Set Translated Values
                 foreach ($languages as $language) {
                     if ($language->is_default)
                         continue;
 
-                    $termLabel = $option['label_' . $language->code] ?? null;
-                    if ($termLabel) {
-                        // Ensure translations array exists
+                    $translatedLabels = $getLabels($values, $language->code);
+
+                    if (!empty($translatedLabels)) {
                         if (!isset($translations[$language->code]['custom_fields'])) {
                             $translations[$language->code]['custom_fields'] = [];
                         }
-
-                        $translations[$language->code]['custom_fields'][$config->field_key] = $termLabel;
+                        $translations[$language->code]['custom_fields'][$config->field_key] = $config->field_type === 'checkbox' ? $translatedLabels : ($translatedLabels[0] ?? '');
                     }
                 }
             }
@@ -193,7 +205,6 @@ class SyncController extends Controller
                 'slug' => Str::slug($yacht->yachtModel->name),
             ] : null,
             'translations' => $translations,
-            'media' => $media,
             'media' => $media,
         ];
     }
@@ -372,6 +383,7 @@ class SyncController extends Controller
             'number' => 'number',
             'date' => 'date_picker',
             'select' => 'select',
+            'checkbox' => 'checkbox',
             'image' => 'image',
             'gallery' => 'gallery',
             'file' => 'file',

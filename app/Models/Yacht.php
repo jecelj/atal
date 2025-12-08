@@ -92,13 +92,16 @@ class Yacht extends Model implements HasMedia
         $addWebPCollection('featured_image', true);
         $addWebPCollection('cover_image', true);
         $addWebPCollection('cover_image_hover', true);
+        $addWebPCollection('grid_image', true);
+        $addWebPCollection('grid_image_hover', true);
 
         // Gallery collections (multiple files)
         $addWebPCollection('gallery_exterior');
         $addWebPCollection('gallery_interior');
-        $addWebPCollection('gallery_exterrior');
-        $addWebPCollection('gallery_interrior');
+        $addWebPCollection('gallery_exterrior'); // Typo legacy
+        $addWebPCollection('gallery_interrior'); // Typo legacy
         $addWebPCollection('gallery_cockpit');
+        $addWebPCollection('gallery_layout');
 
         // PDF collection (no conversion)
         $this->addMediaCollection('pdf_presentation')

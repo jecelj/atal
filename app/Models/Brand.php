@@ -21,4 +21,13 @@ class Brand extends Model
     {
         return $this->hasMany(Yacht::class);
     }
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->slug)) {
+                $model->slug = \Illuminate\Support\Str::slug($model->name);
+            }
+        });
+    }
 }

@@ -85,7 +85,7 @@ function atal_sync_register_scf_fields()
             } elseif ($field['type'] === 'image') {
                 $acf_field['return_format'] = 'id';
                 $acf_field['library'] = 'all'; // Show ALL media
-            } elseif ($field['type'] === 'select' && !empty($field['options'])) {
+            } elseif (($field['type'] === 'select' || $field['type'] === 'checkbox') && !empty($field['options'])) {
                 $choices = [];
                 foreach ($field['options'] as $option) {
                     $choices[$option['value']] = $option['label'];
@@ -154,6 +154,7 @@ function atal_sync_map_field_type($filament_type)
         'number' => 'number',
         'date' => 'date_picker',
         'select' => 'select',
+        'checkbox' => 'checkbox',
         'image' => 'image',
         'gallery' => 'gallery',
         'file' => 'file',

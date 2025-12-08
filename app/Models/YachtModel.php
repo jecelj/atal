@@ -22,4 +22,15 @@ class YachtModel extends Model
     {
         return $this->hasMany(Yacht::class);
     }
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->slug)) {
+                $brand = Brand::find($model->brand_id);
+                $baseName = $brand ? ($brand->name . ' ' . $model->name) : $model->name;
+                $model->slug = \Illuminate\Support\Str::slug($baseName);
+            }
+        });
+    }
 }

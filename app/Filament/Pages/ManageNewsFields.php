@@ -53,6 +53,7 @@ class ManageNewsFields extends Page
                                 'number' => 'Number',
                                 'date' => 'Date',
                                 'select' => 'Select',
+                                'checkbox' => 'Checkbox',
                                 'image' => 'Image',
                                 'gallery' => 'Gallery',
                                 'file' => 'File Upload',
@@ -73,7 +74,7 @@ class ManageNewsFields extends Page
                             ->label('Sync as Taxonomy')
                             ->helperText('Sync options as WordPress Taxonomy terms (enables translation via Falang)')
                             ->default(false)
-                            ->visible(fn(Forms\Get $get) => $get('field_type') === 'select'),
+                            ->visible(fn(Forms\Get $get) => in_array($get('field_type'), ['select', 'checkbox'])),
                         Forms\Components\Repeater::make('options')
                             ->label('Select Options')
                             ->schema(function () {
@@ -98,7 +99,7 @@ class ManageNewsFields extends Page
 
                                 return $schema;
                             })
-                            ->visible(fn(Forms\Get $get) => $get('field_type') === 'select')
+                            ->visible(fn(Forms\Get $get) => in_array($get('field_type'), ['select', 'checkbox']))
                             ->columns(2),
                         Forms\Components\TagsInput::make('validation_rules')
                             ->label('Validation Rules')
