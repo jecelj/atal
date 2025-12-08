@@ -110,10 +110,23 @@ class OpenAIImportService
             ->timeout(240)
             ->post('https://api.openai.com/v1/responses', [
                 'model' => 'gpt-5.1',
-                // Tools extracted? No, user implied direct analysis.
-                // Assuming gpt-5.1 endpoint accepts just 'model' and 'input' (as per user context).
-                // Or standard chat completions?
-                // User's previous code used /v1/responses, so sticking to it.
+                // Enable Web Search Tool
+                'tools' => [
+                    [
+                        'type' => 'function',
+                        'function' => [
+                            'name' => 'web_search_preview',
+                            'description' => 'Finds info on the web.',
+                            'parameters' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'q' => ['type' => 'string']
+                                ],
+                                'required' => ['q']
+                            ]
+                        ]
+                    ]
+                ],
                 'input' => $fullPromptInput,
             ]);
 
