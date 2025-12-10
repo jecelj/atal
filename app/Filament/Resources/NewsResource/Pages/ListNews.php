@@ -15,7 +15,7 @@ class ListNews extends ListRecords
         return [
             Actions\CreateAction::make()->label('Add News'),
             Actions\Action::make('checkStatus')
-                ->label('Preveri stanje zapisov')
+                ->label('Check Status')
                 ->icon('heroicon-o-check-circle')
                 ->color('warning')
                 ->action(function () {

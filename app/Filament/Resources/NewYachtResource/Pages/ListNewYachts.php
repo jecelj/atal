@@ -169,7 +169,7 @@ class ListNewYachts extends ListRecords
                     return redirect()->to(\App\Filament\Pages\ReviewOpenAIImport::getUrl(['import_id' => $importId]));
                 }),
             Actions\Action::make('checkStatus')
-                ->label('Preveri stanje zapisov')
+                ->label('Check Status')
                 ->icon('heroicon-o-check-circle')
                 ->color('warning')
                 ->action(function () {

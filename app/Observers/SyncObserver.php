@@ -17,6 +17,15 @@ class SyncObserver
     public function saved(Model $model): void
     {
         $this->updateSyncStatus($model);
+
+        // Auto-check status (Image optimization & Translations)
+        try {
+            $service = app(\App\Services\StatusCheckService::class);
+            $service->checkAndUpdateStatus($model);
+        } catch (\Exception $e) {
+            // Log error but don't block
+            \Illuminate\Support\Facades\Log::error("SyncObserver Status Check Error: " . $e->getMessage());
+        }
     }
 
     /**

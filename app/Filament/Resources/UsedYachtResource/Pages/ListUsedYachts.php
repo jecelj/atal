@@ -19,7 +19,7 @@ class ListUsedYachts extends ListRecords
                 ->label('Add Used Yacht')
                 ->icon('heroicon-o-plus'),
             Actions\Action::make('checkStatus')
-                ->label('Preveri stanje zapisov')
+                ->label('Check Status')
                 ->icon('heroicon-o-check-circle')
                 ->color('warning')
                 ->action(function () {

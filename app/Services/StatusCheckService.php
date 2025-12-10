@@ -62,6 +62,11 @@ class StatusCheckService
                 $isValid = false;
             }
 
+            // Check minimum size (must be > 30KB = 30720 bytes)
+            if ($media->size < 30720) {
+                $isValid = false;
+            }
+
             if (!$isValid) {
                 // If invalid, we MUST clear the optimized flag so it gets picked up again
                 if ($media->getCustomProperty('optimized')) {
