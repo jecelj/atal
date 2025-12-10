@@ -31,6 +31,10 @@ class RecentNewYachts extends BaseWidget
                 Tables\Columns\TextColumn::make('yachtModel.name')
                     ->label('Model')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->date('d.m.Y')
+                    ->sortable()
+                    ->label('Created'),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')
@@ -43,10 +47,6 @@ class RecentNewYachts extends BaseWidget
                         ]);
                     })
                     ->label('Published'),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->date('d.m.Y')
-                    ->sortable()
-                    ->label('Created'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
