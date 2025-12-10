@@ -40,6 +40,10 @@ class AdminPanelProvider extends PanelProvider
                 'panels::sidebar.footer',
                 fn() => view('filament.hooks.sidebar-footer')
             )
+            ->renderHook(
+                'panels::head.end',
+                fn() => view('filament.hooks.custom-styles'),
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
