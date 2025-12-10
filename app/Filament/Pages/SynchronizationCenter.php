@@ -22,8 +22,9 @@ class SynchronizationCenter extends Page
                 ->color('primary')
                 ->requiresConfirmation()
                 ->action(function () {
+                    $sessionKey = 'sync_all_' . uniqid();
                     // Trigger Sync Job
-                    \App\Jobs\SyncSitesJob::dispatch();
+                    \App\Jobs\SyncSitesJob::dispatch(null, $sessionKey);
 
                     \Filament\Notifications\Notification::make()
                         ->title('Sync Started')
@@ -63,7 +64,8 @@ class SynchronizationCenter extends Page
             return;
 
         // Dispatch Job specifically for this site
-        \App\Jobs\SyncSitesJob::dispatch($siteId);
+        $sessionKey = 'sync_site_' . $siteId . '_' . uniqid();
+        \App\Jobs\SyncSitesJob::dispatch($siteId, $sessionKey);
 
         \Filament\Notifications\Notification::make()
             ->title("Sync Started for {$site->name}")
