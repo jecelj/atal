@@ -25,11 +25,12 @@ class RecentNews extends BaseWidget
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->sortable()
-                    ->formatStateUsing(function ($state) {
-                        if (is_array($state)) {
-                            return $state[app()->getLocale()] ?? $state[config('app.fallback_locale')] ?? reset($state);
+                    ->getStateUsing(function (News $record) {
+                        $title = $record->title;
+                        if (is_array($title)) {
+                            return $title[app()->getLocale()] ?? $title[config('app.fallback_locale')] ?? reset($title);
                         }
-                        return $state;
+                        return $title;
                     }),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')

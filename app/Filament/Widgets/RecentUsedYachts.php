@@ -23,9 +23,17 @@ class RecentUsedYachts extends BaseWidget
                     ->limit(5)
             )
             ->columns([
-                Tables\Columns\ImageColumn::make('custom_fields.image_1')
+                Tables\Columns\ImageColumn::make('image_1')
                     ->label('')
-                    ->height(40),
+                    ->height(40)
+                    ->state(function (UsedYacht $record) {
+                        // Check Media Library collection 'image_1'
+                        if ($url = $record->getFirstMediaUrl('image_1')) {
+                            return $url;
+                        }
+                        // Check custom_fields['image_1']
+                        return $record->custom_fields['image_1'] ?? null;
+                    }),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable()
