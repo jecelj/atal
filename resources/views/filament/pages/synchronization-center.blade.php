@@ -1,41 +1,3 @@
-<x-filament-panels::page>
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <x-filament::section>
-            <div class="flex items-center gap-4">
-                <x-filament::icon icon="heroicon-o-server-stack" class="w-8 h-8 text-gray-400" />
-                <div>
-                    <h2 class="text-lg font-bold">{{ $stats['total'] }}</h2>
-                    <p class="text-sm text-gray-500">Total Tracked Items</p>
-                </div>
-            </div>
-        </x-filament::section>
-
-        <x-filament::section>
-            <div class="flex items-center gap-4">
-                <x-filament::icon icon="heroicon-o-check-circle" class="w-8 h-8 text-success-500" />
-                <div>
-                    <h2 class="text-lg font-bold text-success-600">{{ $stats['synced'] }}</h2>
-                    <p class="text-sm text-gray-500">Synced</p>
-                </div>
-            </div>
-        </x-filament::section>
-
-        {{-- Failed stats removed by user request --}}
-
-        <x-filament::section>
-            <div class="flex items-center gap-4">
-                <x-filament::icon icon="heroicon-o-clock" class="w-8 h-8 text-warning-500" />
-                <div>
-                    <h2 class="text-lg font-bold text-warning-600">{{ $stats['pending'] }}</h2>
-                    <p class="text-sm text-gray-500">Pending / Dirty</p>
-                </div>
-            </div>
-        </x-filament::section>
-    </div>
-
-    <div class="space-y-6">
-        @foreach($sites as $site)
-            <x-filament::section collapsible collapsed="{{ !$site->is_active }}">
                 <x-slot name="heading">
                     <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
@@ -43,6 +5,14 @@
                             <x-filament::badge color="{{ $site->is_active ? 'success' : 'gray' }}">
                                 {{ $site->is_active ? 'Active' : 'Inactive' }}
                             </x-filament::badge>
+                            
+                            {{-- Sync Status Badge --}}
+                            @if($site->is_active)
+                                <x-filament::badge color="{{ $site->ui_status_color }}">
+                                    {{ $site->ui_status_label }}
+                                </x-filament::badge>
+                            @endif
+
                             @if($site->last_synced_at)
                                 <span class="text-sm text-gray-500 ml-2">
                                     Last synced: {{ $site->last_synced_at->diffForHumans() }}

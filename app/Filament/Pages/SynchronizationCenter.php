@@ -55,25 +55,33 @@ class SynchronizationCenter extends Page
 
     public function getViewData(): array
     {
+        $sites = \App\Models\SyncSite::with('syncStatuses')->orderBy('order')->get();
+
+        foreach ($sites as $site) {
+            $pending = $site->syncStatuses->where('status', 'pending')->count();
+            $failed = $site->syncStatuses->where('status', 'failed')->count();
+
+            if ($failed > 0) {
+                $site->ui_status = 'error';
+                $site->ui_status_label = 'Error';
+                $site->ui_status_color = 'danger';
+            } elseif ($pending > 0) {
+                $site->ui_status = 'warning';
+                $site->ui_status_label = 'Needs Sync';
+                $site->ui_status_color = 'warning';
+            } else {
+                $site->ui_status = 'success';
+                $site->ui_status_label = 'Up to date';
+                $site->ui_status_color = 'success';
+            }
+        }
+
         return [
-            'sites' => \App\Models\SyncSite::orderBy('order')->get(),
-            'stats' => $this->getGlobalStats(),
+            'sites' => $sites,
         ];
     }
 
-    protected function getGlobalStats(): array
-    {
-        $totalItems = \App\Models\SyncStatus::count();
-        $synced = \App\Models\SyncStatus::where('status', 'synced')->count();
-        $failed = \App\Models\SyncStatus::where('status', 'failed')->count();
-
-        return [
-            'total' => $totalItems,
-            'synced' => $synced,
-            'failed' => $failed,
-            'pending' => $totalItems - $synced - $failed,
-        ];
-    }
+    // getGlobalStats removed as requested
 
     public function syncSite($siteId)
     {

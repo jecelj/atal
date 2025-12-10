@@ -38,4 +38,8 @@ class SyncSite extends Model
     {
         return $query->orderBy('order');
     }
+    public function syncStatuses()
+    {
+        return $this->hasMany(\App\Models\SyncStatus::class);
+    }
 }
