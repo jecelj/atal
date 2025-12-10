@@ -32,6 +32,24 @@ class SynchronizationCenter extends Page
                         ->success()
                         ->send();
                 }),
+            \Filament\Actions\Action::make('force_sync_all')
+                ->label('Force Sync All')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalHeading('Force Sync All Sites?')
+                ->modalDescription('This will overwrite ALL data on all WordPress sites, ignoring the "pending" status. It might take a while.')
+                ->action(function () {
+                    $sessionKey = 'sync_all_force_' . uniqid();
+                    // Trigger Sync Job (Synchronously, FORCE=true)
+                    \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey, true);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Force Sync Completed')
+                        ->body('Force synchronization for all sites finished successfully.')
+                        ->success()
+                        ->send();
+                }),
         ];
     }
 
