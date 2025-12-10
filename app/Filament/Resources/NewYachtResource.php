@@ -638,8 +638,9 @@ class NewYachtResource extends Resource
                     })
                     ->label('Published'),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
+                    ->label('Created')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

@@ -570,7 +570,7 @@ class UsedYachtResource extends Resource
                     })
                     ->label('Published'),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

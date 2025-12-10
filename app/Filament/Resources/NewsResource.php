@@ -374,7 +374,7 @@ class NewsResource extends Resource
                     }),
 
                 Tables\Columns\TextColumn::make('published_at')
-                    ->date()
+                    ->date('d.m.Y')
                     ->sortable(),
 
                 Tables\Columns\IconColumn::make('is_active')
@@ -403,7 +403,7 @@ class NewsResource extends Resource
                     ->label('Synced To'),
 
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
