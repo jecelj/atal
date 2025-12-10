@@ -29,18 +29,28 @@ class DebugSync extends Command
     {
         $siteId = $this->argument('site_id');
 
+        $siteId = $this->argument('site_id');
+
         if (!$siteId) {
-            $site = SyncSite::first();
-            if (!$site) {
-                $this->error('No sites configured.');
-                return;
-            }
-        } else {
-            $site = SyncSite::find($siteId);
-            if (!$site) {
-                $this->error("Site with ID $siteId not found.");
-                return;
-            }
+            $sites = SyncSite::all();
+            $this->info("Available Sites:");
+            $this->table(
+                ['ID', 'Name', 'URL', 'Active'],
+                $sites->map(fn($s) => [
+                    $s->id,
+                    $s->name,
+                    $s->url,
+                    $s->is_active ? 'Yes' : 'No'
+                ])
+            );
+            $this->info("Usage: php artisan sync:debug <site_id>");
+            return;
+        }
+
+        $site = SyncSite::find($siteId);
+        if (!$site) {
+            $this->error("Site with ID $siteId not found.");
+            return;
         }
 
         $this->info("Starting DEBUG Sync for: " . $site->name);
