@@ -522,6 +522,7 @@ class UsedYachtResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(100)
             ->columns([
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()

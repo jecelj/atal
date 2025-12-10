@@ -364,6 +364,7 @@ class NewsResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(100)
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->getStateUsing(fn($record) => is_array($record->title) ? ($record->title['en'] ?? reset($record->title)) : $record->title)
