@@ -23,6 +23,10 @@ class RecentNewYachts extends BaseWidget
                     ->limit(5)
             )
             ->columns([
+                \Filament\Tables\Columns\SpatieMediaLibraryImageColumn::make('cover_image')
+                    ->collection('cover_image')
+                    ->label('')
+                    ->height(40),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
