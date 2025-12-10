@@ -15,7 +15,9 @@ class ListUsedYachts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('Add Used Yacht'),
+            Actions\CreateAction::make()
+                ->label('Add Used Yacht')
+                ->icon('heroicon-o-plus'),
             Actions\Action::make('checkStatus')
                 ->label('Preveri stanje zapisov')
                 ->icon('heroicon-o-check-circle')

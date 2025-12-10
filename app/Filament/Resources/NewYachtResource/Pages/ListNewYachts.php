@@ -15,9 +15,11 @@ class ListNewYachts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('Add New Yacht'),
+            Actions\CreateAction::make()
+                ->label('Add New Yacht')
+                ->icon('heroicon-o-plus'),
             Actions\Action::make('add_openai')
-                ->label('Add New Yacht OpenAI')
+                ->label('Add New Yacht AI')
                 ->icon('heroicon-o-sparkles')
                 ->color('info')
                 ->form([

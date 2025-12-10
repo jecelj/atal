@@ -28,6 +28,18 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('')
             ->login()
+            ->brandName('A² Yacht Manager')
+            ->brandLogo(asset('A2-Yacht-Manager.svg'))
+            ->darkModeBrandLogo(asset('A2-Yacht-Manager-White.svg'))
+            ->favicon(asset('favicon-4/favicon.ico'))
+            ->renderHook(
+                'panels::head.start',
+                fn() => view('filament.hooks.custom-favicons')
+            )
+            ->renderHook(
+                'panels::sidebar.footer',
+                fn() => view('filament.hooks.sidebar-footer')
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
