@@ -24,7 +24,6 @@ class RecentNews extends BaseWidget
             )
             ->columns([
                 Tables\Columns\TextColumn::make('title')
-                    ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')

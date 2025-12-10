@@ -12,6 +12,8 @@ class RecentUsedYachts extends BaseWidget
 {
     protected static ?int $sort = 4;
 
+    protected int|string|array $columnSpan = 'full';
+
     public function table(Table $table): Table
     {
         return $table
@@ -25,9 +27,6 @@ class RecentUsedYachts extends BaseWidget
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('brand.name')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('yachtModel.name')
-                    ->label('Model')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')

@@ -12,6 +12,8 @@ class RecentNewYachts extends BaseWidget
 {
     protected static ?int $sort = 3;
 
+    protected int|string|array $columnSpan = 'full';
+
     public function table(Table $table): Table
     {
         return $table
