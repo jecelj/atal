@@ -10,6 +10,10 @@ class SyncSite extends Model
         'name',
         'url',
         'api_key',
+        'default_language',
+        'supported_languages',
+        'sync_all_brands',
+        'brand_restrictions',
         'is_active',
         'order',
         'last_synced_at',
@@ -18,6 +22,9 @@ class SyncSite extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'supported_languages' => 'array',
+        'sync_all_brands' => 'boolean',
+        'brand_restrictions' => 'array',
         'last_synced_at' => 'datetime',
         'last_sync_result' => 'array',
     ];

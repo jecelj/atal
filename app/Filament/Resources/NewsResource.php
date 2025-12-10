@@ -398,6 +398,10 @@ class NewsResource extends Resource
                     ->falseColor('warning')
                     ->placeholder('No Info'),
 
+                Tables\Columns\ViewColumn::make('sync_status')
+                    ->view('filament.columns.sync-status')
+                    ->label('Sync Status'),
+
                 Tables\Columns\TextColumn::make('syncSites.name')
                     ->badge()
                     ->label('Synced To'),

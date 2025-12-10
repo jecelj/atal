@@ -639,6 +639,9 @@ class NewYachtResource extends Resource
                         ]);
                     })
                     ->label('Published'),
+                Tables\Columns\ViewColumn::make('sync_status')
+                    ->view('filament.columns.sync-status')
+                    ->label('Sync Status'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')
                     ->sortable()

@@ -1,0 +1,929 @@
+<?php
+/**
+ * Importer Logic
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+function atal_log($message)
+{
+    $log_file = WP_CONTENT_DIR . '/atal-sync-debug.log';
+    $timestamp = date('Y-m-d H:i:s');
+    $entry = "[$timestamp] $message" . PHP_EOL;
+    file_put_contents($log_file, $entry, FILE_APPEND);
+}
+
+function atal_import_yachts($type = 'new')
+{
+    // Increase PHP limits for large imports
+    @set_time_limit(300); // 5 minutes
+    @ini_set('memory_limit', '512M');
+    @ini_set('max_execution_time', '300');
+
+    atal_log("Starting Yacht Import (Type: $type)...");
+    atal_log("PHP limits set: max_execution_time=300s, memory_limit=512M");
+
+    // Always sync fields first to ensure ACF field definitions are up-to-date
+    atal_log("Syncing fields first...");
+    $fields_result = atal_import_fields();
+    if (isset($fields_result['error'])) {
+        atal_log("Field sync failed: " . $fields_result['error']);
+        // Continue anyway, but log the error
+    } else {
+        atal_log("Fields synced successfully: " . ($fields_result['imported'] ?? 0) . " fields");
+    }
+
+    $api_url = get_option('atal_sync_api_url');
+    $api_key = get_option('atal_sync_api_key');
+
+    if (empty($api_url) || empty($api_key)) {
+        atal_log("Error: API URL or Key missing");
+        return ['error' => 'API URL or API Key not configured'];
+    }
+
+    // Build full URL
+    $full_url = $api_url . '/yachts?type=' . $type;
+
+    atal_log("=== API Request Details ===");
+    atal_log("API URL: $api_url");
+    atal_log("Full URL: $full_url");
+    atal_log("API Key (first 10 chars): " . substr($api_key, 0, 10) . "...");
+    atal_log("Type: $type");
+
+    // Fetch yachts from Filament with type parameter
+    $response = wp_remote_get($full_url, [
+        'headers' => [
+            'Authorization' => 'Bearer ' . $api_key,
+        ],
+        'timeout' => 60,
+    ]);
+
+    if (is_wp_error($response)) {
+        atal_log("API Error: " . $response->get_error_message());
+        return ['error' => $response->get_error_message()];
+    }
+
+    $body = wp_remote_retrieve_body($response);
+    $status_code = wp_remote_retrieve_response_code($response);
+
+    atal_log("API Response Status: $status_code");
+    atal_log("API Response Body (first 500 chars): " . substr($body, 0, 500));
+
+    $data = json_decode($body, true);
+
+    if (!isset($data['yachts'])) {
+        atal_log("Error: Invalid API response format. Response does not contain 'yachts' key.");
+        atal_log("Available keys: " . (is_array($data) ? implode(', ', array_keys($data)) : 'Not an array'));
+        return ['error' => 'Invalid API response'];
+    }
+
+    atal_log("Found " . count($data['yachts']) . " yachts in API response");
+
+    $imported = 0;
+    $errors = [];
+    $imported_source_ids = []; // Track which yachts we've seen from the API
+
+    foreach ($data['yachts'] as $yacht_data) {
+        try {
+            atal_log("Processing yacht: " . ($yacht_data['id'] ?? 'unknown'));
+            $source_id = $yacht_data['source_id'] ?? null;
+            if ($source_id) {
+                $imported_source_ids[] = $source_id;
+            }
+
+            $result = atal_import_single_yacht($yacht_data);
+            if ($result) {
+                $imported++;
+            }
+        } catch (Exception $e) {
+            atal_log("Exception: " . $e->getMessage());
+            $errors[] = $e->getMessage();
+        }
+    }
+
+    // Cleanup: Delete WordPress posts for yachts that no longer exist in the API
+    atal_log("Starting cleanup of deleted yachts (Type: $type)...");
+    $deleted_count = atal_cleanup_deleted_yachts($imported_source_ids, $type);
+    atal_log("Cleanup complete. Deleted $deleted_count yachts.");
+
+    return [
+        'imported' => $imported,
+        'errors' => $errors,
+        'deleted' => $deleted_count,
+    ];
+}
+
+function atal_import_single_yacht($yacht_data)
+{
+    $post_type = $yacht_data['type'] === 'new' ? 'new_yachts' : 'used_yachts';
+    $source_id = $yacht_data['source_id'];
+    $state = $yacht_data['state'] ?? 'draft';
+
+    atal_log("=== Importing Yacht (Falang) ===");
+    atal_log("Source ID: $source_id");
+    atal_log("Type: $post_type");
+    atal_log("State: $state");
+
+    // Determine WordPress post status
+    $post_status = ($state === 'published') ? 'publish' : 'draft';
+
+    // Get available translations from API
+    if (!isset($yacht_data['translations'])) {
+        atal_log("ERROR: No translations found for yacht");
+        return false;
+    }
+
+    // Filter languages based on active site languages
+    $active_languages = atal_get_active_languages();
+    $available_langs = array_intersect(array_keys($yacht_data['translations']), $active_languages);
+
+    if (empty($available_langs)) {
+        atal_log("ERROR: No matching languages. Active: " . implode(', ', $active_languages));
+        return false;
+    }
+
+    atal_log("Available languages: " . implode(', ', $available_langs));
+
+    // --- Brand and Model Filtering Logic ---
+    $allowed_brands = get_option('atal_sync_allowed_brands', []);
+    $allowed_models = get_option('atal_sync_allowed_models', []);
+
+    if (!empty($allowed_brands) || !empty($allowed_models)) {
+        $yacht_brand_id = $yacht_data['brand']['id'] ?? null;
+        $yacht_model_id = $yacht_data['model']['id'] ?? null;
+        $allow_import = false;
+
+        if ($yacht_model_id && in_array($yacht_model_id, $allowed_models)) {
+            $allow_import = true;
+            atal_log("Yacht allowed by Model ID: $yacht_model_id");
+        } elseif ($yacht_brand_id && in_array($yacht_brand_id, $allowed_brands)) {
+            $cached_data = get_option('atal_sync_available_data', []);
+            $cached_models = $cached_data['models'] ?? [];
+            $models_of_this_brand_are_restricted = false;
+
+            foreach ($cached_models as $m) {
+                if (isset($m['brand_id']) && $m['brand_id'] == $yacht_brand_id) {
+                    if (in_array($m['id'], $allowed_models)) {
+                        $models_of_this_brand_are_restricted = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$models_of_this_brand_are_restricted) {
+                $allow_import = true;
+                atal_log("Yacht allowed by Brand ID: $yacht_brand_id");
+            }
+        }
+
+        if (!$allow_import) {
+            atal_log("Skipping yacht - Brand/Model not allowed");
+            return false;
+        }
+    }
+
+    // Get field definitions to know which fields are images/files
+    $field_groups = get_option('atal_sync_field_definitions');
+    $field_types = [];
+
+    if (!empty($field_groups)) {
+        foreach ($field_groups as $group) {
+            foreach ($group['fields'] as $field) {
+                $field_types[$field['name']] = $field['type'];
+            }
+        }
+    }
+
+    // Get default language
+    $default_lang = atal_get_default_language_falang();
+    atal_log("Default language: $default_lang");
+
+    if (!isset($yacht_data['translations'][$default_lang])) {
+        atal_log("ERROR: No translation for default language: $default_lang");
+        return false;
+    }
+
+    $default_translation = $yacht_data['translations'][$default_lang];
+
+    // --- FIND OR CREATE POST ---
+    // Check if post already exists by source_id
+    $existing_posts = get_posts([
+        'post_type' => $post_type,
+        'meta_key' => '_atal_source_id',
+        'meta_value' => $source_id,
+        'posts_per_page' => 1,
+        'post_status' => 'any',
+    ]);
+
+    $post_id = 0;
+
+    if (!empty($existing_posts)) {
+        // Update existing post
+        $post_id = $existing_posts[0]->ID;
+        atal_log("Updating existing post: $post_id");
+
+        wp_update_post([
+            'ID' => $post_id,
+            'post_title' => $default_translation['title'],
+            'post_content' => $default_translation['description'] ?? '',
+            'post_status' => $post_status,
+        ]);
+    } else {
+        // Create new post
+        atal_log("Creating new post");
+
+        $post_id = wp_insert_post([
+            'post_type' => $post_type,
+            'post_title' => $default_translation['title'],
+            'post_content' => $default_translation['description'] ?? '',
+            'post_status' => $post_status,
+        ]);
+
+        if (is_wp_error($post_id)) {
+            atal_log("ERROR creating post: " . $post_id->get_error_message());
+            return false;
+        }
+
+        // Set source ID meta
+        update_post_meta($post_id, '_atal_source_id', $source_id);
+        atal_log("Created post ID: $post_id");
+    }
+
+    // --- SAVE DEFAULT LANGUAGE CUSTOM FIELDS ---
+    if (function_exists('update_field') && isset($default_translation['custom_fields'])) {
+        foreach ($default_translation['custom_fields'] as $key => $value) {
+            // SPECIAL HANDLING: New Yachts 'video_url' (Repeater -> Flatten)
+            // Handle this regardless of identified type to be robust
+            if ($key === 'video_url' && $post_type === 'new_yachts') {
+                $rows = $value;
+                if (is_string($rows)) {
+                    // Try to decode if it's a JSON string
+                    $decoded = json_decode($rows, true);
+                    if (is_array($decoded)) {
+                        $rows = $decoded;
+                    }
+                }
+
+                if (is_array($rows)) {
+                    $count = 1;
+                    foreach ($rows as $row) {
+                        if ($count > 3)
+                            break;
+                        $url = $row['url'] ?? (is_string($row) ? $row : '');
+                        update_field("video_url_{$count}", $url, $post_id);
+                        $count++;
+                    }
+                    // Clear remaining fields
+                    for ($i = $count; $i <= 3; $i++) {
+                        update_field("video_url_{$i}", '', $post_id);
+                    }
+                }
+
+                // Clean up the raw repeater field so it doesn't clutter DB/UI
+                delete_post_meta($post_id, 'video_url');
+                continue;
+            }
+
+            $type = $field_types[$key] ?? 'text';
+
+            if ($key === '_debug_configured_fields') {
+                continue;
+            }
+
+            if (empty($value)) {
+                update_field($key, $value, $post_id);
+                continue;
+            }
+
+            // Handle Media Fields
+            if ($type === 'image' || $type === 'file') {
+                if (is_string($value) && !empty($value) && parse_url($value, PHP_URL_SCHEME)) {
+                    $attachment_id = atal_import_image($value, $post_id);
+                    if ($attachment_id) {
+                        update_field($key, $attachment_id, $post_id);
+                    }
+                }
+            } elseif ($type === 'gallery') {
+                if (is_array($value)) {
+                    $gallery_ids = atal_import_gallery($value, $post_id);
+                    update_field($key, $gallery_ids, $post_id);
+                }
+            } elseif ($type === 'repeater') { // Repeater Logic
+                // Standard Repeater Logic
+                if (is_array($value)) {
+                    delete_post_meta($post_id, $key);
+                    global $wpdb;
+                    $wpdb->query($wpdb->prepare(
+                        "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+                        $post_id,
+                        $wpdb->esc_like($key . '_') . '%'
+                    ));
+                    update_post_meta($post_id, $key, count($value));
+                    foreach ($value as $index => $row) {
+                        foreach ($row as $sub_field_name => $sub_field_value) {
+                            $meta_key = "{$key}_{$index}_{$sub_field_name}";
+                            update_post_meta($post_id, $meta_key, $sub_field_value);
+                        }
+                    }
+                }
+            } else {
+                // Normal field
+                update_field($key, $value, $post_id);
+            }
+        }
+    }
+
+    // --- IMPORT MEDIA (ONCE) ---
+    if (!empty($yacht_data['media']['featured_image'])) {
+        $attachment_id = atal_import_image($yacht_data['media']['featured_image'], $post_id);
+        if ($attachment_id) {
+            set_post_thumbnail($post_id, $attachment_id);
+        }
+    }
+
+    if (!empty($yacht_data['media']['gallery_exterior'])) {
+        $gallery_ids = atal_import_gallery($yacht_data['media']['gallery_exterior'], $post_id);
+        if (function_exists('update_field')) {
+            update_field('gallery_exterior', $gallery_ids, $post_id);
+        }
+    }
+
+    if (!empty($yacht_data['media']['gallery_interior'])) {
+        $gallery_ids = atal_import_gallery($yacht_data['media']['gallery_interior'], $post_id);
+        if (function_exists('update_field')) {
+            update_field('gallery_interior', $gallery_ids, $post_id);
+        }
+    }
+
+    // --- SET TAXONOMIES (ONCE) ---
+    if (isset($yacht_data['brand'])) {
+        $brand_name = $yacht_data['brand']['name'];
+
+        // Create/get brand term (no language parameter for Falang)
+        $brand_term = atal_get_or_create_term_falang($brand_name, 'yacht_brand', 0);
+
+        if ($brand_term) {
+            if (isset($yacht_data['model']) && !empty($yacht_data['model'])) {
+                $model_name = $yacht_data['model']['name'];
+                $model_term = atal_get_or_create_term_falang($model_name, 'yacht_brand', $brand_term);
+
+                if ($model_term) {
+                    // Assign BOTH Brand and Model terms
+                    wp_set_object_terms($post_id, [(int) $brand_term, (int) $model_term], 'yacht_brand');
+
+                    // Also save to ACF field (typically expects ID or array of IDs)
+                    if (function_exists('update_field')) {
+                        update_field('brand', [(int) $brand_term, (int) $model_term], $post_id);
+                    }
+                }
+            } else {
+                wp_set_object_terms($post_id, [(int) $brand_term], 'yacht_brand');
+
+                // Also save to ACF field
+                if (function_exists('update_field')) {
+                    update_field('brand', [(int) $brand_term], $post_id);
+                }
+            }
+        }
+    }
+
+    // --- SAVE TRANSLATIONS FOR OTHER LANGUAGES ---
+    $multilingual_fields = atal_get_multilingual_fields();
+    atal_save_all_translations($post_id, $yacht_data['translations'], $multilingual_fields);
+
+    atal_log("Yacht import complete. Post ID: $post_id");
+    return true;
+}
+
+
+function atal_import_image($url, $post_id)
+{
+    // Check if already imported
+    $existing = get_posts([
+        'post_type' => 'attachment',
+        'meta_key' => '_atal_source_url',
+        'meta_value' => $url,
+        'posts_per_page' => 1,
+    ]);
+
+    if (!empty($existing)) {
+        return $existing[0]->ID;
+    }
+
+    // Download image
+    require_once(ABSPATH . 'wp-admin/includes/media.php');
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+
+    // atal_log("Downloading image: $url");
+    $tmp = download_url($url);
+
+    if (is_wp_error($tmp)) {
+        atal_log("Download failed: " . $tmp->get_error_message());
+        return false;
+    }
+
+    $file_array = [
+        'name' => basename($url),
+        'tmp_name' => $tmp,
+    ];
+
+    // Disable intermediate image sizes during import for speed
+    add_filter('intermediate_image_sizes_advanced', '__return_empty_array');
+
+    // Use 0 as post_id to make media NOT attached to specific post
+    // This allows media to be shared across translations (EN, SL posts)
+    $attachment_id = media_handle_sideload($file_array, 0);
+
+    // Re-enable intermediate image sizes
+    remove_filter('intermediate_image_sizes_advanced', '__return_empty_array');
+
+    if (is_wp_error($attachment_id)) {
+        atal_log("Sideload failed: " . $attachment_id->get_error_message());
+        @unlink($tmp);
+        return false;
+    }
+
+    // Save source URL
+    update_post_meta($attachment_id, '_atal_source_url', $url);
+
+    return $attachment_id;
+}
+
+function atal_import_gallery($urls, $post_id)
+{
+    atal_log("Gallery import started. URLs count: " . count($urls));
+    atal_log("Gallery URLs order: " . json_encode($urls));
+
+    $attachment_ids = [];
+
+    foreach ($urls as $index => $url) {
+        atal_log("Importing gallery image #{$index}: {$url}");
+        $attachment_id = atal_import_image($url, $post_id);
+        if ($attachment_id) {
+            $attachment_ids[] = $attachment_id;
+            atal_log("Gallery image #{$index} imported with ID: {$attachment_id}");
+        }
+    }
+
+    atal_log("Gallery import completed. Attachment IDs order: " . json_encode($attachment_ids));
+
+    // ACF Gallery field reverses the order, so we reverse it back
+    $reversed_ids = array_reverse($attachment_ids);
+    atal_log("Gallery IDs reversed for ACF: " . json_encode($reversed_ids));
+
+    return $reversed_ids;
+}
+
+function atal_get_or_create_term($name, $taxonomy, $lang, $parent_id = 0)
+{
+    // Try to find existing term by name first (ignoring language initially)
+    $term = get_term_by('name', $name, $taxonomy);
+
+    if ($term) {
+        $term_id = $term->term_id;
+        // Check if it has the correct language
+        $term_lang = function_exists('pll_get_term_language') ? pll_get_term_language($term_id) : 'en';
+
+        if ($term_lang === $lang) {
+            // If parent is specified, update term to have correct parent
+            if ($parent_id && $term->parent != $parent_id) {
+                wp_update_term($term_id, $taxonomy, ['parent' => $parent_id]);
+            }
+            return $term_id;
+        }
+
+        // If it exists but has different language, we might need a translation
+        // Check if translation exists
+        if (function_exists('pll_get_term')) {
+            $translated_id = pll_get_term($term_id, $lang);
+            if ($translated_id) {
+                // Update parent if needed
+                if ($parent_id) {
+                    wp_update_term($translated_id, $taxonomy, ['parent' => $parent_id]);
+                }
+                return $translated_id;
+            }
+        }
+    }
+
+    // If not found or not in correct language, try to create it
+    // Note: WordPress doesn't allow duplicate names in same taxonomy usually, 
+    // but Polylang allows it if they are in different languages.
+    // However, sometimes it's safer to append lang code to slug if collision happens.
+
+    $args = [];
+    if ($parent_id) {
+        $args['parent'] = $parent_id;
+    }
+    if ($lang !== 'en') {
+        // $args['slug'] = sanitize_title($name . '-' . $lang); 
+    }
+
+    $new_term = wp_insert_term($name, $taxonomy, $args);
+
+    if (is_wp_error($new_term)) {
+        // If error is "Term already exists", try to get it
+        if (isset($new_term->error_data['term_exists'])) {
+            $existing_id = (int) $new_term->error_data['term_exists'];
+            // Ensure language is set for this existing term
+            if (function_exists('pll_set_term_language')) {
+                pll_set_term_language($existing_id, $lang);
+            }
+            // Update parent if needed
+            if ($parent_id) {
+                wp_update_term($existing_id, $taxonomy, ['parent' => $parent_id]);
+            }
+            return $existing_id;
+        }
+        atal_log("Error creating term '$name': " . $new_term->get_error_message());
+        return 0;
+    }
+
+    $term_id = $new_term['term_id'];
+
+    // Set language in Polylang
+    if (function_exists('pll_set_term_language')) {
+        pll_set_term_language($term_id, $lang);
+    }
+
+    return $term_id;
+}
+
+/**
+ * Get or create term (Falang version - no language parameter)
+ * 
+ * @param string $name Term name
+ * @param string $taxonomy Taxonomy name
+ * @param int $parent_id Parent term ID
+ * @return int Term ID or 0 on failure
+ */
+function atal_get_or_create_term_falang($name, $taxonomy, $parent_id = 0)
+{
+    // Try to find existing term by name
+    $term = get_term_by('name', $name, $taxonomy);
+
+    if ($term) {
+        $term_id = $term->term_id;
+
+        // Update parent if needed
+        if ($parent_id && $term->parent != $parent_id) {
+            wp_update_term($term_id, $taxonomy, ['parent' => $parent_id]);
+        }
+
+        return $term_id;
+    }
+
+    // Create new term
+    $args = [];
+    if ($parent_id) {
+        $args['parent'] = $parent_id;
+    }
+
+    $new_term = wp_insert_term($name, $taxonomy, $args);
+
+    if (is_wp_error($new_term)) {
+        if (isset($new_term->error_data['term_exists'])) {
+            return (int) $new_term->error_data['term_exists'];
+        }
+        atal_log("Error creating term '$name': " . $new_term->get_error_message());
+        return 0;
+    }
+
+    return $new_term['term_id'];
+}
+
+
+function atal_import_brands()
+{
+    atal_log("Starting Brand Import...");
+
+    $api_url = get_option('atal_sync_api_url');
+    $api_key = get_option('atal_sync_api_key');
+
+    if (empty($api_url) || empty($api_key)) {
+        return ['error' => 'API URL or Key missing'];
+    }
+
+    $response = wp_remote_get($api_url . '/brands', [
+        'headers' => ['Authorization' => 'Bearer ' . $api_key],
+        'timeout' => 30,
+    ]);
+
+    if (is_wp_error($response)) {
+        return ['error' => $response->get_error_message()];
+    }
+
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+
+    if (!isset($data['brands'])) {
+        return ['error' => 'Invalid API response'];
+    }
+
+    $imported = 0;
+    $active_languages = atal_get_active_languages();
+
+    foreach ($data['brands'] as $brand) {
+        $brand_name = $brand['translations']['en']['name'] ?? $brand['slug']; // Fallback
+
+        // Import for each language
+        foreach ($active_languages as $lang) {
+            // Create/Update Term
+            $term_id = atal_get_or_create_term(
+                $brand_name,
+                'yacht_brand',
+                $lang,
+                0
+            );
+
+            if ($term_id) {
+                // Handle Logo Import
+                if (!empty($brand['logo'])) {
+                    $attachment_id = atal_import_image($brand['logo'], 0); // 0 = unattached
+                    if ($attachment_id) {
+                        // Save as term meta
+                        // Standard WP way for term meta (since 4.4)
+                        update_term_meta($term_id, 'brand_logo', $attachment_id);
+
+                        // Also try ACF way if available (usually saves to wp_options or term meta depending on version)
+                        if (function_exists('update_field')) {
+                            update_field('brand_logo', $attachment_id, 'yacht_brand_' . $term_id);
+                        }
+
+                        atal_log("Updated logo for brand '$brand_name' ($lang). Attachment ID: $attachment_id");
+                    }
+                }
+            }
+        }
+        $imported++;
+    }
+
+    return [
+        'imported' => $imported,
+        'message' => "Successfully synced $imported brands."
+    ];
+}
+
+function atal_import_models()
+{
+    return ['imported' => 0]; // Placeholder
+}
+
+function atal_import_news($data)
+{
+    atal_log("Starting News Import: " . ($data['slug'] ?? 'unknown'));
+
+    if (empty($data['slug']) || empty($data['title'])) {
+        return ['error' => 'Missing slug or title'];
+    }
+
+    $slug = $data['slug'];
+    // In new payload, title/content/excerpt are strings (default language)
+    $title = $data['title'];
+    $content = $data['content'] ?? '';
+    $excerpt = $data['excerpt'] ?? '';
+    $published_at = $data['published_at'];
+    $featured_image_url = $data['featured_image'];
+    $translations = $data['translations'] ?? [];
+    $custom_fields = $data['custom_fields'] ?? [];
+
+    // --- DETERMINE WP DEFAULT LANGUAGE CONTENT ---
+    // If WP default language differs from Master default, we need to swap content.
+    $wp_default_lang = atal_get_default_language_falang();
+
+    if (isset($translations[$wp_default_lang])) {
+        $wp_default_trans = $translations[$wp_default_lang];
+
+        if (!empty($wp_default_trans['title'])) {
+            $title = $wp_default_trans['title'];
+            atal_log("Swapped Main Post Title to WP Default ($wp_default_lang): $title");
+        }
+        if (isset($wp_default_trans['description'])) {
+            $content = $wp_default_trans['description'];
+        }
+        if (isset($wp_default_trans['excerpt'])) {
+            $excerpt = $wp_default_trans['excerpt'];
+        }
+
+        // Override Custom Fields values for WP Default Language
+        if (!empty($wp_default_trans['custom_fields'])) {
+            foreach ($wp_default_trans['custom_fields'] as $cf_key => $cf_val) {
+                $custom_fields[$cf_key] = $cf_val;
+            }
+            atal_log("Merged Custom Fields for WP Default ($wp_default_lang)");
+        }
+    }
+
+    $imported = 0;
+    $post_id = 0;
+    $master_id = $data['id'] ?? null; // Get Master ID from payload
+
+    // --- FIND OR CREATE POST (Default Language Only) ---
+    // 1. Try to find by Master ID (Most robust)
+    if ($master_id) {
+        $existing_posts = get_posts([
+            'post_type' => 'news',
+            'meta_key' => '_atal_master_id',
+            'meta_value' => $master_id,
+            'posts_per_page' => 1,
+            'post_status' => 'any',
+        ]);
+    }
+
+    // 2. Fallback: Try to find by Slug (Legacy/First sync)
+    if (empty($existing_posts)) {
+        $existing_posts = get_posts([
+            'post_type' => 'news',
+            'meta_key' => '_atal_news_slug',
+            'meta_value' => $slug,
+            'posts_per_page' => 1,
+            'post_status' => 'any',
+        ]);
+    }
+
+    $post_data = [
+        'post_title' => $title,
+        'post_content' => $content,
+        'post_excerpt' => $excerpt,
+        'post_status' => 'publish',
+        'post_type' => 'news',
+        'post_date' => $published_at ? date('Y-m-d H:i:s', strtotime($published_at)) : date('Y-m-d H:i:s'),
+        'post_name' => $slug, // Always update slug to match Master
+    ];
+
+    if (!empty($existing_posts)) {
+        // Update
+        $post_id = $existing_posts[0]->ID;
+        $post_data['ID'] = $post_id;
+        wp_update_post($post_data);
+
+        // Ensure Master ID and Slug metas are up to date
+        if ($master_id) {
+            update_post_meta($post_id, '_atal_master_id', $master_id);
+        }
+        update_post_meta($post_id, '_atal_news_slug', $slug);
+
+        atal_log("Updated News ID: $post_id (Master ID: $master_id)");
+    } else {
+        // Create
+        $post_id = wp_insert_post($post_data);
+        if (is_wp_error($post_id)) {
+            atal_log("Error creating news: " . $post_id->get_error_message());
+            return ['error' => $post_id->get_error_message()];
+        }
+
+        // Save metas
+        if ($master_id) {
+            update_post_meta($post_id, '_atal_master_id', $master_id);
+        }
+        update_post_meta($post_id, '_atal_news_slug', $slug);
+
+        atal_log("Created News ID: $post_id (Master ID: $master_id)");
+        $imported++;
+    }
+
+    // Set Featured Image
+    if ($featured_image_url) {
+        $attachment_id = atal_import_image($featured_image_url, $post_id);
+        if ($attachment_id) {
+            set_post_thumbnail($post_id, $attachment_id);
+        }
+    }
+
+    // Handle Custom Fields (Default Language)
+    if (!empty($custom_fields)) {
+        // Get field definitions to know types
+        $field_groups = get_option('atal_sync_field_definitions');
+        $field_types = [];
+        if (!empty($field_groups)) {
+            foreach ($field_groups as $group) {
+                foreach ($group['fields'] as $field) {
+                    $field_types[$field['name']] = $field['type'];
+                }
+            }
+        }
+
+        foreach ($custom_fields as $key => $value) {
+            if (empty($value)) {
+                if (function_exists('update_field')) {
+                    update_field($key, $value, $post_id);
+                }
+                continue;
+            }
+
+            $type = $field_types[$key] ?? 'text';
+
+            if (function_exists('update_field')) {
+                if ($type === 'image' || $type === 'file') {
+                    if (is_string($value) && !empty($value) && parse_url($value, PHP_URL_SCHEME)) {
+                        $attachment_id = atal_import_image($value, $post_id);
+                        if ($attachment_id) {
+                            update_field($key, $attachment_id, $post_id);
+                        }
+                    }
+                } elseif ($type === 'repeater') {
+                    // ... (Repeater logic matches previous implementation if needed, omitted for brevity if not used in News often)
+                    // Assuming News doesn't use heavy repeaters yet or logic is same.
+                    // Copying logic from before for safety:
+                    if (is_array($value)) {
+                        delete_post_meta($post_id, $key);
+                        global $wpdb;
+                        $wpdb->query($wpdb->prepare(
+                            "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+                            $post_id,
+                            $wpdb->esc_like($key . '_') . '%'
+                        ));
+                        update_post_meta($post_id, $key, count($value));
+                        foreach ($value as $index => $row) {
+                            foreach ($row as $sub_field_name => $sub_field_value) {
+                                $meta_key = "{$key}_{$index}_{$sub_field_name}";
+                                update_post_meta($post_id, $meta_key, $sub_field_value);
+                            }
+                        }
+                    }
+                } else {
+                    update_field($key, $value, $post_id);
+                }
+            }
+        }
+    }
+
+    // --- SAVE TRANSLATIONS (FALANG) ---
+    // Use the same helper as Yachts
+    $multilingual_fields = atal_get_multilingual_fields();
+    atal_save_all_translations($post_id, $translations, $multilingual_fields);
+
+    return [
+        'imported' => $imported,
+        'errors' => [],
+    ];
+}
+
+/**
+ * Get active languages on the site
+ * 
+ * @return array List of language codes (slugs)
+ */
+function atal_get_active_languages()
+{
+    // Check if user has manually specified allowed languages in settings
+    $allowed = get_option('atal_sync_allowed_languages', '');
+    if (!empty($allowed)) {
+        $langs = array_map('trim', explode(',', $allowed));
+        return array_filter($langs); // Remove empty values
+    }
+
+    // Use Falang instead of Polylang
+    return atal_get_active_languages_falang();
+}
+
+function atal_cleanup_deleted_yachts($imported_source_ids, $type = 'new')
+{
+    atal_log("Cleanup: Checking for yachts to delete (Type: $type)...");
+
+    $deleted_count = 0;
+
+    // Get posts only for the specific type being synced
+    $post_type = $type === 'new' ? 'new_yachts' : 'used_yachts';
+
+    $all_yachts = get_posts([
+        'post_type' => $post_type,
+        'posts_per_page' => -1,
+        'post_status' => 'any',
+        'meta_query' => [
+            [
+                'key' => '_atal_source_id',
+                'compare' => 'EXISTS',
+            ],
+        ],
+    ]);
+
+    foreach ($all_yachts as $yacht) {
+        $source_id = get_post_meta($yacht->ID, '_atal_source_id', true);
+
+        // If this yacht's source_id is not in the imported list, delete it
+        if (!in_array($source_id, $imported_source_ids)) {
+            atal_log("Deleting yacht (source_id: $source_id, post_id: {$yacht->ID}) - no longer exists in API");
+
+            // Delete all translations if Polylang is active
+            if (function_exists('pll_get_post_translations')) {
+                $translations = pll_get_post_translations($yacht->ID);
+                foreach ($translations as $lang => $trans_id) {
+                    wp_delete_post($trans_id, true); // true = force delete (skip trash)
+                    atal_log("Deleted translation (lang: $lang, post_id: $trans_id)");
+                }
+            } else {
+                // No Polylang, just delete the post
+                wp_delete_post($yacht->ID, true);
+            }
+
+            $deleted_count++;
+        }
+    }
+
+    return $deleted_count;
+}
+
+

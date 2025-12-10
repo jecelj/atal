@@ -3,299 +3,488 @@
 namespace App\Services;
 
 use App\Models\SyncSite;
+use App\Models\SyncStatus;
+use App\Models\NewYacht;
+use App\Models\UsedYacht;
+use App\Models\News;
+use App\Models\Language;
+use App\Models\FormFieldConfiguration;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WordPressSyncService
 {
-    public function syncSite(SyncSite $site, ?string $type = null): array
+    /**
+     * Master Sync Method
+     */
+    public function syncSite(SyncSite $site): array
     {
-        try {
-            Log::info("Starting sync for site: {$site->name}" . ($type ? " (Type: $type)" : ""));
+        Log::info("Starting sync for site: {$site->name}");
+        $totalSynced = 0;
+        $errors = [];
 
-            // Use site-specific API key, or fall back to global API key
-            $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
+        // 0. Sync Configuration (ACF Fields)
+        $this->syncConfig($site, $errors);
 
-            $headers = [];
-            if ($apiKey) {
-                $headers['X-API-Key'] = $apiKey;
-            }
+        // 1. Process Deletions (Cleanup)
+        $this->processDeletions($site, $errors);
 
-            $results = [];
-            $errors = [];
-            $importedTotal = 0;
-            $success = true;
+        // 2. Process Updates
+        $totalSynced += $this->processUpdates($site, NewYacht::class, 'new_yacht', $errors);
+        $totalSynced += $this->processUpdates($site, UsedYacht::class, 'used_yacht', $errors);
+        $totalSynced += $this->processUpdates($site, News::class, 'news', $errors);
 
-            // Determine what to sync
-            $typesToSync = $type ? [$type] : ['new', 'used'];
+        // 3. Update Site Status
+        $site->update([
+            'last_synced_at' => now(),
+            'last_sync_result' => [
+                'success' => empty($errors),
+                'imported' => $totalSynced,
+                'errors' => $errors,
+                'timestamp' => now()->toIso8601String(),
+            ],
+        ]);
 
-            foreach ($typesToSync as $syncType) {
-                Log::info("Syncing " . ucfirst($syncType) . " Yachts for site: {$site->name}");
+        return [
+            'success' => empty($errors),
+            'message' => "Synced {$totalSynced} items.",
+            'errors' => $errors
+        ];
+    }
 
-                $url = $site->url . (str_contains($site->url, '?') ? '&' : '?') . "type={$syncType}";
+    protected function processDeletions(SyncSite $site, array &$errors)
+    {
+        // Find items that are marked as 'synced' but shouldn't be anymore
+        $syncedItems = SyncStatus::where('sync_site_id', $site->id)
+            ->where('status', 'synced')
+            ->get();
 
-                $response = Http::timeout(120)
-                    ->withHeaders($headers)
-                    ->post($url, ['type' => $syncType]);
+        $toDelete = [];
 
-                $result = $response->json();
-                $isSuccessful = $response->successful();
+        foreach ($syncedItems as $status) {
+            $shouldDelete = false;
+            $modelClass = $this->getModelClass($status->model_type);
 
-                $results[$syncType] = $result;
-
-                if (!$isSuccessful) {
-                    $success = false;
-                    $errors[] = ucfirst($syncType) . " Yachts Sync Failed: " . $response->body();
-                } else {
-                    $importedTotal += ($result['imported'] ?? 0);
-                    if (isset($result['errors']) && is_array($result['errors'])) {
-                        $errors = array_merge($errors, $result['errors']);
-                    }
+            if (!$modelClass) {
+                $shouldDelete = true;
+            } else {
+                $record = $modelClass::find($status->model_id);
+                if (!$record) {
+                    $shouldDelete = true; // Deleted from DB
+                } elseif ($this->isFilteredOut($record, $site)) {
+                    $shouldDelete = true; // Filtered out
                 }
             }
 
-            $site->update([
-                'last_synced_at' => now(),
-                'last_sync_result' => [
-                    'success' => $success,
-                    'imported' => $importedTotal,
-                    'errors' => $errors,
-                    'timestamp' => now()->toIso8601String(),
-                    'details' => $results
-                ],
-            ]);
+            if ($shouldDelete) {
+                $toDelete[] = [
+                    'id' => $status->model_id,
+                    'type' => $status->model_type, // 'new_yacht', 'used_yacht', 'news'
+                ];
+                // Update status to pending delete to avoid re-checking until success? 
+                // Actually keep as synced until confirmed delete from WP.
+            }
+        }
 
-            if ($success) {
-                Log::info("Sync completed for site: {$site->name}", ['imported' => $importedTotal]);
-                return [
-                    'success' => true,
-                    'message' => "Successfully synced {$importedTotal} items (" . implode(' + ', $typesToSync) . ")",
-                    'data' => ['imported' => $importedTotal],
-                ];
-            } else {
-                Log::error("Sync failed for site: {$site->name}", ['errors' => $errors]);
-                return [
-                    'success' => false,
-                    'message' => "Sync failed. Check logs for details.",
-                    'error' => implode('; ', array_slice($errors, 0, 3)),
-                ];
+        if (!empty($toDelete)) {
+            // Push deletion batch
+            $chunks = array_chunk($toDelete, 50); // Larger chunks for deletes
+            foreach ($chunks as $chunk) {
+                if ($this->pushToWordPress($site, 'delete', $chunk)) {
+                    // Remove status records
+                    foreach ($chunk as $item) {
+                        SyncStatus::where('sync_site_id', $site->id)
+                            ->where('model_type', $item['type'])
+                            ->where('model_id', $item['id'])
+                            ->delete();
+                    }
+                } else {
+                    $errors[] = "Failed to delete batch for site {$site->name}";
+                }
+            }
+        }
+    }
+
+    protected function processUpdates(SyncSite $site, string $modelClass, string $typeKey, array &$errors): int
+    {
+        $records = $modelClass::all(); // Optimize with chunks/cursors if needed for thousands
+        $dirtyItems = [];
+        $syncedCount = 0;
+
+        foreach ($records as $record) {
+            if ($this->isFilteredOut($record, $site)) {
+                continue;
             }
 
-        } catch (\Exception $e) {
-            $site->update([
-                'last_synced_at' => now(),
-                'last_sync_result' => [
-                    'success' => false,
-                    'error' => $e->getMessage(),
-                    'timestamp' => now()->toIso8601String(),
-                ],
+            $payload = $this->preparePayload($record, $site, $typeKey);
+            $hash = md5(json_encode($payload));
+
+            // Check if dirty
+            $status = SyncStatus::firstOrNew([
+                'sync_site_id' => $site->id,
+                'model_type' => $typeKey,
+                'model_id' => $record->id,
             ]);
 
-            Log::error("Sync exception for site: {$site->name}", [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            if ($status->status === 'synced' && $status->content_hash === $hash) {
+                continue; // Not dirty
+            }
 
-            return [
-                'success' => false,
-                'message' => "Sync failed: {$e->getMessage()}",
-                'error' => $e->getMessage(),
+            $dirtyItems[] = [
+                'record' => $record,
+                'payload' => $payload,
+                'status_model' => $status,
+                'hash' => $hash,
             ];
         }
-    }
 
-    public function syncAll(): array
-    {
-        $sites = SyncSite::active()->ordered()->get();
-        $results = [];
+        // Batch Push
+        $chunks = array_chunk($dirtyItems, 5); // Small chunks for safe processing
+        foreach ($chunks as $chunk) {
+            $batchPayload = array_map(fn($item) => $item['payload'], $chunk);
 
-        foreach ($sites as $site) {
-            $results[$site->name] = $this->syncSite($site);
+            if ($this->pushToWordPress($site, 'update', $batchPayload)) {
+                // Update statuses
+                foreach ($chunk as $item) {
+                    $item['status_model']->fill([
+                        'status' => 'synced',
+                        'content_hash' => $item['hash'],
+                        'last_synced_at' => now(),
+                        'error_message' => null,
+                    ])->save();
+                    $syncedCount++;
+                }
+            } else {
+                $errors[] = "Failed to sync batch of {$typeKey} to {$site->name}";
+                foreach ($chunk as $item) {
+                    $item['status_model']->fill([
+                        'status' => 'failed',
+                        'last_synced_at' => now(),
+                        'error_message' => 'Batch sync failed',
+                    ])->save();
+                }
+            }
         }
 
-        return $results;
+        return $syncedCount;
     }
 
-    public function syncNews(\App\Models\News $news): array
+    protected function isFilteredOut($record, SyncSite $site): bool
     {
-        $sites = $news->syncSites()->where('is_active', true)->get();
-        $results = [];
-        $languages = \App\Models\Language::all();
-        $defaultLanguage = $languages->where('is_default', true)->first();
+        // 1. Language checks? No, we transform content.
+        // 2. Brand/Model checks (Only for Yachts)
+        if ($record instanceof NewYacht || $record instanceof UsedYacht) {
+            if ($site->sync_all_brands) {
+                return false;
+            }
 
-        // 1. Prepare Data for Default Language
-        $defaultData = [
-            'title' => $this->getTranslation($news, 'title', $defaultLanguage->code),
-            'content' => $this->getTranslation($news, 'content', $defaultLanguage->code),
-            'excerpt' => $this->getTranslation($news, 'excerpt', $defaultLanguage->code),
-            'custom_fields' => [],
+            $brandId = $record->brand_id; // Check if model has brand_id
+            if (!$brandId)
+                return true; // Safety
+
+            $restrictions = $site->brand_restrictions ?? [];
+            // Format: [{'brand_id': 1, 'allowed': true, 'model_type_restriction': [...]}]
+
+            $rule = collect($restrictions)->firstWhere('brand_id', $brandId);
+
+            if (!$rule || empty($rule['allowed'])) {
+                return true; // Not in list or allowed=false -> Blocked
+            }
+
+            // Check Model Restrictions
+            $allowedModels = $rule['model_type_restriction'] ?? [];
+            if (empty($allowedModels)) {
+                return false; // All models allowed
+            }
+
+            // Assuming record has yacht_model_id
+            if (in_array($record->yacht_model_id, $allowedModels)) {
+                return false; // Allowed
+            }
+
+            return true; // Model not in allowed list
+        }
+
+        return false;
+    }
+
+    protected function preparePayload($record, SyncSite $site, string $type): array
+    {
+        $payload = [
+            'id' => $record->id, // Master ID
+            'type' => $type,
+            'source_id' => ($type === 'news' ? 'news-' : 'yacht-') . $record->id,
+            'slug' => $record->slug ?? Str::slug($record->name ?? 'item-' . $record->id),
+            'url' => method_exists($record, 'getUrl') ? $record->getUrl() : null, // If exists
         ];
 
-        // 2. Prepare Data for Translations
-        $translationsData = [];
-        foreach ($languages as $language) {
-            // INCLUDE ALL LANGUAGES, even default one.
-            // This ensures the plugin has access to all content needed to populate its own default language post if it differs from Master.
+        // Determine Languages
+        // Master Language (default) vs Site Default Language
+        // Ideally we map Master Default -> Site Default.
+        // For simplicity, we send ALL configured supported languages for the site.
+        $supportedLangs = $site->supported_languages ?? ['en'];
+        $defaultLang = $site->default_language ?? 'en';
 
-            $translationsData[$language->code] = [
-                'title' => $this->getTranslation($news, 'title', $language->code),
-                'description' => $this->getTranslation($news, 'content', $language->code),
-                'excerpt' => $this->getTranslation($news, 'excerpt', $language->code),
-                'custom_fields' => [],
+        // Helper to get translated value
+        $getTrans = function ($attribute) use ($record, $defaultLang) {
+            // If record uses HasTranslations
+            if (method_exists($record, 'getTranslation')) {
+                return $record->getTranslation($attribute, $defaultLang, false)
+                    ?? $record->getAttribute($attribute); // Fallback
+            }
+            // If attribute is array (like News title sometimes)
+            $val = $record->getAttribute($attribute);
+            if (is_array($val))
+                return $val[$defaultLang] ?? reset($val);
+            return $val;
+        };
+
+        if ($type === 'news') {
+            $payload['title'] = $getTrans('title');
+            $payload['content'] = $getTrans('content'); // Assuming 'content' field exists in News
+            $payload['published_at'] = $record->published_at;
+            $payload['image'] = $record->getFirstMediaUrl('default');
+
+            // Translations
+            $translations = [];
+            foreach ($supportedLangs as $lang) {
+                if ($lang === $defaultLang)
+                    continue;
+                $translations[$lang] = [
+                    'title' => $record->getTranslation('title', $lang, false),
+                    'content' => $record->getTranslation('content', $lang, false),
+                ];
+            }
+            $payload['translations'] = $translations;
+
+            // Custom Fields for News
+            $payload['custom_fields'] = $this->extractCustomFields($record, 'news', $defaultLang);
+
+        } elseif ($type === 'new_yacht' || $type === 'used_yacht') {
+            $payload['title'] = $getTrans('name'); // WP Post Title
+            $payload['name'] = $getTrans('name');
+            $payload['featured_image'] = $record->getFirstMediaUrl('default');
+
+            // Basic Fields
+            if ($type === 'used_yacht') {
+                $payload['price'] = $record->price;
+                $payload['year'] = $record->year;
+                $payload['location_id'] = $record->location_id; // Map location text later if needed
+            }
+
+            // Translations
+            $translations = [];
+            foreach ($supportedLangs as $lang) {
+                if ($lang === $defaultLang)
+                    continue;
+                $translations[$lang] = [
+                    'title' => $record->getTranslation('name', $lang, false),
+                    'name' => $record->getTranslation('name', $lang, false),
+                ];
+            }
+            $payload['translations'] = $translations;
+
+            // Custom Fields (Dynamic)
+            $payload['custom_fields'] = $this->extractCustomFields($record, $type, $defaultLang, $supportedLangs);
+
+            // Brands and Models
+            $payload['brand'] = [
+                'id' => $record->brand_id,
+                'name' => $record->brand?->name,
+                'slug' => $record->brand?->slug,
+            ];
+            $payload['model'] = [
+                'id' => $record->yacht_model_id,
+                'name' => $record->yachtModel?->name,
+                'slug' => $record->yachtModel?->slug,
+            ];
+
+            // Media Galleries
+            $media = [];
+            $mediaItems = $record->getMedia('gallery');
+            foreach ($mediaItems as $index => $item) {
+                $media[] = $item->getFullUrl();
+            }
+            $payload['media'] = $media;
+        }
+
+        return $payload;
+    }
+
+    protected function extractCustomFields($record, $entityType, $defaultLang, $supportedLangs = [])
+    {
+        $fields = [];
+        $configs = FormFieldConfiguration::where('entity_type', $entityType)->get();
+
+        foreach ($configs as $config) {
+            $key = $config->field_key;
+            $val = $record->custom_fields[$key] ?? null;
+
+            if ($config->is_multilingual) {
+                // If multilingual, custom_fields[key] might be an array [en => val, de => val]
+                // OR separate keys in logic. Usually in Filament we save as array or JSON.
+                // Let's assume array structure in custom_fields column json.
+                if (is_array($val)) {
+                    $fields[$key] = $val[$defaultLang] ?? null;
+                    // Add translations to payload globally or handled here?
+                    // Previous logic put them in specific translation blocks.
+                    // For simplicity, let's just send the raw array if WP can handle it, 
+                    // BUT our WP plugin expects strict fields.
+                    // Let's stick to sending default lang value here, 
+                    // and handle translations in the 'translations' payload block if we were traversing there.
+                    // Actually, let's inject localized values into payload['translations'] via reference if possible, 
+                    // or just flatten keys like 'my_field_en', 'my_field_de' which is easier for WP/ACF to import.
+                } else {
+                    $fields[$key] = $val;
+                }
+            } else {
+                $fields[$key] = $val;
+            }
+        }
+        return $fields;
+    }
+
+    protected function pushToWordPress(SyncSite $site, string $action, array $items): bool
+    {
+        $url = rtrim($site->url, '/') . '/wp-json/atal-sync/v1/push';
+        $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
+
+        try {
+            $response = Http::timeout(60)
+                ->withHeaders(['X-API-Key' => $apiKey])
+                ->post($url, [
+                    'action' => $action, // 'update', 'delete'
+                    'items' => $items,   // Array of payloads
+                ]);
+
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error("Push failed to {$site->name}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    protected function getModelClass($type)
+    {
+        return match ($type) {
+            'new_yacht' => NewYacht::class,
+            'used_yacht' => UsedYacht::class,
+            'news' => News::class,
+            default => null
+        };
+    }
+    protected function syncConfig(SyncSite $site, array &$errors)
+    {
+        $configPayload = $this->prepareConfigPayload();
+
+        // Push Config
+        if (!$this->pushToWordPress($site, 'config', $configPayload)) {
+            $errors[] = "Failed to sync Field Configuration to site: {$site->name}";
+        }
+    }
+
+    protected function prepareConfigPayload(): array
+    {
+        $fieldGroups = [];
+
+        foreach (['new_yacht', 'used_yacht', 'news'] as $entityType) {
+            $configs = FormFieldConfiguration::where('entity_type', $entityType)
+                ->orderBy('order')
+                ->get();
+
+            $fields = $configs->map(function ($config) {
+                // Default Type Mapping
+                $type = $this->mapInputTypeToACF($config->field_type);
+                $fieldData = [
+                    'key' => 'field_' . $config->field_key,
+                    'name' => $config->field_key,
+                    'label' => $config->label,
+                    'type' => $type,
+                    'required' => $config->is_required ? 1 : 0,
+                    'instructions' => '',
+                    'conditional_logic' => 0,
+                    'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
+                    'default_value' => '',
+                ];
+
+                // Special Case: Brand/Model as Taxonomy ID
+                // Old Plugin logic: If name is 'brand' -> type=taxonomy, taxonomy=yacht_brand
+                if ($config->field_key === 'brand' || $config->sync_as_taxonomy) {
+                    $fieldData['type'] = 'taxonomy';
+                    $fieldData['taxonomy'] = 'yacht_brand'; // Default to yacht_brand for now, or make dynamic later
+                    $fieldData['field_type'] = 'select';
+                    $fieldData['allow_null'] = 0;
+                    $fieldData['add_term'] = 0;
+                    $fieldData['save_terms'] = 1;
+                    $fieldData['load_terms'] = 1;
+                    $fieldData['return_format'] = 'id';
+                    $fieldData['multiple'] = 0;
+                }
+
+                // Special Case: Image / Gallery params
+                if ($type === 'image' || $type === 'gallery') {
+                    $fieldData['return_format'] = 'id';
+                    $fieldData['library'] = 'all';
+                    $fieldData['preview_size'] = 'medium';
+                }
+
+                // Choices for Select/Checkbox
+                if (in_array($type, ['select', 'checkbox', 'radio'])) {
+                    $fieldData['choices'] = collect($config->options ?? [])->pluck('label', 'value')->toArray();
+                }
+
+                return $fieldData;
+            })->toArray();
+
+            $postType = match ($entityType) {
+                'new_yacht' => 'new_yachts',
+                'used_yacht' => 'used_yachts',
+                'news' => 'post',
+                default => 'post',
+            };
+
+            $fieldGroups[] = [
+                'key' => 'group_' . $entityType,
+                'title' => ucfirst(str_replace('_', ' ', $entityType)) . ' Fields',
+                'fields' => $fields,
+                'location' => [
+                    [
+                        [
+                            'param' => 'post_type',
+                            'operator' => '==',
+                            'value' => $postType,
+                        ],
+                    ],
+                ],
+                'menu_order' => 0,
+                'position' => 'normal',
+                'style' => 'default',
+                'label_placement' => 'top',
+                'instruction_placement' => 'label',
+                'hide_on_screen' => '',
+                'active' => true,
+                'description' => '',
             ];
         }
 
-        // 3. Process Custom Fields (Definitions)
-        $fieldConfigs = \App\Models\FormFieldConfiguration::forNews()->get();
-
-        foreach ($fieldConfigs as $config) {
-            // Get value for Default Language
-            $defaultData['custom_fields'][$config->field_key] = $this->resolveFieldValue($news, $config, $defaultLanguage->code);
-
-            // Get value for Other Languages (if multilingual)
-            if ($config->is_multilingual) {
-                foreach ($languages as $language) {
-                    $val = $this->resolveFieldValue($news, $config, $language->code);
-                    if ($val) {
-                        $translationsData[$language->code]['custom_fields'][$config->field_key] = $val;
-                    }
-                }
-            }
-        }
-
-        // 4. Prepare Media (Featured Image)
-        $featuredImage = null;
-        if ($news->hasMedia('featured_image')) {
-            $featuredImage = $news->getFirstMediaUrl('featured_image');
-        }
-
-        foreach ($sites as $site) {
-            try {
-                // Use site-specific API key, or fall back to global API key
-                $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
-                $headers = [];
-                if ($apiKey) {
-                    $headers['X-API-Key'] = $apiKey;
-                }
-
-                $payload = [
-                    'type' => 'news',
-                    'data' => [
-                        'id' => $news->id, // Add Master ID for unique identification
-                        'slug' => $news->slug,
-                        'title' => $defaultData['title'] ?? ($defaultData['title']['en'] ?? ''), // Fallback if still array
-                        'content' => $defaultData['content'] ?? '',
-                        'excerpt' => $defaultData['excerpt'] ?? '',
-                        'published_at' => $news->published_at ? $news->published_at->toIso8601String() : null,
-                        'featured_image' => $featuredImage,
-                        'custom_fields' => $defaultData['custom_fields'],
-                        'translations' => $translationsData,
-                    ],
-                ];
-
-                $response = Http::timeout(60)
-                    ->withHeaders($headers)
-                    ->post($site->url, $payload);
-
-                if ($response->successful()) {
-                    $results[$site->name] = [
-                        'success' => true,
-                        'message' => 'Synced successfully',
-                    ];
-                } else {
-                    $results[$site->name] = [
-                        'success' => false,
-                        'message' => 'Failed: ' . $response->body(),
-                    ];
-                }
-            } catch (\Exception $e) {
-                $results[$site->name] = [
-                    'success' => false,
-                    'message' => 'Exception: ' . $e->getMessage(),
-                ];
-            }
-        }
-
-        return $results;
+        return $fieldGroups;
     }
 
-    protected function getTranslation($model, $field, $code)
+    protected function mapInputTypeToACF($filamentType)
     {
-        $value = $model->$field;
-        if (is_array($value)) {
-            return $value[$code] ?? null;
-        }
-        // If not array, return value only if it matches default language? 
-        // Or return raw value? For News, these fields are cast to array, so should be array.
-        return $value;
-    }
-
-    protected function resolveFieldValue($news, $config, $langCode)
-    {
-        // Handle media field types
-        $defaultLang = \App\Models\Language::where('is_default', true)->value('code') ?? 'sl';
-
-        if ($config->field_type === 'gallery') {
-            // Only sync media for default language
-            if ($langCode !== $defaultLang) {
-                return null;
-            }
-
-            $mediaItems = $news->getMedia($config->field_key);
-            $urls = [];
-            foreach ($mediaItems as $media) {
-                $urls[] = $media->getUrl();
-            }
-            return $urls;
-
-        } elseif ($config->field_type === 'image' || $config->field_type === 'file') {
-            // Only sync media for default language
-            if ($langCode !== $defaultLang) {
-                return null;
-            }
-
-            if ($news->hasMedia($config->field_key)) {
-                return $news->getFirstMediaUrl($config->field_key);
-            }
-            return null;
-
-        } elseif ($config->field_type === 'select' && $config->sync_as_taxonomy) {
-            // Text Strategy for Custom Fields (Selects synced as text)
-            $customFields = $news->custom_fields ?? [];
-            $rawValue = $customFields[$config->field_key] ?? null;
-
-            // Raw value is usually key/value pair or just value.
-            // For News (array cast), custom_fields might be ['field_key' => 'value'] (not multilingual) 
-            // or ['field_key' => ['en' => '...', 'sl' => '...']]?
-            // Actually News form handles custom fields as array.
-
-            // If multilingual is enabled for this field, rawValue IS an array of langs.
-            if (is_array($rawValue) && isset($rawValue[$langCode])) {
-                $optionValue = $rawValue[$langCode];
-            } elseif (!is_array($rawValue) && $langCode == 'sl') { // Assuming SL is default
-                $optionValue = $rawValue;
-            } else {
-                return null;
-            }
-
-            if ($optionValue) {
-                // Find label
-                $option = collect($config->options)->firstWhere('value', $optionValue);
-                if ($option) {
-                    return $option['label_' . $langCode] ?? $option['label'];
-                }
-            }
-            return null;
-
-        } else {
-            // Regular text/textarea fields
-            $customFields = $news->custom_fields ?? [];
-            $val = $customFields[$config->field_key] ?? null;
-
-            if (is_array($val)) {
-                return $val[$langCode] ?? null;
-            }
-            return ($langCode == 'sl') ? $val : null; // Fallback
-        }
+        return match ($filamentType) {
+            'text' => 'text',
+            'textarea' => 'textarea',
+            'richtext' => 'wysiwyg',
+            'number' => 'number',
+            'date' => 'date_picker',
+            'select' => 'select',
+            'checkbox' => 'checkbox',
+            'image' => 'image',
+            'gallery' => 'gallery', // Requires ACF Gallery plugin or similar
+            'file' => 'file',
+            default => 'text',
+        };
     }
 }

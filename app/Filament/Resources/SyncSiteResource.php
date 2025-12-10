@@ -26,32 +26,93 @@ class SyncSiteResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255)
-                    ->placeholder('e.g., Atal SK')
-                    ->helperText('A friendly name for this site'),
+                Forms\Components\Section::make('General Information')
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder('e.g., Atal SK')
+                            ->helperText('A friendly name for this site'),
 
-                Forms\Components\TextInput::make('url')
-                    ->required()
-                    ->url()
-                    ->maxLength(255)
-                    ->placeholder('https://atal.sk/wp-json/atal-sync/v1/import')
-                    ->helperText('Full URL to the WordPress sync API endpoint'),
+                        Forms\Components\TextInput::make('url')
+                            ->required()
+                            ->url()
+                            ->maxLength(255)
+                            ->placeholder('https://atal.sk/wp-json/atal-sync/v1/import')
+                            ->helperText('Root URL of the WordPress site (e.g. https://atal.sk). Do not include wp-json path.'),
 
-                Forms\Components\TextInput::make('api_key')
-                    ->password()
-                    ->maxLength(255)
-                    ->helperText('Site-specific API key (optional, uses global API key from Settings if empty)'),
+                        Forms\Components\TextInput::make('api_key')
+                            ->password()
+                            ->maxLength(255)
+                            ->helperText('Site-specific API key (optional, uses global API key from Settings if empty)'),
 
-                Forms\Components\Toggle::make('is_active')
-                    ->default(true)
-                    ->helperText('Enable or disable sync for this site'),
+                        Forms\Components\Toggle::make('is_active')
+                            ->default(true)
+                            ->helperText('Enable or disable sync for this site'),
 
-                Forms\Components\TextInput::make('order')
-                    ->numeric()
-                    ->default(0)
-                    ->helperText('Display order (lower numbers first)'),
+                        Forms\Components\TextInput::make('order')
+                            ->numeric()
+                            ->default(0)
+                            ->helperText('Display order (lower numbers first)'),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Languages')
+                    ->schema([
+                        Forms\Components\Select::make('default_language')
+                            ->options(\App\Models\Language::all()->pluck('name', 'code'))
+                            ->default('sl')
+                            ->required(),
+
+                        Forms\Components\CheckboxList::make('supported_languages')
+                            ->options(\App\Models\Language::all()->pluck('name', 'code'))
+                            ->columns(4)
+                            ->helperText('Select all languages that this site supports.'),
+                    ]),
+
+                Forms\Components\Section::make('Brand & Model Filtering')
+                    ->description('Configure which Yachts are synced to this site.')
+                    ->schema([
+                        Forms\Components\Toggle::make('sync_all_brands')
+                            ->label('Sync All Brands & Models')
+                            ->default(true)
+                            ->live(),
+
+                        Forms\Components\Repeater::make('brand_restrictions')
+                            ->label('Brand Restrictions')
+                            ->visible(fn(Forms\Get $get) => !$get('sync_all_brands'))
+                            ->schema([
+                                Forms\Components\Select::make('brand_id')
+                                    ->label('Brand')
+                                    ->options(\App\Models\Brand::pluck('name', 'id'))
+                                    ->required()
+                                    ->live()
+                                    ->distinct()
+                                    ->columnSpan(1),
+
+                                Forms\Components\Toggle::make('allowed')
+                                    ->label('Allowed?')
+                                    ->default(true)
+                                    ->inline(false)
+                                    ->live()
+                                    ->columnSpan(1),
+
+                                Forms\Components\Select::make('model_type_restriction')
+                                    ->label('Model Restriction')
+                                    ->helperText('Leave empty to allow ALL models from this brand. Select specific models to restrict.')
+                                    ->options(function (Forms\Get $get) {
+                                        $brandId = $get('brand_id');
+                                        if (!$brandId)
+                                            return [];
+                                        return \App\Models\YachtModel::where('brand_id', $brandId)->pluck('name', 'id');
+                                    })
+                                    ->multiple()
+                                    ->visible(fn(Forms\Get $get) => $get('allowed'))
+                                    ->columnSpan(2),
+                            ])
+                            ->columns(4)
+                            ->defaultItems(0)
+                            ->addActionLabel('Add Brand Rule'),
+                    ]),
             ]);
     }
 
