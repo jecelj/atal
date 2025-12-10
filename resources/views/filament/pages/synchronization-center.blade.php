@@ -1,3 +1,7 @@
+<x-filament-panels::page>
+    <div class="space-y-6">
+        @foreach($sites as $site)
+            <x-filament::section collapsible collapsed="{{ !$site->is_active }}">
                 <x-slot name="heading">
                     <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
@@ -5,7 +9,7 @@
                             <x-filament::badge color="{{ $site->is_active ? 'success' : 'gray' }}">
                                 {{ $site->is_active ? 'Active' : 'Inactive' }}
                             </x-filament::badge>
-                            
+
                             {{-- Sync Status Badge --}}
                             @if($site->is_active)
                                 <x-filament::badge color="{{ $site->ui_status_color }}">
