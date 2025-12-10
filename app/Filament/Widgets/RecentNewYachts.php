@@ -28,7 +28,7 @@ class RecentNewYachts extends BaseWidget
                     ->label('Model')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime('d.m.Y H:i')
+                    ->date('d.m.Y')
                     ->sortable()
                     ->label('Created'),
             ])
