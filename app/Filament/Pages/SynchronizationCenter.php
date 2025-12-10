@@ -63,9 +63,9 @@ class SynchronizationCenter extends Page
         if (!$site)
             return;
 
-        // Dispatch Job specifically for this site
+        // Dispatch Job specifically for this site (FORCE sync)
         $sessionKey = 'sync_site_' . $siteId . '_' . uniqid();
-        \App\Jobs\SyncSitesJob::dispatch($siteId, $sessionKey);
+        \App\Jobs\SyncSitesJob::dispatch($siteId, $sessionKey, true);
 
         \Filament\Notifications\Notification::make()
             ->title("Sync Started for {$site->name}")

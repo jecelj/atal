@@ -21,7 +21,7 @@ class SyncSitesJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(?int $siteId, string $sessionKey)
+    public function __construct(?int $siteId, string $sessionKey, protected bool $force = false)
     {
         $this->siteId = $siteId;
         $this->sessionKey = $sessionKey;
@@ -62,7 +62,7 @@ class SyncSitesJob implements ShouldQueue
             ], now()->addMinutes(30));
 
             // Sync this site
-            $result = $syncService->syncSite($site);
+            $result = $syncService->syncSite($site, $this->force);
             $results[] = [
                 'site' => $site->name,
                 'success' => $result['success'],
