@@ -7,10 +7,13 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class ManageNewsFields extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    use HasPageShield;
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'News Fields';
 

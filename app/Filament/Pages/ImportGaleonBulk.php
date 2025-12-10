@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Log;
 class ImportGaleonBulk extends Page implements HasForms
 {
     use InteractsWithForms;
+    use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-down-on-square-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationGroup = 'Migration';
 

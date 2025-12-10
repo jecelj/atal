@@ -7,12 +7,14 @@ use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Log;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class ImportGaleonData extends Page
 {
     use WithFileUploads;
+    use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-down-tray';
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Import Used Yachts';
 

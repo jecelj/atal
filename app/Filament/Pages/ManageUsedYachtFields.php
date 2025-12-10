@@ -10,7 +10,9 @@ use Filament\Notifications\Notification;
 
 class ManageUsedYachtFields extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Used Yacht Fields';
 

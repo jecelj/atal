@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "awcodes/filament-tiptap-editor": "^3.5",
+        "bezhansalleh/filament-shield": "^3.9",
         "filament/filament": "^3.2",
         "filament/spatie-laravel-media-library-plugin": "^3.2",
         "filament/spatie-laravel-settings-plugin": "^3.3",

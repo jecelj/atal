@@ -5,11 +5,13 @@ namespace App\Filament\Pages;
 use App\Settings\ApiSettings;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Pages\SettingsPage;
+use Filament\Pages\Page;
 
-class ManageApiSettings extends SettingsPage
+class ManageApiSettings extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-key';
+    use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
+    protected static ?string $navigationIcon = 'heroicon-o-cog';
 
     protected static string $settings = ApiSettings::class;
 

@@ -5,11 +5,13 @@ namespace App\Filament\Pages;
 use App\Settings\OpenAiSettings;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Pages\SettingsPage;
+use Filament\Pages\Page; // Changed from Filament\Pages\SettingsPage;
 
-class ManageExternalApiSettings extends SettingsPage
+class ManageExternalApiSettings extends Page // Changed from SettingsPage
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cloud';
+    use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
+    protected static ?string $navigationIcon = 'heroicon-o-cog'; // Changed from heroicon-o-cloud
 
     protected static string $settings = OpenAiSettings::class;
 

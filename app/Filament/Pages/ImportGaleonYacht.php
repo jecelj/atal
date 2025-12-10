@@ -9,12 +9,14 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class ImportGaleonYacht extends Page implements HasForms
 {
     use InteractsWithForms;
+    use HasPageShield;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-down-tray';
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Import New Yacht (Single)';
 
