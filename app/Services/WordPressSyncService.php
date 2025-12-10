@@ -251,9 +251,16 @@ class WordPressSyncService
             foreach ($supportedLangs as $lang) {
                 if ($lang === $defaultLang)
                     continue;
+
+                // Helper for news array access
+                $getNewsTrans = function ($field, $code) use ($record) {
+                    $vals = $record->$field;
+                    return is_array($vals) ? ($vals[$code] ?? '') : '';
+                };
+
                 $translations[$lang] = [
-                    'title' => $record->getTranslation('title', $lang, false),
-                    'content' => $record->getTranslation('content', $lang, false),
+                    'title' => $getNewsTrans('title', $lang),
+                    'content' => $getNewsTrans('content', $lang),
                 ];
             }
             $payload['translations'] = $translations;
