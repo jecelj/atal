@@ -27,8 +27,8 @@ class SynchronizationCenter extends Page
                     \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey);
 
                     \Filament\Notifications\Notification::make()
-                        ->title('Sync Started')
-                        ->body('Synchronization for all sites has been queued.')
+                        ->title('Sync Completed')
+                        ->body('Synchronization for all sites finished successfully.')
                         ->success()
                         ->send();
                 }),
@@ -70,8 +70,8 @@ class SynchronizationCenter extends Page
         \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, true);
 
         \Filament\Notifications\Notification::make()
-            ->title("Sync Started for {$site->name}")
-            ->body('Synchronization for this site has been queued.')
+            ->title("Sync Completed for {$site->name}")
+            ->body('Synchronization finished successfully.')
             ->success()
             ->send();
     }
