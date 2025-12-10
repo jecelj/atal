@@ -20,10 +20,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Register Event Listener for WebP conversion
-        \Illuminate\Support\Facades\Event::listen(
-            \Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent::class,
-            \App\Listeners\ConvertImageToWebP::class
-        );
+        // DISABLED: Automatic optimization is disabled. Use manual "Optimize Images" button instead.
+        // \Illuminate\Support\Facades\Event::listen(
+        //     \Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent::class,
+        //     \App\Listeners\ConvertImageToWebP::class
+        // );
 
         // Register Sync Observers
         \App\Models\NewYacht::observe(\App\Observers\SyncObserver::class);
