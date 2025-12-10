@@ -29,7 +29,10 @@ class EditNews extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    // DON'T save here - optimization works on saved media
+                    // Save the record first to ensure all images are in DB
+                    $this->save();
+
+                    // works on saved media
                     $record = $this->getRecord();
                     // Open modal via widget
                     $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'news');
