@@ -67,7 +67,8 @@ class SynchronizationCenter extends Page
         $sessionKey = 'sync_site_' . $siteId . '_' . uniqid();
 
         // Use dispatchSync to avoid Queue Worker issues (stale code, not running, etc.)
-        \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, true);
+        // Force is FALSE by default to respect "Pending/Dirty" logic (Differential Sync)
+        \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, false);
 
         \Filament\Notifications\Notification::make()
             ->title("Sync Completed for {$site->name}")
