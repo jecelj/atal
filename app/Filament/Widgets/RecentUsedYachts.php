@@ -29,7 +29,8 @@ class RecentUsedYachts extends BaseWidget
                     ->height(40),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->label('Model Name'),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')

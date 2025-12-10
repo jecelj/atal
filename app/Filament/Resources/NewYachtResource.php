@@ -48,6 +48,7 @@ class NewYachtResource extends Resource
                         ]),
                     Forms\Components\Select::make('yacht_model_id')
                         ->relationship('yachtModel', 'name', modifyQueryUsing: fn(Builder $query, Forms\Get $get) => $query->where('brand_id', $get('brand_id')))
+                        ->label('Model Type')
                         ->searchable()
                         ->preload()
                         ->required()
@@ -243,8 +244,8 @@ class NewYachtResource extends Resource
                 ->gridDirection('row'),
             'repeater' => Forms\Components\Repeater::make($fieldKey)
                 ->schema([
-                    Forms\Components\TextInput::make('url')
-                        ->label('URL')
+                    Forms\Components\TextInput::make('name')
+                        ->label('Model Name')
                         ->required(),
                 ])
                 ->addActionLabel('Add Video URL')
@@ -601,14 +602,15 @@ class NewYachtResource extends Resource
             ->defaultPaginationPageOption(100)
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
+                    ->searchable()
+                    ->label('Model Name'),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('yachtModel.name')
                     ->sortable()
                     ->searchable()
-                    ->label('Model'),
+                    ->label('Model Type'),
                 Tables\Columns\IconColumn::make('img_opt_status')
                     ->label('Img Opt.')
                     ->boolean()

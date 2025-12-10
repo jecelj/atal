@@ -66,7 +66,7 @@ class UsedYachtResource extends Resource
                                 $label = $language->name . ($isDefault ? ' (Default)' : '');
 
                                 $field = Forms\Components\TextInput::make("name.{$language->code}")
-                                    ->label('Name')
+                                    ->label('Model Name')
                                     ->required($isDefault)
                                     ->maxLength(255)
                                     ->live(onBlur: true);
@@ -526,7 +526,8 @@ class UsedYachtResource extends Resource
             ->defaultPaginationPageOption(100)
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
+                    ->searchable()
+                    ->label('Model Name'),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
                     ->searchable(),

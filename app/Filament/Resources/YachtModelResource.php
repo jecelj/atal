@@ -23,6 +23,10 @@ class YachtModelResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    protected static ?string $modelLabel = 'Model Type';
+    protected static ?string $pluralModelLabel = 'Model Types';
+    protected static ?string $navigationLabel = 'Model Types';
+
     public static function form(Form $form): Form
     {
         return $form

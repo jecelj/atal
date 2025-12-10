@@ -50,7 +50,7 @@ class Dashboard extends BaseDashboard
                         ->afterStateUpdated(fn(\Filament\Forms\Set $set) => $set('yacht_model_id', null))
                         ->required(),
                     \Filament\Forms\Components\Select::make('yacht_model_id')
-                        ->label('Model')
+                        ->label('Model Type')
                         ->options(function (\Filament\Forms\Get $get) {
                             $brandId = $get('brand_id');
                             if (!$brandId) {
@@ -73,7 +73,7 @@ class Dashboard extends BaseDashboard
                         ->preload()
                         ->required(),
                     \Filament\Forms\Components\TextInput::make('name')
-                        ->label('Yacht Name')
+                        ->label('Model Name')
                         ->required(),
                 ])
                 ->action(function (array $data) {
