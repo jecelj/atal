@@ -27,7 +27,7 @@ class StatusCheckService
         $imgStatus = $this->checkImageOptimization($record);
         $transStatus = $this->checkTranslations($record);
 
-        $record->update([
+        $record->updateQuietly([
             'img_opt_status' => $imgStatus,
             'translation_status' => $transStatus,
         ]);
