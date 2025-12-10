@@ -150,11 +150,7 @@ class Dashboard extends BaseDashboard
                 ->icon('heroicon-m-plus')
                 ->color('info'),
 
-            Action::make('syncAll')
-                ->label('Sync All Sites')
-                ->url(route('filament.admin.pages.sync-all'))
-                ->icon('heroicon-m-arrow-path')
-                ->color('success'),
+
         ];
     }
 }
