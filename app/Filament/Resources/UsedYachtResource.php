@@ -525,6 +525,8 @@ class UsedYachtResource extends Resource
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(100)
             ->columns([
+                Tables\Columns\TextColumn::make('name')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
                     ->searchable(),
@@ -532,6 +534,13 @@ class UsedYachtResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->label('Location'),
+                Tables\Columns\TextColumn::make('custom_fields.price')
+                    ->money('EUR')
+                    ->sortable()
+                    ->label('Price'),
+                Tables\Columns\TextColumn::make('custom_fields.year')
+                    ->sortable()
+                    ->label('Year'),
                 Tables\Columns\IconColumn::make('img_opt_status')
                     ->label('Img Opt.')
                     ->boolean()
@@ -548,15 +557,6 @@ class UsedYachtResource extends Resource
                     ->trueColor('success')
                     ->falseColor('warning')
                     ->placeholder('No Info'),
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('custom_fields.price')
-                    ->money('EUR')
-                    ->sortable()
-                    ->label('Price'),
-                Tables\Columns\TextColumn::make('custom_fields.year')
-                    ->sortable()
-                    ->label('Year'),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')

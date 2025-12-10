@@ -24,10 +24,10 @@ class RecentUsedYachts extends BaseWidget
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('price')
-                    ->money('EUR')
+                Tables\Columns\TextColumn::make('brand.name')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('year')
+                Tables\Columns\TextColumn::make('yachtModel.name')
+                    ->label('Model')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

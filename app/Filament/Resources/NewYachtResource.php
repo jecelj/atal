@@ -600,6 +600,8 @@ class NewYachtResource extends Resource
             ->paginated([10, 25, 50, 100])
             ->defaultPaginationPageOption(100)
             ->columns([
+                Tables\Columns\TextColumn::make('name')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
                     ->searchable(),
@@ -623,8 +625,6 @@ class NewYachtResource extends Resource
                     ->trueColor('success')
                     ->falseColor('warning')
                     ->placeholder('No Info'),
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')

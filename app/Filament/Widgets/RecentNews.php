@@ -30,6 +30,9 @@ class RecentNews extends BaseWidget
                     ->dateTime()
                     ->sortable()
                     ->label('Created'),
+                Tables\Columns\TextColumn::make('syncSites.name')
+                    ->badge()
+                    ->label('Synced To'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
