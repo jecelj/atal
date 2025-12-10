@@ -361,7 +361,8 @@ class WordPressSyncService
                 foreach ($mediaItems as $item) {
                     $urls[] = $item->getFullUrl();
                 }
-                $fields[$key] = $urls; // Array of URLs
+                // Fix: User reports reversed order in WP. Reversing array to compensate.
+                $fields[$key] = array_reverse($urls);
                 continue;
             }
 
