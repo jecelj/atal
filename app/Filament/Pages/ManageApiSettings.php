@@ -5,9 +5,9 @@ namespace App\Filament\Pages;
 use App\Settings\ApiSettings;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Pages\Page;
+use Filament\Pages\SettingsPage;
 
-class ManageApiSettings extends Page
+class ManageApiSettings extends SettingsPage
 {
     use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
 

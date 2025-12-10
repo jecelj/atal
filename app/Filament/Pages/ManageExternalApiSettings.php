@@ -5,9 +5,9 @@ namespace App\Filament\Pages;
 use App\Settings\OpenAiSettings;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Pages\Page; // Changed from Filament\Pages\SettingsPage;
+use Filament\Pages\SettingsPage;
 
-class ManageExternalApiSettings extends Page // Changed from SettingsPage
+class ManageExternalApiSettings extends SettingsPage
 {
     use \BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
