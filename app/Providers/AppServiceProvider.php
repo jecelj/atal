@@ -24,5 +24,10 @@ class AppServiceProvider extends ServiceProvider
             \Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent::class,
             \App\Listeners\ConvertImageToWebP::class
         );
+
+        // Register Sync Observers
+        \App\Models\NewYacht::observe(\App\Observers\SyncObserver::class);
+        \App\Models\UsedYacht::observe(\App\Observers\SyncObserver::class);
+        \App\Models\News::observe(\App\Observers\SyncObserver::class);
     }
 }
