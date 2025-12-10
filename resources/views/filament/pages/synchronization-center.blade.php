@@ -20,15 +20,7 @@
             </div>
         </x-filament::section>
 
-        <x-filament::section>
-            <div class="flex items-center gap-4">
-                <x-filament::icon icon="heroicon-o-x-circle" class="w-8 h-8 text-danger-500" />
-                <div>
-                    <h2 class="text-lg font-bold text-danger-600">{{ $stats['failed'] }}</h2>
-                    <p class="text-sm text-gray-500">Failed</p>
-                </div>
-            </div>
-        </x-filament::section>
+        {{-- Failed stats removed by user request --}}
 
         <x-filament::section>
             <div class="flex items-center gap-4">
@@ -76,16 +68,16 @@
                             @endif
                         </ul>
 
-                        <div class="mt-4">
+                        <div class="flex gap-2 mt-4">
                             <x-filament::button icon="heroicon-o-arrow-path" size="sm"
-                                wire:click="syncSite({{ $site->id }})" tag="a" href="#" onclick="return false;" {{--
-                                Placeholder for livewire action if we were using it, but page is simple view --}}>
-                                {{-- Since we can't easily wire actions in simple Pages without Livewire logic in
-                                controller,
-                                we might need to move logic.
-                                Actually, Filament Pages are Livewire components!
-                                So we CAN add public function syncSite($id) to the Controller. --}}
+                                wire:click="syncSite({{ $site->id }})">
                                 Trigger Manual Sync
+                            </x-filament::button>
+
+                            <x-filament::button icon="heroicon-o-arrow-path" size="sm" color="gray"
+                                wire:click="forceSyncSite({{ $site->id }})"
+                                onclick="return confirm('Are you sure you want to FORCE sync this site? It will overwrite existing data.') || event.stopImmediatePropagation()">
+                                Force Sync
                             </x-filament::button>
                         </div>
                     </div>

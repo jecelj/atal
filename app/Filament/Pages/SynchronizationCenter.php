@@ -94,4 +94,21 @@ class SynchronizationCenter extends Page
             ->success()
             ->send();
     }
+
+    public function forceSyncSite($siteId)
+    {
+        $site = \App\Models\SyncSite::find($siteId);
+        if (!$site)
+            return;
+
+        $sessionKey = 'sync_site_force_' . $siteId . '_' . uniqid();
+        // FORCE SYNC = true
+        \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, true);
+
+        \Filament\Notifications\Notification::make()
+            ->title("Force Sync Completed for {$site->name}")
+            ->body('Force synchronization finished successfully.')
+            ->success()
+            ->send();
+    }
 }
