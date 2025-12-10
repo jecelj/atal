@@ -52,13 +52,18 @@ class StatusCheckService
 
             $isValid = true;
 
+            // Check if file actually exists on disk (Fix for 404 errors)
+            if (!file_exists($media->getPath())) {
+                $isValid = false;
+            }
+
             // Check format (must be WebP)
-            if ($media->mime_type !== 'image/webp') {
+            if ($isValid && $media->mime_type !== 'image/webp') {
                 $isValid = false;
             }
 
             // Check size (must be < 1MB = 1048576 bytes)
-            if ($media->size > 1048576) {
+            if ($isValid && $media->size > 1048576) {
                 $isValid = false;
             }
 
