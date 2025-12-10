@@ -54,24 +54,46 @@ class SyncObserver
         $sites = SyncSite::active()->get();
 
         foreach ($sites as $site) {
-            // Find existing status or create new one
-            // We force status to 'pending' regardless of previous state.
-            // This ensures "Dirty" count increases in Dashboard.
+            // Check if item is "Published/Active"
+            $isPublished = false;
 
-            SyncStatus::updateOrCreate(
-                [
-                    'sync_site_id' => $site->id,
-                    'model_type' => $type,
-                    'model_id' => $model->id,
-                ],
-                [
-                    'status' => 'pending',
-                    // We DO NOT update content_hash here. 
-                    // Hash is calculated only during actual sync. 
-                    // Setting status to pending is enough to trigger "Dirty" count.
-                    'error_message' => null, // Clear previous errors if any
-                ]
-            );
+            if ($model instanceof NewYacht || $model instanceof UsedYacht) {
+                $isPublished = ($model->state === 'published');
+            } elseif ($model instanceof News) {
+                $isPublished = (bool) $model->is_active;
+            }
+
+            // Logic:
+            // 1. If Published: Always set Pending (needs sync).
+            // 2. If Not Published: Only set Pending IF it was previously Synced (needs delete request).
+            // 3. If Not Published & Not Synced: Do nothing (keep invisible).
+
+            if ($isPublished) {
+                SyncStatus::updateOrCreate(
+                    [
+                        'sync_site_id' => $site->id,
+                        'model_type' => $type,
+                        'model_id' => $model->id,
+                    ],
+                    [
+                        'status' => 'pending',
+                        'error_message' => null,
+                    ]
+                );
+            } else {
+                // Check if it exists and was synced
+                $existing = SyncStatus::where('sync_site_id', $site->id)
+                    ->where('model_type', $type)
+                    ->where('model_id', $model->id)
+                    ->where('status', 'synced')
+                    ->first();
+
+                if ($existing) {
+                    // It was synced, now it's draft -> Needs sync (to process deletion)
+                    $existing->update(['status' => 'pending']);
+                }
+                // Else: Draft and never synced -> Ignore.
+            }
         }
     }
 }
