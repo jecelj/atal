@@ -23,8 +23,8 @@ class SynchronizationCenter extends Page
                 ->requiresConfirmation()
                 ->action(function () {
                     $sessionKey = 'sync_all_' . uniqid();
-                    // Trigger Sync Job
-                    \App\Jobs\SyncSitesJob::dispatch(null, $sessionKey);
+                    // Trigger Sync Job (Synchronously)
+                    \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey);
 
                     \Filament\Notifications\Notification::make()
                         ->title('Sync Started')
@@ -63,9 +63,11 @@ class SynchronizationCenter extends Page
         if (!$site)
             return;
 
-        // Dispatch Job specifically for this site (FORCE sync)
+        // Dispatch Job specifically for this site (FORCE sync, SYNCHRONOUSLY)
         $sessionKey = 'sync_site_' . $siteId . '_' . uniqid();
-        \App\Jobs\SyncSitesJob::dispatch($siteId, $sessionKey, true);
+
+        // Use dispatchSync to avoid Queue Worker issues (stale code, not running, etc.)
+        \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, true);
 
         \Filament\Notifications\Notification::make()
             ->title("Sync Started for {$site->name}")
