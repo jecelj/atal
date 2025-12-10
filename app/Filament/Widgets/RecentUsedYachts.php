@@ -28,6 +28,18 @@ class RecentUsedYachts extends BaseWidget
                     ->sortable(),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable(),
+                Tables\Columns\ToggleColumn::make('state')
+                    ->onColor('success')
+                    ->offColor('danger')
+                    ->onIcon('heroicon-m-check')
+                    ->offIcon('heroicon-m-x-mark')
+                    ->state(fn($record) => $record->state === 'published')
+                    ->afterStateUpdated(function ($record, $state) {
+                        $record->update([
+                            'state' => $state ? 'published' : 'draft'
+                        ]);
+                    })
+                    ->label('Published'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')
                     ->sortable()
