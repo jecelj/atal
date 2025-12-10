@@ -178,38 +178,51 @@ class WordPressSyncService
 
     protected function isFilteredOut($record, SyncSite $site): bool
     {
-        // 1. Language checks? No, we transform content.
-        // 2. Brand/Model checks (Only for Yachts)
+        // 1. BRAND & MODEL CHECKS (Yachts Only)
         if ($record instanceof NewYacht || $record instanceof UsedYacht) {
+            // Check Published State
+            if ($record->state !== 'published') {
+                return true;
+            }
+
             if ($site->sync_all_brands) {
                 return false;
             }
 
-            $brandId = $record->brand_id; // Check if model has brand_id
+            $brandId = $record->brand_id;
             if (!$brandId)
-                return true; // Safety
+                return true;
 
             $restrictions = $site->brand_restrictions ?? [];
-            // Format: [{'brand_id': 1, 'allowed': true, 'model_type_restriction': [...]}]
-
             $rule = collect($restrictions)->firstWhere('brand_id', $brandId);
 
             if (!$rule || empty($rule['allowed'])) {
-                return true; // Not in list or allowed=false -> Blocked
+                return true;
             }
 
             // Check Model Restrictions
             $allowedModels = $rule['model_type_restriction'] ?? [];
             if (empty($allowedModels)) {
-                return false; // All models allowed
+                return false;
             }
 
-            // Assuming record has yacht_model_id
             if (in_array($record->yacht_model_id, $allowedModels)) {
-                return false; // Allowed
+                return false;
             }
 
-            return true; // Model not in allowed list
+            return true;
+        }
+
+        // 2. NEWS CHECKS
+        if ($record instanceof News) {
+            // Check Active Status
+            if (!$record->is_active) {
+                return true;
+            }
+            // Check Publish Date
+            if ($record->published_at && $record->published_at->isFuture()) {
+                return true;
+            }
         }
 
         return false;
