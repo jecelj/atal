@@ -23,8 +23,7 @@ class RecentUsedYachts extends BaseWidget
                     ->limit(5)
             )
             ->columns([
-                \Filament\Tables\Columns\SpatieMediaLibraryImageColumn::make('featured_image')
-                    ->collection('featured_image')
+                Tables\Columns\ImageColumn::make('custom_fields.image_1')
                     ->label('')
                     ->height(40),
                 Tables\Columns\TextColumn::make('name')
