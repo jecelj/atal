@@ -9,9 +9,10 @@ class ConvertImageToWebP
 {
     /**
      * Flag to control whether conversion should run.
-     * Useful for bulk imports where we want to avoid timeouts.
+     * Use to FALSE to prevent auto-optimization on upload.
+     * Enabled only for specific bulk imports or if explicitly requested.
      */
-    public static bool $shouldConvert = true;
+    public static bool $shouldConvert = false;
 
     public function handle(MediaHasBeenAddedEvent $event): void
     {
