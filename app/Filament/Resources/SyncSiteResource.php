@@ -35,11 +35,12 @@ class SyncSiteResource extends Resource
                             ->helperText('A friendly name for this site'),
 
                         Forms\Components\TextInput::make('url')
+                            ->label('Site URL')
                             ->required()
                             ->url()
                             ->maxLength(255)
-                            ->placeholder('https://atal.sk/wp-json/atal-sync/v1/import')
-                            ->helperText('Root URL of the WordPress site (e.g. https://atal.sk). Do not include wp-json path.'),
+                            ->placeholder('https://atal.sk')
+                            ->helperText('Enter the root domain (e.g. https://atal.sk). The system will automatically append the API endpoint.'),
 
                         Forms\Components\TextInput::make('api_key')
                             ->password()
