@@ -347,7 +347,20 @@ class WordPressSyncService
 
     protected function pushToWordPress(SyncSite $site, string $action, array $items): bool
     {
-        $url = rtrim($site->url, '/') . '/wp-json/atal-sync/v1/push';
+        // Parse the stored URL to get the base (scheme + host)
+        $parsed = parse_url($site->url);
+        $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
+        // If there is a path that is NOT part of wp-json (e.g. subdir install), we might need it.
+        // But usually users put the full API url. 
+        // Safer approach: Regex replace the old endpoint or just take the root if it contains wp-json
+
+        if (str_contains($site->url, '/wp-json/')) {
+            $baseUrl = substr($site->url, 0, strpos($site->url, '/wp-json/'));
+        } else {
+            $baseUrl = rtrim($site->url, '/');
+        }
+
+        $url = $baseUrl . '/wp-json/atal-sync/v1/push';
         $apiKey = $site->api_key ?: app(\App\Settings\ApiSettings::class)->sync_api_key;
 
         try {
