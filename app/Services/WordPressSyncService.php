@@ -48,6 +48,7 @@ class WordPressSyncService
 
         return [
             'success' => empty($errors),
+            'imported' => $totalSynced,
             'message' => "Synced {$totalSynced} items.",
             'errors' => $errors
         ];

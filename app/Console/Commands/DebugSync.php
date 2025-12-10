@@ -79,9 +79,16 @@ class DebugSync extends Command
 
             $this->info("Sync Completed.");
             $this->info("Success: " . ($result['success'] ? 'YES' : 'NO'));
-            if (!$result['success']) {
-                $this->error("Error Message: " . $result['message']);
+
+            // Always show message
+            if (isset($result['message'])) {
+                $this->info($result['message']);
             }
+
+            if (!$result['success'] && !isset($result['message'])) {
+                // Fallback if message missing on error
+            }
+
             if (isset($result['imported'])) {
                 $this->info("Items Imported: " . $result['imported']);
             }
