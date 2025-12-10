@@ -70,36 +70,5 @@ class EditNewYacht extends EditRecord
         ];
     }
 
-    protected function afterSave(): void
-    {
-        $record = $this->getRecord();
 
-        // Run image optimization
-        try {
-            $service = app(\App\Services\ImageOptimizationService::class);
-            $stats = $service->processYachtImages($record);
-
-            if ($stats['processed'] > 0) {
-                $message = "Images processed: {$stats['processed']}";
-                if ($stats['renamed'] > 0)
-                    $message .= ", Renamed: {$stats['renamed']}";
-                if ($stats['converted'] > 0)
-                    $message .= ", Converted to WebP: {$stats['converted']}";
-                if ($stats['resized'] > 0)
-                    $message .= ", Resized: {$stats['resized']}";
-
-                \Filament\Notifications\Notification::make()
-                    ->success()
-                    ->title('Image Optimization Complete')
-                    ->body($message)
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            \Filament\Notifications\Notification::make()
-                ->warning()
-                ->title('Image Optimization Warning')
-                ->body('Some images could not be processed: ' . $e->getMessage())
-                ->send();
-        }
-    }
 }
