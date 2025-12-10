@@ -444,6 +444,11 @@ class WordPressSyncService
                 ->get();
 
             $fields = $configs->map(function ($config) {
+                // Fix: User wants to hide Brand/Model from ACF as they are handled via Taxonomies
+                if (in_array($config->field_key, ['brand', 'model', 'yacht_model'])) {
+                    return null;
+                }
+
                 // Default Type Mapping
                 $type = $this->mapInputTypeToACF($config->field_type);
                 $fieldData = [
@@ -485,7 +490,10 @@ class WordPressSyncService
                 }
 
                 return $fieldData;
-            })->toArray();
+            })
+                ->filter()
+                ->values()
+                ->toArray();
 
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
