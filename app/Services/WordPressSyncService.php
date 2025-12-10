@@ -115,6 +115,12 @@ class WordPressSyncService
 
         foreach ($records as $record) {
             if ($this->isFilteredOut($record, $site)) {
+                // If filtered out, ensure we don't have a pending status hanging around
+                SyncStatus::where('sync_site_id', $site->id)
+                    ->where('model_type', $typeKey)
+                    ->where('model_id', $record->id)
+                    ->where('status', 'pending')
+                    ->delete();
                 continue;
             }
 
