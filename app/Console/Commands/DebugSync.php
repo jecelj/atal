@@ -13,7 +13,7 @@ class DebugSync extends Command
      *
      * @var string
      */
-    protected $signature = 'sync:debug {site_id?}';
+    protected $signature = 'sync:debug {site_id?} {--force : Force sync regardless of changes}';
 
     /**
      * The console command description.
@@ -28,6 +28,7 @@ class DebugSync extends Command
     public function handle()
     {
         $siteId = $this->argument('site_id');
+        $force = $this->option('force');
 
         $siteId = $this->argument('site_id');
 
@@ -54,6 +55,9 @@ class DebugSync extends Command
         }
 
         $this->info("Starting DEBUG Sync for: " . $site->name);
+        if ($force) {
+            $this->warn("FORCE MODE ENABLED: Ignoring dirty checks.");
+        }
         $this->info("URL: " . $site->url);
 
         $service = app(WordPressSyncService::class);
@@ -71,7 +75,7 @@ class DebugSync extends Command
         $this->info("Calculated Target API URL: " . $targetUrl);
 
         try {
-            $result = $service->syncSite($site);
+            $result = $service->syncSite($site, $force);
 
             $this->info("Sync Completed.");
             $this->info("Success: " . ($result['success'] ? 'YES' : 'NO'));

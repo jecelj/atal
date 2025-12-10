@@ -18,9 +18,9 @@ class WordPressSyncService
     /**
      * Master Sync Method
      */
-    public function syncSite(SyncSite $site): array
+    public function syncSite(SyncSite $site, bool $force = false): array
     {
-        Log::info("Starting sync for site: {$site->name}");
+        Log::info("Starting sync for site: {$site->name} (Force: " . ($force ? 'YES' : 'NO') . ")");
         $totalSynced = 0;
         $errors = [];
 
@@ -31,9 +31,9 @@ class WordPressSyncService
         $this->processDeletions($site, $errors);
 
         // 2. Process Updates
-        $totalSynced += $this->processUpdates($site, NewYacht::class, 'new_yacht', $errors);
-        $totalSynced += $this->processUpdates($site, UsedYacht::class, 'used_yacht', $errors);
-        $totalSynced += $this->processUpdates($site, News::class, 'news', $errors);
+        $totalSynced += $this->processUpdates($site, NewYacht::class, 'new_yacht', $errors, $force);
+        $totalSynced += $this->processUpdates($site, UsedYacht::class, 'used_yacht', $errors, $force);
+        $totalSynced += $this->processUpdates($site, News::class, 'news', $errors, $force);
 
         // 3. Update Site Status
         $site->update([
@@ -106,7 +106,7 @@ class WordPressSyncService
         }
     }
 
-    protected function processUpdates(SyncSite $site, string $modelClass, string $typeKey, array &$errors): int
+    protected function processUpdates(SyncSite $site, string $modelClass, string $typeKey, array &$errors, bool $force = false): int
     {
         $records = $modelClass::all(); // Optimize with chunks/cursors if needed for thousands
         $dirtyItems = [];
@@ -127,7 +127,7 @@ class WordPressSyncService
                 'model_id' => $record->id,
             ]);
 
-            if ($status->status === 'synced' && $status->content_hash === $hash) {
+            if (!$force && $status->status === 'synced' && $status->content_hash === $hash) {
                 continue; // Not dirty
             }
 
