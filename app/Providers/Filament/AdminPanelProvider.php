@@ -29,8 +29,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('')
             ->login()
             ->brandName('A² Yacht Manager')
-            ->brandLogo(asset('A2-Yacht-Manager.svg'))
-            ->darkModeBrandLogo(asset('A2-Yacht-Manager-White.svg'))
+            ->brandLogo(asset('A2-Yacht-Manager.svg') . '?v=2')
+            ->darkModeBrandLogo(asset('A2-Yacht-Manager-White.svg') . '?v=2')
             ->favicon(asset('favicon-4/favicon.ico'))
             ->renderHook(
                 'panels::head.start',
