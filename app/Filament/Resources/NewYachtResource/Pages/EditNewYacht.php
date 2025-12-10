@@ -29,8 +29,9 @@ class EditNewYacht extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    // DON'T save here - it triggers afterSave() which runs optimization
-                    // Just get the current record
+                    // Save the record first to ensure all images are in DB
+                    $this->save();
+
                     $record = $this->getRecord();
 
                     // Open modal via widget

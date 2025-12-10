@@ -29,6 +29,9 @@ class EditUsedYacht extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
+                    // Save the record first to ensure all images are in DB
+                    $this->save();
+
                     // Just get the current record
                     $record = $this->getRecord();
 
