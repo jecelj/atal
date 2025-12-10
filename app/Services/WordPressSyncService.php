@@ -118,6 +118,12 @@ class WordPressSyncService
             }
 
             $payload = $this->preparePayload($record, $site, $typeKey);
+
+            // DEBUG: Log first payload of each type to verify content
+            if ($syncedCount === 0) {
+                Log::info("DEBUG PAYLOAD [{$typeKey}]: " . json_encode($payload, JSON_PRETTY_PRINT));
+            }
+
             $hash = md5(json_encode($payload));
 
             // Check if dirty
