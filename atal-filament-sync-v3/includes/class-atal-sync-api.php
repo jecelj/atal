@@ -187,6 +187,7 @@ class Atal_Sync_API
         };
 
         // Find existing
+        // 1. Try modern key
         $existing = get_posts([
             'post_type' => $post_type,
             'meta_key' => 'atal_source_id',
@@ -194,6 +195,43 @@ class Atal_Sync_API
             'post_status' => 'any',
             'numberposts' => 1
         ]);
+
+        // 2. Try legacy key (_atal_source_id)
+        if (empty($existing)) {
+            $existing = get_posts([
+                'post_type' => $post_type,
+                'meta_key' => '_atal_source_id',
+                'meta_value' => $source_id,
+                'post_status' => 'any',
+                'numberposts' => 1
+            ]);
+        }
+
+        // 3. Special Fallback for News (Legacy)
+        if (empty($existing) && $type === 'news') {
+            // Try _atal_master_id
+            // Note: source_id for news is "news-{id}", usually master sent raw ID before.
+            // We need to extract ID from source_id.
+            $rawId = str_replace('news-', '', $source_id);
+            $existing = get_posts([
+                'post_type' => 'post',
+                'meta_key' => '_atal_master_id',
+                'meta_value' => $rawId,
+                'post_status' => 'any',
+                'numberposts' => 1
+            ]);
+
+            // Try Slug as last resort
+            if (empty($existing) && isset($data['slug'])) {
+                $existing = get_posts([
+                    'post_type' => 'post',
+                    'meta_key' => '_atal_news_slug',
+                    'meta_value' => $data['slug'],
+                    'post_status' => 'any',
+                    'numberposts' => 1
+                ]);
+            }
+        }
 
         $post_id = !empty($existing) ? $existing[0]->ID : 0;
 
@@ -223,11 +261,68 @@ class Atal_Sync_API
 
         update_post_meta($post_id, 'atal_source_id', $source_id);
 
-        // Custom Fields
+        // --- Handle Featured Image ---
+        if (!empty($data['featured_image'])) {
+            $att_id = $this->import_image($data['featured_image'], $post_id);
+            if ($att_id) {
+                set_post_thumbnail($post_id, $att_id);
+            }
+        }
+
+        // --- Build Field Type Map from Config ---
+        // This allows us to know which custom fields are images/galleries
+        $fieldTypes = [];
+        $groups = get_option('atal_sync_acf_config', []);
+        if (!empty($groups)) {
+            foreach ($groups as $group) {
+                if (!empty($group['fields'])) {
+                    foreach ($group['fields'] as $field) {
+                        $fieldTypes[$field['name']] = $field['type'];
+                    }
+                }
+            }
+        }
+
+        // --- Handle Custom Fields ---
         if (isset($data['custom_fields'])) {
             foreach ($data['custom_fields'] as $key => $value) {
-                update_post_meta($post_id, $key, $value);
+
+                // 1. Special Case: Video Repeater Flattening (New Yachts)
+                if ($key === 'video_url' && $post_type === 'new_yachts') {
+                    $this->flatten_video_repeater($value, $post_id);
+                    continue;
+                }
+
+                $fieldType = $fieldTypes[$key] ?? 'text';
+
+                // 2. Handle Media Fields
+                if ($fieldType === 'image' || $fieldType === 'file') {
+                    if (!empty($value) && is_string($value)) {
+                        $att_id = $this->import_image($value, $post_id);
+                        if ($att_id)
+                            update_post_meta($post_id, $key, $att_id);
+                    }
+                } elseif ($fieldType === 'gallery') {
+                    if (!empty($value) && is_array($value)) {
+                        $gallery_ids = $this->import_gallery($value, $post_id);
+                        if ($gallery_ids)
+                            update_post_meta($post_id, $key, $gallery_ids);
+                    }
+                } else {
+                    // Normal fields
+                    update_post_meta($post_id, $key, $value);
+                }
             }
+        }
+
+        // --- Manual Gallery from Payload (if sent separately) ---
+        if (isset($data['media']) && is_array($data['media']) && !empty($data['media'])) {
+            // Check if there's a specific field for this, e.g. 'gallery_exterior'
+            // If the user said "Gallery *", they likely have multiple galleries.
+            // The 'media' key in payload is a comprehensive list. 
+            // Usually we rely on custom_fields to map specific gallery fields.
+            // So we skip 'media' if it's just a fallback, OR use it if specific fields failed.
+            // For now, let's rely on custom_fields loop above handling 'gallery' types.
         }
 
         // Brand & Model Logic (Hierarchical)
@@ -241,6 +336,91 @@ class Atal_Sync_API
         }
 
         return ['id' => $data['id'], 'success' => true, 'wp_id' => $post_id];
+    }
+
+    private function import_image($url, $post_id)
+    {
+        if (empty($url))
+            return false;
+
+        // Check if already imported (by source url meta)
+        $existing = get_posts([
+            'post_type' => 'attachment',
+            'meta_key' => '_atal_source_url',
+            'meta_value' => $url,
+            'posts_per_page' => 1,
+            'post_status' => 'any'
+        ]);
+
+        if (!empty($existing))
+            return $existing[0]->ID;
+
+        // Required WP files
+        require_once(ABSPATH . 'wp-admin/includes/media.php');
+        require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+
+        $tmp = download_url($url);
+        if (is_wp_error($tmp))
+            return false;
+
+        $file_array = [
+            'name' => basename(parse_url($url, PHP_URL_PATH)),
+            'tmp_name' => $tmp,
+        ];
+
+        // Sideload
+        // OPTIMIZATION: Disable image generation to speed up sync
+        add_filter('intermediate_image_sizes_advanced', '__return_empty_array');
+
+        $id = media_handle_sideload($file_array, $post_id);
+
+        remove_filter('intermediate_image_sizes_advanced', '__return_empty_array');
+
+        if (is_wp_error($id)) {
+            @unlink($tmp);
+            return false;
+        }
+
+        update_post_meta($id, '_atal_source_url', $url);
+        return $id;
+    }
+
+    private function import_gallery($urls, $post_id)
+    {
+        $ids = [];
+        if (!is_array($urls))
+            return [];
+
+        foreach ($urls as $url) {
+            $id = $this->import_image($url, $post_id);
+            if ($id)
+                $ids[] = $id;
+        }
+        return $ids; // ACF Gallery expects array of IDs
+    }
+
+    private function flatten_video_repeater($value, $post_id)
+    {
+        // $value expects array of rows: [['url' => '...'], ['url' => '...']]
+        // OR simply array of strings if flattened by Master (currently Master sends raw repeater array)
+        if (is_string($value))
+            $value = json_decode($value, true);
+        if (!is_array($value))
+            return;
+
+        $count = 1;
+        foreach ($value as $row) {
+            $url = is_array($row) ? ($row['url'] ?? '') : $row;
+            if ($count <= 3) {
+                update_post_meta($post_id, "video_url_{$count}", $url);
+            }
+            $count++;
+        }
+        // Clear remaining
+        for ($i = $count; $i <= 3; $i++) {
+            update_post_meta($post_id, "video_url_{$i}", '');
+        }
     }
 
     private function set_brand_taxonomy($post_id, $brandData, $modelData)
