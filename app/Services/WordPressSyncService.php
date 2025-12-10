@@ -277,7 +277,7 @@ class WordPressSyncService
         } elseif ($type === 'new_yacht' || $type === 'used_yacht') {
             $payload['title'] = $getTrans('name'); // WP Post Title
             $payload['name'] = $getTrans('name');
-            $payload['featured_image'] = $record->getFirstMediaUrl('default');
+            $payload['featured_image'] = $record->getFirstMediaUrl('featured_image'); // Collection name from Yacht.php
 
             // Basic Fields
             if ($type === 'used_yacht') {
@@ -332,22 +332,32 @@ class WordPressSyncService
 
         foreach ($configs as $config) {
             $key = $config->field_key;
+            $type = $this->mapInputTypeToACF($config->field_type); // Get normalized type logic
+
+            // 1. Handle Media Fields (Image/File)
+            if ($type === 'image' || $type === 'file') {
+                // Fetch from Spatie Media Library using key as collection name
+                $fields[$key] = $record->getFirstMediaUrl($key);
+                continue;
+            }
+
+            // 2. Handle Gallery Fields
+            if ($type === 'gallery') {
+                $mediaItems = $record->getMedia($key);
+                $urls = [];
+                foreach ($mediaItems as $item) {
+                    $urls[] = $item->getFullUrl();
+                }
+                $fields[$key] = $urls; // Array of URLs
+                continue;
+            }
+
+            // 3. Handle Normal Fields (Text, Repeater, etc.)
             $val = $record->custom_fields[$key] ?? null;
 
             if ($config->is_multilingual) {
-                // If multilingual, custom_fields[key] might be an array [en => val, de => val]
-                // OR separate keys in logic. Usually in Filament we save as array or JSON.
-                // Let's assume array structure in custom_fields column json.
                 if (is_array($val)) {
                     $fields[$key] = $val[$defaultLang] ?? null;
-                    // Add translations to payload globally or handled here?
-                    // Previous logic put them in specific translation blocks.
-                    // For simplicity, let's just send the raw array if WP can handle it, 
-                    // BUT our WP plugin expects strict fields.
-                    // Let's stick to sending default lang value here, 
-                    // and handle translations in the 'translations' payload block if we were traversing there.
-                    // Actually, let's inject localized values into payload['translations'] via reference if possible, 
-                    // or just flatten keys like 'my_field_en', 'my_field_de' which is easier for WP/ACF to import.
                 } else {
                     $fields[$key] = $val;
                 }
