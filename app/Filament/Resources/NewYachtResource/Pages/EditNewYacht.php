@@ -20,8 +20,6 @@ class EditNewYacht extends EditRecord
                 ->action(function () {
                     $this->save();
                     $record = $this->getRecord();
-
-                    // Open modal via widget
                     $this->dispatch('open-translation-modal', yachtId: $record->id);
                 }),
             Actions\Action::make('optimizeImages')
@@ -29,13 +27,24 @@ class EditNewYacht extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    // Save the record first to ensure all images are in DB
                     $this->save();
-
                     $record = $this->getRecord();
-
-                    // Open modal via widget
                     $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'yacht');
+                }),
+            Actions\Action::make('cancel')
+                ->label('Cancel')
+                ->color('gray')
+                ->url($this->getResource()::getUrl('index')),
+            Actions\Action::make('save')
+                ->label('Save')
+                ->action('save')
+                ->keyBindings(['mod+s']),
+            Actions\Action::make('saveAndExit')
+                ->label('Save & Exit')
+                ->color('success')
+                ->action(function () {
+                    $this->save();
+                    return redirect($this->getResource()::getUrl('index'));
                 }),
             Actions\DeleteAction::make(),
         ];
@@ -51,24 +60,7 @@ class EditNewYacht extends EditRecord
 
     protected function getFormActions(): array
     {
-        return [
-            $this->getSaveFormAction(),
-            Actions\Action::make('saveAndPublish')
-                ->label('Save and Publish')
-                ->icon('heroicon-m-check-circle')
-                ->color('success')
-                ->action(function () {
-                    $this->form->getState();
-                    $this->data['state'] = 'published';
-                    $this->save();
-
-                    \Filament\Notifications\Notification::make()
-                        ->success()
-                        ->title('Yacht published successfully')
-                        ->send();
-                }),
-            $this->getCancelFormAction(),
-        ];
+        return [];
     }
 
 

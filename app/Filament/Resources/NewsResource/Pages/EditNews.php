@@ -20,8 +20,6 @@ class EditNews extends EditRecord
                 ->action(function () {
                     $this->save();
                     $record = $this->getRecord();
-
-                    // Open modal via widget
                     $this->dispatch('open-translation-modal', yachtId: $record->id, type: 'news');
                 }),
             Actions\Action::make('optimizeImages')
@@ -29,13 +27,24 @@ class EditNews extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    // Save the record first to ensure all images are in DB
                     $this->save();
-
-                    // works on saved media
                     $record = $this->getRecord();
-                    // Open modal via widget
                     $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'news');
+                }),
+            Actions\Action::make('cancel')
+                ->label('Cancel')
+                ->color('gray')
+                ->url($this->getResource()::getUrl('index')),
+            Actions\Action::make('save')
+                ->label('Save')
+                ->action('save')
+                ->keyBindings(['mod+s']),
+            Actions\Action::make('saveAndExit')
+                ->label('Save & Exit')
+                ->color('success')
+                ->action(function () {
+                    $this->save();
+                    return redirect($this->getResource()::getUrl('index'));
                 }),
             Actions\DeleteAction::make(),
         ];
@@ -47,5 +56,10 @@ class EditNews extends EditRecord
             \App\Filament\Widgets\TranslationProgressWidget::class,
             \App\Filament\Widgets\ImageOptimizationProgressWidget::class,
         ];
+    }
+
+    protected function getFormActions(): array
+    {
+        return [];
     }
 }
