@@ -14,6 +14,24 @@ class ListNews extends ListRecords
     {
         return [
             Actions\CreateAction::make()->label('Add News'),
+            Actions\Action::make('checkStatus')
+                ->label('Check Status')
+                ->icon('heroicon-o-check-circle')
+                ->color('warning')
+                ->action(function () {
+                    $records = \App\Models\News::all();
+                    $service = new \App\Services\StatusCheckService();
+
+                    foreach ($records as $record) {
+                        $service->checkAndUpdateStatus($record);
+                    }
+
+                    \Filament\Notifications\Notification::make()
+                        ->success()
+                        ->title('Status Checked')
+                        ->body('All records have been updated.')
+                        ->send();
+                }),
             Actions\Action::make('syncToWp')
                 ->label('Sync to WordPress')
                 ->icon('heroicon-o-arrow-path')
@@ -35,24 +53,6 @@ class ListNews extends ListRecords
                         ->success()
                         ->title('Sync Completed')
                         ->body("Processed {$count} news items.")
-                        ->send();
-                }),
-            Actions\Action::make('checkStatus')
-                ->label('Check Status')
-                ->icon('heroicon-o-check-circle')
-                ->color('warning')
-                ->action(function () {
-                    $records = \App\Models\News::all();
-                    $service = new \App\Services\StatusCheckService();
-
-                    foreach ($records as $record) {
-                        $service->checkAndUpdateStatus($record);
-                    }
-
-                    \Filament\Notifications\Notification::make()
-                        ->success()
-                        ->title('Status Checked')
-                        ->body('All records have been updated.')
                         ->send();
                 }),
         ];
