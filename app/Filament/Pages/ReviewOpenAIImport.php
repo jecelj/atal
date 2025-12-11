@@ -344,61 +344,7 @@ class ReviewOpenAIImport extends Page implements HasForms
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('reloadData')
-                ->label('Reload Mock Data')
-                ->action(function () {
-                    $service = new \App\Services\OpenAIImportService();
-                    $extractedData = $service->fetchData('http://localhost/mock-reload');
-
-                    if (isset($extractedData['error'])) {
-                        Notification::make()->title('Error')->body($extractedData['error'])->danger()->send();
-                        return;
-                    }
-
-                    $currentData = $this->form->getState();
-
-                    // Transform Mock Data to Nested Structure exactly like ListNewYachts (re-implement logic)
-                    $newCustomFields = [
-                        'sub_title' => $extractedData['sub_title'] ?? null,
-                        'full_description' => $extractedData['full_description'] ?? null,
-                        'specifications' => $extractedData['specifications'] ?? null,
-                        'length' => $extractedData['length'] ?? null,
-                        'engine_type' => $extractedData['engine_type'] ?? [],
-                        'engine_location' => $extractedData['engine_location'] ?? null,
-                        'no_cabins' => isset($extractedData['no_cabins']) ? (string) $extractedData['no_cabins'] : null,
-                        'number_of_bathrooms' => isset($extractedData['number_of_bathrooms']) ? (string) $extractedData['number_of_bathrooms'] : null,
-
-                        'video_url' => isset($extractedData['video_url'])
-                            ? array_map(fn($url) => ['url' => $url], $extractedData['video_url'])
-                            : [],
-
-                        'pdf_brochure' => $extractedData['pdf_brochure'] ?? null,
-
-                        'gallery_exterior_urls_source' => $extractedData['gallery_exterior'] ?? [],
-                        'gallery_exterior_urls' => $extractedData['gallery_exterior'] ?? [],
-                        'gallery_interior_urls_source' => $extractedData['gallery_interior'] ?? [],
-                        'gallery_interior_urls' => $extractedData['gallery_interior'] ?? [],
-                        'gallery_cockpit_urls_source' => $extractedData['gallery_cockpit'] ?? [],
-                        'gallery_cockpit_urls' => $extractedData['gallery_cockpit'] ?? [],
-                        'gallery_layout_urls_source' => $extractedData['gallery_layout'] ?? [],
-                        'gallery_layout_urls' => $extractedData['gallery_layout'] ?? [],
-
-                        'cover_image_source' => isset($extractedData['cover_image']) ? [$extractedData['cover_image']] : [],
-                        'cover_image_url' => isset($extractedData['cover_image']) ? [$extractedData['cover_image']] : [],
-                        'grid_image_source' => isset($extractedData['grid_image']) ? [$extractedData['grid_image']] : [],
-                        'grid_image_url' => isset($extractedData['grid_image']) ? [$extractedData['grid_image']] : [],
-                        'grid_image_hover_source' => isset($extractedData['grid_image_hover']) ? [$extractedData['grid_image_hover']] : [],
-                        'grid_image_hover_url' => isset($extractedData['grid_image_hover']) ? [$extractedData['grid_image_hover']] : [],
-                    ];
-
-                    // Merge deep
-                    $mergedData = $currentData;
-                    $mergedData['custom_fields'] = array_merge($mergedData['custom_fields'] ?? [], $newCustomFields);
-
-                    $this->form->fill($mergedData);
-
-                    Notification::make()->title('Data Reloaded from Mock')->success()->send();
-                }),
+            // No header actions needed for production
         ];
     }
 
