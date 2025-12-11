@@ -117,7 +117,7 @@ class OpenAIImportService
         $response = Http::withToken($apiKey)
             ->timeout(600)
             ->post('https://api.openai.com/v1/chat/completions', [
-                'model' => $settings->openai_model ?: 'gpt-4o', // Fixing model name (gpt-5.1 -> gpt-4o)
+                'model' => $settings->openai_model ?: 'gpt-5.1-chat-latest', // User specific request
                 'messages' => $messages,
                 // 'tools' => ... (Disabled to ensure strict linear response)
             ]);
