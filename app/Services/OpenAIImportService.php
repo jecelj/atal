@@ -120,10 +120,10 @@ class OpenAIImportService
                 'parallel_tool_calls' => false,
                 'max_output_tokens' => 2000,
 
-                // PRAVILNI JSON FORMAT ZA RESPONSES API
                 'text' => [
                     'format' => [
-                        'type' => 'json'
+                        // Najboljša izbira za tvoj use-case (stroga JSON validacija)
+                        'type' => 'json_object'
                     ]
                 ]
             ]);
