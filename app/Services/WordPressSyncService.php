@@ -572,6 +572,19 @@ class WordPressSyncService
             }
 
             if ($this->isFilteredOut($record, $site)) {
+                SyncStatus::updateOrCreate(
+                    [
+                        'sync_site_id' => $site->id,
+                        'model_type' => 'news',
+                        'model_id' => $record->id,
+                    ],
+                    [
+                        'status' => 'skipped',
+                        'last_synced_at' => now(),
+                        'error_message' => 'Filtered by configuration',
+                        'content_hash' => null,
+                    ]
+                );
                 continue;
             }
 
