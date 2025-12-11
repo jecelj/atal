@@ -17,6 +17,20 @@ class SyncProgressModal extends Component
     public function mount(string $sessionKey)
     {
         $this->sessionKey = $sessionKey;
+    }
+
+    public function startSync()
+    {
+        // Prevent timeout during sync
+        set_time_limit(0);
+        ini_set('max_execution_time', 0); // Double measure
+
+        // Dispatch the job synchronously
+        // Since this is called via wire:init, it runs in a separate request after the modal opens.
+        // The user sees the spinner/progress while this runs.
+        \App\Jobs\SyncSitesJob::dispatchSync(null, $this->sessionKey);
+
+        // After job finishes, update one last time
         $this->updateProgress();
     }
 

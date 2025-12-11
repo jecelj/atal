@@ -1,4 +1,4 @@
-<div class="space-y-4" wire:poll.500ms="updateProgress">
+<div class="space-y-4" wire:poll.1s="updateProgress" wire:init="startSync">
     @if(!$completed)
         <div>
             <div class="mb-2 flex justify-between items-center">

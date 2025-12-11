@@ -198,10 +198,7 @@ class ListNewYachts extends ListRecords
                 ->modalContent(function () {
                     $sessionKey = 'sync_progress_' . uniqid();
 
-                    // Dispatch the job synchronously (no queue worker needed)
-                    \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey);
-
-                    // Return the Livewire component
+                    // Return the Livewire component which will trigger the sync on init
                     return view('components.sync-modal-content', [
                         'sessionKey' => $sessionKey,
                     ]);
