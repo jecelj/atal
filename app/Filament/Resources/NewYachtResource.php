@@ -627,6 +627,9 @@ class NewYachtResource extends Resource
                     ->trueColor('success')
                     ->falseColor('warning')
                     ->placeholder('No Info'),
+                Tables\Columns\ViewColumn::make('sync_status')
+                    ->view('filament.columns.sync-status')
+                    ->label('Sync Status'),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')
@@ -639,9 +642,6 @@ class NewYachtResource extends Resource
                         ]);
                     })
                     ->label('Published'),
-                Tables\Columns\ViewColumn::make('sync_status')
-                    ->view('filament.columns.sync-status')
-                    ->label('Sync Status'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')
                     ->sortable()
@@ -653,7 +653,7 @@ class NewYachtResource extends Resource
                     ->relationship('brand', 'name'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // EditAction removed as requested
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -377,8 +377,13 @@ class NewsResource extends Resource
                     ->date('d.m.Y')
                     ->sortable(),
 
+                Tables\Columns\ViewColumn::make('sync_status')
+                    ->view('filament.columns.sync-status')
+                    ->label('Sync Status'),
+
                 Tables\Columns\IconColumn::make('is_active')
-                    ->boolean(),
+                    ->boolean()
+                    ->label('Published'),
 
                 Tables\Columns\IconColumn::make('img_opt_status')
                     ->label('Img Opt.')
@@ -397,25 +402,8 @@ class NewsResource extends Resource
                     ->trueColor('success')
                     ->falseColor('warning')
                     ->placeholder('No Info'),
-
-                Tables\Columns\ViewColumn::make('sync_status')
-                    ->view('filament.columns.sync-status')
-                    ->label('Sync Status'),
-
-                Tables\Columns\TextColumn::make('syncSites.name')
-                    ->badge()
-                    ->label('Synced To'),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->date('d.m.Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('sync')
                     ->label('Sync Now')
                     ->icon('heroicon-o-arrow-path')
