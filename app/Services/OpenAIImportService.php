@@ -107,7 +107,7 @@ class OpenAIImportService
 
         // 6. CALL OPENAI (Custom Endpoint v1/responses with Server-Side Search)
         $response = Http::withToken($apiKey)
-            ->timeout(120)    // 120s je dovolj
+            ->timeout(180)    // 180s request timeout
             ->post('https://api.openai.com/v1/responses', [
                 'model' => 'gpt-5.1',
                 'input' => $fullPromptInput,
