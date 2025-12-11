@@ -50,10 +50,6 @@ class AdminPanelProvider extends PanelProvider
                 'Configuration',
                 'Migration',
             ])
-            ->renderHook(
-                'panels::body.end',
-                fn() => view('filament.hooks.sidebar-footer')
-            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
@@ -83,6 +79,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugins([
                 FilamentShieldPlugin::make(),
-            ]);
+            ])
+            ->renderHook(
+                'panels::body.end',
+                fn() => view('filament.hooks.custom-styles')
+            );
     }
 }
