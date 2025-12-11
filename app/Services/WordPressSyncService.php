@@ -56,9 +56,9 @@ class WordPressSyncService
 
     protected function processDeletions(SyncSite $site, array &$errors)
     {
-        // Find items that are marked as 'synced' but shouldn't be anymore
+        // Find items that are marked as 'synced' or 'pending' but shouldn't be anymore
         $syncedItems = SyncStatus::where('sync_site_id', $site->id)
-            ->where('status', 'synced')
+            ->whereIn('status', ['synced', 'pending'])
             ->get();
 
         $toDelete = [];

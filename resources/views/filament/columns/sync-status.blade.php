@@ -31,10 +31,18 @@
 
                 // Logic based on User Request
                 if (!$isPublished) {
-                    // Method 1: Unpublished -> Gray Minus (Irrelevant/Skipped)
-                    $color = 'gray';
-                    $icon = 'heroicon-o-minus-circle';
-                    $tooltip = "{$site->name}: Not Published (Skipped)";
+                    // Unpublished
+                    if ($syncState === 'pending') {
+                        // Pending Sync (Needs to be removed from WP) -> Orange Warning
+                        $color = 'warning';
+                        $icon = 'heroicon-o-exclamation-triangle';
+                        $tooltip = "{$site->name}: Pending Unpublish (Needs Sync)";
+                    } else {
+                        // Synced (Deleted) or Null -> Gray Minus
+                        $color = 'gray';
+                        $icon = 'heroicon-o-minus-circle';
+                        $tooltip = "{$site->name}: Not Published (Skipped)";
+                    }
                 } else {
                     // Published -> Check Sync Status
                     if ($syncState === 'synced') {
