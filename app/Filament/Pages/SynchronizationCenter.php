@@ -26,9 +26,18 @@ class SynchronizationCenter extends Page
                 ->isActiveWhen(fn() => request()->routeIs(static::getRouteName()))
                 ->sort(static::getNavigationSort())
                 ->badge(static::getNavigationBadge(), color: static::getNavigationBadgeColor())
-                ->color($color) // Green if clean, Orange if pending
                 ->url(static::getNavigationUrl()),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return \App\Models\SyncStatus::where('status', 'pending')->count() > 0 ? 'Needs Sync' : 'Synced';
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return \App\Models\SyncStatus::where('status', 'pending')->exists() ? 'warning' : 'success';
     }
 
     public function getHeaderActions(): array
