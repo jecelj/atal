@@ -35,7 +35,7 @@
                     if ($syncState === 'pending') {
                         // Pending Sync (Needs to be removed from WP) -> Orange Warning
                         // Using CSS variables to match system theme exactly
-                        $colorStyle = 'color: rgb(var(--warning-600));';
+                        $colorStyle = 'color: rgb(var(--warning-500));';
                         $icon = 'heroicon-o-exclamation-triangle';
                         $tooltip = "{$site->name}: Pending Unpublish (Needs Sync)";
                     } else {
@@ -48,7 +48,7 @@
                     // Published -> Check Sync Status
                     if ($syncState === 'synced') {
                         // Published & Synced -> Green Check
-                        $colorStyle = 'color: rgb(var(--success-600));';
+                        $colorStyle = 'color: rgb(var(--success-500));';
                         $icon = 'heroicon-o-check-circle';
                         $tooltip = "{$site->name}: Synced " . ($status?->last_synced_at ? $status->last_synced_at->diffForHumans() : '');
                     } elseif ($syncState === 'failed') {
@@ -58,7 +58,7 @@
                         $tooltip = "{$site->name}: Failed - " . Str::limit($status->error_message ?? 'Unknown error', 50);
                     } else {
                         // Published & Pending/Null -> Orange Warning
-                        $colorStyle = 'color: rgb(var(--warning-600));';
+                        $colorStyle = 'color: rgb(var(--warning-500));';
                         $icon = 'heroicon-o-exclamation-triangle';
                         $tooltip = "{$site->name}: Pending Sync";
                     }
