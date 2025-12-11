@@ -107,17 +107,19 @@ class OpenAIImportService
 
         // 6. CALL OPENAI (Custom Endpoint v1/responses with Server-Side Search)
         $response = Http::withToken($apiKey)
-            ->timeout(600)
+            ->timeout(120)    // 120s je dovolj
             ->post('https://api.openai.com/v1/responses', [
                 'model' => 'gpt-5.1',
                 'input' => $fullPromptInput,
+
                 'tools' => [
-                    [
-                        'type' => 'web_search',
-                    ]
+                    ['type' => 'web_search']
                 ],
+
                 'tool_choice' => 'auto',
-                'include' => ['web_search_call.action.sources']
+
+                // ključni fix — omogoči OpenAI-u, da sam izvede search:
+                'parallel_tool_calls' => false
             ]);
 
         if ($response->failed()) {
