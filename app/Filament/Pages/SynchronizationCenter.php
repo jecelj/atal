@@ -13,6 +13,24 @@ class SynchronizationCenter extends Page
 
     protected static string $view = 'filament.pages.synchronization-center';
 
+    public static function getNavigationItems(): array
+    {
+        // Check if there are any pending items
+        $hasPending = \App\Models\SyncStatus::where('status', 'pending')->exists();
+        $color = $hasPending ? 'warning' : 'success';
+
+        return [
+            \Filament\Navigation\NavigationItem::make(static::getNavigationLabel())
+                ->group(static::getNavigationGroup())
+                ->icon(static::getNavigationIcon())
+                ->isActiveWhen(fn() => request()->routeIs(static::getRouteName()))
+                ->sort(static::getNavigationSort())
+                ->badge(static::getNavigationBadge(), color: static::getNavigationBadgeColor())
+                ->color($color) // Green if clean, Orange if pending
+                ->url(static::getNavigationUrl()),
+        ];
+    }
+
     public function getHeaderActions(): array
     {
         return [
