@@ -109,7 +109,7 @@ class OpenAIImportService
         $response = Http::withToken($apiKey)
             ->timeout(180)    // 180s request timeout
             ->post('https://api.openai.com/v1/responses', [
-                'model' => 'gpt-5.1',
+                'model' => 'gpt-4o',
                 'input' => $fullPromptInput,
 
                 'tools' => [
