@@ -17,18 +17,18 @@
         /* Spacing compensation */
         /* Pull it up slightly from default position, but keep it floating */
         margin-top: -1.5rem !important;
-        
+
         /* Visual Balance Correction: More top padding to account for line-height bias */
-        padding-top: 2rem !important; 
+        padding-top: 2rem !important;
         padding-bottom: 1.5rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
 
         margin-bottom: 2rem;
-        
+
         /* Ensure it sits nicely */
         width: 100%;
-        
+
         /* Ensure Flex Alignment */
         display: flex;
         align-items: center;
@@ -50,9 +50,12 @@
     }
 
     /* CRITICAL FIX: Ensure Topbar (User Menu) is ABOVE the Sticky Header */
+    /* AND User requested Topbar NOT to be sticky */
     .fi-topbar {
-        position: relative;
-        z-index: 50 !important; /* Higher than header's 20 */
+        position: relative !important;
+        /* Was sticky by default, now scrolls away */
+        z-index: 50 !important;
+        /* Higher than header's 20 */
     }
 
     /* Fix Dropdown Menu Z-Index (User Menu, Tables, etc.) */
