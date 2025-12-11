@@ -14,6 +14,29 @@ class ListNews extends ListRecords
     {
         return [
             Actions\CreateAction::make()->label('Add News'),
+            Actions\Action::make('syncToWp')
+                ->label('Sync to WordPress')
+                ->icon('heroicon-o-arrow-path')
+                ->color('success')
+                ->requiresConfirmation()
+                ->modalHeading('Sync All News?')
+                ->modalDescription('This will verify and sync all news items to their assigned WordPress sites. This may take a moment.')
+                ->action(function () {
+                    $records = \App\Models\News::all();
+                    $service = app(\App\Services\WordPressSyncService::class);
+                    $count = 0;
+
+                    foreach ($records as $record) {
+                        $service->syncNews($record);
+                        $count++;
+                    }
+
+                    \Filament\Notifications\Notification::make()
+                        ->success()
+                        ->title('Sync Completed')
+                        ->body("Processed {$count} news items.")
+                        ->send();
+                }),
             Actions\Action::make('checkStatus')
                 ->label('Check Status')
                 ->icon('heroicon-o-check-circle')

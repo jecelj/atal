@@ -552,4 +552,65 @@ class WordPressSyncService
             default => 'text',
         };
     }
+    public function syncNews(News $record): array
+    {
+        $results = [];
+        $sites = SyncSite::where('is_active', true)->get();
+
+        foreach ($sites as $site) {
+            // Check if site is assigned (if using many-to-many relation for News)
+            if ($record->syncSites()->exists() && !$record->syncSites->contains($site->id)) {
+                continue;
+            }
+
+            if ($this->isFilteredOut($record, $site)) {
+                continue;
+            }
+
+            $success = $this->syncSingleItem($record, $site, 'news');
+            $results[] = [
+                'site' => $site->name,
+                'success' => $success
+            ];
+        }
+
+        return $results;
+    }
+
+    protected function syncSingleItem($record, SyncSite $site, string $type): bool
+    {
+        $payload = $this->preparePayload($record, $site, $type);
+        $hash = md5(json_encode($payload));
+
+        if ($this->pushToWordPress($site, 'update', [$payload])) {
+            SyncStatus::updateOrCreate(
+                [
+                    'sync_site_id' => $site->id,
+                    'model_type' => $type,
+                    'model_id' => $record->id,
+                ],
+                [
+                    'status' => 'synced',
+                    'content_hash' => $hash,
+                    'last_synced_at' => now(),
+                    'error_message' => null,
+                ]
+            );
+            return true;
+        } else {
+            SyncStatus::updateOrCreate(
+                [
+                    'sync_site_id' => $site->id,
+                    'model_type' => $type,
+                    'model_id' => $record->id,
+                ],
+                [
+                    'status' => 'failed',
+                    'last_synced_at' => now(),
+                    'error_message' => 'Manual sync failed',
+                ]
+            );
+            return false;
+        }
+    }
 }

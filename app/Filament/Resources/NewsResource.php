@@ -377,16 +377,6 @@ class NewsResource extends Resource
                     ->date('d.m.Y')
                     ->sortable(),
 
-                Tables\Columns\ViewColumn::make('sync_status')
-                    ->view('filament.columns.sync-status')
-                    ->label('Sync Status')
-                    ->alignment('center'),
-
-                Tables\Columns\IconColumn::make('is_active')
-                    ->boolean()
-                    ->label('Published')
-                    ->alignment('center'),
-
                 Tables\Columns\IconColumn::make('img_opt_status')
                     ->label('Img Opt.')
                     ->boolean()
@@ -406,33 +396,22 @@ class NewsResource extends Resource
                     ->falseColor('warning')
                     ->placeholder('No Info')
                     ->alignment('center'),
+
+                Tables\Columns\ViewColumn::make('sync_status')
+                    ->view('filament.columns.sync-status')
+                    ->label('Sync Status')
+                    ->alignment('center'),
+
+                Tables\Columns\ToggleColumn::make('is_active')
+                    ->label('Published')
+                    ->onColor('success')
+                    ->offColor('danger')
+                    ->onIcon('heroicon-m-check')
+                    ->offIcon('heroicon-m-x-mark')
+                    ->alignment('center'),
             ])
             ->actions([
-                Tables\Actions\Action::make('sync')
-                    ->label('Sync Now')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->action(function (News $record) {
-                        $service = app(\App\Services\WordPressSyncService::class);
-                        $results = $service->syncNews($record);
-
-                        $successCount = collect($results)->where('success', true)->count();
-
-                        if ($successCount > 0) {
-                            \Filament\Notifications\Notification::make()
-                                ->success()
-                                ->title('Sync Completed')
-                                ->body("Synced to {$successCount} site(s)")
-                                ->send();
-                        } else {
-                            \Filament\Notifications\Notification::make()
-                                ->warning()
-                                ->title('Sync Failed')
-                                ->body('Could not sync to any sites.')
-                                ->send();
-                        }
-                    }),
+                // Sync Action removed as requested
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
