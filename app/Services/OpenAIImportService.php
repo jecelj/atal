@@ -18,6 +18,9 @@ class OpenAIImportService
      */
     public function fetchData(string $url, array $context = [])
     {
+        // Prevent PHP timeout (best effort, though Nginx 504 overrides this)
+        set_time_limit(600);
+
         // 1. MOCK MODE (For testing "Reload Mock Data" button)
         if ($url === 'http://localhost/mock-reload') {
             Log::info('OpenAI Import: Fetching MOCK data');
