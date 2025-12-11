@@ -17,7 +17,8 @@
         /* Spacing compensation */
         /* Pull it up slightly from default position, but keep it floating */
         margin-top: -1.5rem !important;
-        padding: 1rem 1.5rem;
+        padding: 1.5rem;
+        /* Balanced padding (Top/Bottom/Left/Right) */
         margin-bottom: 2rem;
 
         /* Ensure it sits nicely */
@@ -40,7 +41,8 @@
 
     /* Fix Dropdown Menu Z-Index (User Menu, Tables, etc.) */
     /* Must be higher than sticky header (z-20) */
+    /* Using extremely high value to guarantee visibility */
     .fi-dropdown-panel {
-        z-index: 50 !important;
+        z-index: 10000 !important;
     }
 </style>
