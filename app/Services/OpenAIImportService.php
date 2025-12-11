@@ -119,7 +119,13 @@ class OpenAIImportService
                 'tool_choice' => 'auto',
                 'parallel_tool_calls' => false,
                 'max_output_tokens' => 2000,
-                'response_format' => ['type' => 'json_object']
+
+                // PRAVILNI JSON FORMAT ZA RESPONSES API
+                'text' => [
+                    'format' => [
+                        'type' => 'json'
+                    ]
+                ]
             ]);
 
         if ($response->failed()) {
