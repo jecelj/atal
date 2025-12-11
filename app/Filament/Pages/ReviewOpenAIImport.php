@@ -407,7 +407,7 @@ class ReviewOpenAIImport extends Page implements HasForms
         return [
             Action::make('save')
                 ->label('Import Yacht')
-                ->submit('save'),
+                ->action('save'),
             Action::make('cancel')
                 ->label('Cancel')
                 ->color('gray')
