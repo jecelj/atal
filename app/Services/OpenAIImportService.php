@@ -105,21 +105,17 @@ class OpenAIImportService
         // Create full prompt
         $fullPromptInput = $systemPrompt . $inputDataBlock;
 
-        // 6. CALL OPENAI (Standard Linear Request)
-        $messages = [
-            ['role' => 'system', 'content' => $fullPromptInput]
-        ];
-
-        // We do NOT send 'tools' here because the user requested a linear flow without callbacks.
-        // If we send tools, the model might reply with a tool_call (and null content), 
-        // which would require a loop to process. To avoid "NULL" errors, we disable tools.
-
+        // 6. CALL OPENAI (Custom Endpoint v1/responses with Server-Side Search)
         $response = Http::withToken($apiKey)
             ->timeout(600)
-            ->post('https://api.openai.com/v1/chat/completions', [
-                'model' => $settings->openai_model ?: 'gpt-5.1-chat-latest', // User specific request
-                'messages' => $messages,
-                // 'tools' => ... (Disabled to ensure strict linear response)
+            ->post('https://api.openai.com/v1/responses', [
+                'model' => $settings->openai_model ?: 'gpt-5.1-chat-latest',
+                'input' => $fullPromptInput,
+                'tools' => [
+                    [
+                        'type' => 'web_search'
+                    ]
+                ],
             ]);
 
         if ($response->failed()) {
@@ -128,14 +124,9 @@ class OpenAIImportService
         }
 
         $responseBody = $response->json();
-        $finalContent = $responseBody['choices'][0]['message']['content'] ?? null;
-
-        if (!$finalContent) {
-            return ['error' => 'No content returned from OpenAI.'];
-        }
 
         // 7. PROCESS RESPONSE
-        $result = $this->processApiResponse(['choices' => [['message' => ['content' => $finalContent]]]], $url);
+        $result = $this->processApiResponse($responseBody, $url);
 
         // Append Debug Info
         if (is_array($result)) {
