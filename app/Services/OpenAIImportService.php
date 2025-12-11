@@ -102,149 +102,53 @@ class OpenAIImportService
             "MEDIA = " . $jsonMedia . "\n" .
             "### END INPUT DATA ###";
 
+        // Create full prompt
         $fullPromptInput = $systemPrompt . $inputDataBlock;
 
-        // 6. CALL OPENAI (With Tool Loop)
+        // 6. CALL OPENAI (Standard Linear Request)
         $messages = [
             ['role' => 'system', 'content' => $fullPromptInput]
         ];
 
-        $tools = [
-            [
-                'type' => 'function',
-                'function' => [
-                    'name' => 'search_web',
-                    'description' => 'Search the internet for specific yacht specifications or details not found in the provided HTML. Use this to find missing engine details, lengths, or technical specs.',
-                    'parameters' => [
-                        'type' => 'object',
-                        'properties' => [
-                            'query' => [
-                                'type' => 'string',
-                                'description' => 'The search query to perform (e.g. "Greenline 48 Fly spec sheet" or "Galeon 400 Fly engine options")',
-                            ],
-                        ],
-                        'required' => ['query'],
-                    ],
-                ],
-            ],
-        ];
+        // We do NOT send 'tools' here because the user requested a linear flow without callbacks.
+        // If we send tools, the model might reply with a tool_call (and null content), 
+        // which would require a loop to process. To avoid "NULL" errors, we disable tools.
 
-        $maxIterations = 3; // Prevent infinite loops
-        $currentIteration = 0;
+        $response = Http::withToken($apiKey)
+            ->timeout(600)
+            ->post('https://api.openai.com/v1/chat/completions', [
+                'model' => $settings->openai_model ?: 'gpt-4o', // Fixing model name (gpt-5.1 -> gpt-4o)
+                'messages' => $messages,
+                // 'tools' => ... (Disabled to ensure strict linear response)
+            ]);
 
-        while ($currentIteration < $maxIterations) {
-            $currentIteration++;
-
-            $response = Http::withToken($apiKey)
-                ->timeout(600)
-                ->post('https://api.openai.com/v1/chat/completions', [ // Changed from /responses (deprecated?) to standard chat/completions
-                    'model' => $settings->openai_model ?: 'gpt-4o', // Use settings or fallback to valid model
-                    'messages' => $messages,
-                    'tools' => $tools,
-                    'tool_choice' => 'auto',
-                ]);
-
-            if ($response->failed()) {
-                Log::error('OpenAI API Error: ' . $response->body());
-                return ['error' => 'OpenAI API Error: ' . $response->status() . ' - ' . $response->body()];
-            }
-
-            $responseBody = $response->json();
-            $message = $responseBody['choices'][0]['message'];
-
-            // Append model response to history
-            $messages[] = $message;
-
-            // Check for Tool Calls
-            if (isset($message['tool_calls']) && !empty($message['tool_calls'])) {
-                foreach ($message['tool_calls'] as $toolCall) {
-                    $functionName = $toolCall['function']['name'];
-                    $functionArgs = json_decode($toolCall['function']['arguments'], true);
-
-                    if ($functionName === 'search_web') {
-                        $query = $functionArgs['query'] ?? '';
-                        Log::info("OpenAI Tool Call: Searching web for '{$query}'");
-
-                        // Execute Search
-                        $searchResult = $this->performWebSearch($query, $browserlessKey);
-
-                        // Append tool result to history
-                        $messages[] = [
-                            'role' => 'tool',
-                            'tool_call_id' => $toolCall['id'],
-                            'content' => $searchResult,
-                        ];
-                    }
-                }
-                // Loop matches again with new tool info
-                continue;
-            }
-
-            // No tool calls = Final Response
-            // Debug Info
-            $finalContent = $message['content'] ?? '';
-            $result = $this->processApiResponse(['choices' => [['message' => ['content' => $finalContent]]]], $url);
-
-            if (is_array($result)) {
-                $result['_debug_prompt'] = $fullPromptInput; // Keep initial prompt for debug
-                $result['_debug_response'] = json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-                $result['_debug_iterations'] = $currentIteration;
-            }
-
-            return $result;
+        if ($response->failed()) {
+            Log::error('OpenAI API Error: ' . $response->body());
+            return ['error' => 'OpenAI API Error: ' . $response->status() . ' - ' . $response->body()];
         }
 
-        return ['error' => 'OpenAI Import failed: Max tool iterations reached without final answer.'];
+        $responseBody = $response->json();
+        $finalContent = $responseBody['choices'][0]['message']['content'] ?? null;
+
+        if (!$finalContent) {
+            return ['error' => 'No content returned from OpenAI.'];
+        }
+
+        // 7. PROCESS RESPONSE
+        $result = $this->processApiResponse(['choices' => [['message' => ['content' => $finalContent]]]], $url);
+
+        // Append Debug Info
+        if (is_array($result)) {
+            $result['_debug_prompt'] = $fullPromptInput;
+            $result['_debug_response'] = json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
+
+        return $result;
     }
 
     /**
-     * Perform Google Search using Browserless
+     * Remove performWebSearch which is no longer used in linear flow
      */
-    protected function performWebSearch(string $query, string $browserlessKey): string
-    {
-        $searchUrl = "https://www.google.com/search?q=" . urlencode($query) . "&hl=en";
-
-        // Lightweight script to extract snippets
-        $script = "
-            export default async function({ page, context }) {
-                await page.goto(context.url, { waitUntil: 'domcontentloaded' });
-                
-                // Extract search results (Titles and Snippets)
-                const results = await page.evaluate(() => {
-                    const items = [];
-                    // Select standard Google result blocks
-                    document.querySelectorAll('.g').forEach(el => {
-                        const titleEl = el.querySelector('h3');
-                        const snippetEl = el.querySelector('.VwiC3b'); // This class changes often, falling back
-                        const snippetText = snippetEl ? snippetEl.innerText : (el.innerText || '');
-                        
-                        if (titleEl) {
-                            items.push({
-                                title: titleEl.innerText,
-                                snippet: snippetText.substring(0, 300) // Truncate
-                            });
-                        }
-                    });
-                    return items.slice(0, 5); // Return top 5
-                });
-                
-                return { results };
-            };
-        ";
-
-        $data = $this->callBrowserless($searchUrl, $browserlessKey, $script);
-
-        if (isset($data['error'])) {
-            return "Search Error: " . $data['error'];
-        }
-
-        $items = $data['results'] ?? [];
-        if (empty($items)) {
-            return "No search results found for: {$query}";
-        }
-
-        return "Search Results for '{$query}': " . json_encode($items);
-    }
 
     /**
      * Call Browserless Function Endpoint
