@@ -31,6 +31,7 @@ class EditUsedYacht extends EditRecord
                     $record = $this->getRecord();
                     $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'used_yacht');
                 }),
+            Actions\DeleteAction::make(),
             Actions\Action::make('cancel')
                 ->label('Cancel')
                 ->color('gray')
@@ -46,7 +47,6 @@ class EditUsedYacht extends EditRecord
                     $this->save();
                     return redirect($this->getResource()::getUrl('index'));
                 }),
-            Actions\DeleteAction::make(),
         ];
     }
 
