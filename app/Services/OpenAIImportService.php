@@ -109,13 +109,15 @@ class OpenAIImportService
         $response = Http::withToken($apiKey)
             ->timeout(600)
             ->post('https://api.openai.com/v1/responses', [
-                'model' => $settings->openai_model ?: 'gpt-5.1',
+                'model' => 'gpt-5.1',
                 'input' => $fullPromptInput,
                 'tools' => [
                     [
-                        'type' => 'web_search'
+                        'type' => 'web_search',
                     ]
                 ],
+                'tool_choice' => 'auto',
+                'include' => ['web_search_call.action.sources']
             ]);
 
         if ($response->failed()) {
