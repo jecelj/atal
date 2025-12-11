@@ -177,9 +177,25 @@ class ReviewOpenAIImport extends Page implements HasForms
                 Forms\Components\Section::make('Media & Documents')
                     ->description('Primary images and documents')
                     ->schema([
-                        $this->getSingleImageSelectionField('custom_fields.cover_image_url', 'Cover Image (Select from Exterior)', 'custom_fields.gallery_exterior_urls_source'),
-                        $this->getSingleImageSelectionField('custom_fields.grid_image_url', 'Grid Image (Select from Exterior)', 'custom_fields.gallery_exterior_urls_source'),
-                        $this->getSingleImageSelectionField('custom_fields.grid_image_hover_url', 'Grid Image Hover (Select from Exterior)', 'custom_fields.gallery_exterior_urls_source'),
+                        Forms\Components\View::make('filament.components.lightbox'), // Include Lightbox Component
+
+                        Forms\Components\Group::make([
+                            Forms\Components\Fieldset::make('Cover Image')
+                                ->schema([
+                                    $this->getSingleImageSelectionField('custom_fields.cover_image_url', '', 'custom_fields.gallery_exterior_urls_source'),
+                                ])->columns(1),
+
+                            Forms\Components\Fieldset::make('Grid Image')
+                                ->schema([
+                                    $this->getSingleImageSelectionField('custom_fields.grid_image_url', '', 'custom_fields.gallery_exterior_urls_source'),
+                                ])->columns(1),
+
+                            Forms\Components\Fieldset::make('Grid Image Hover')
+                                ->schema([
+                                    $this->getSingleImageSelectionField('custom_fields.grid_image_hover_url', '', 'custom_fields.gallery_exterior_urls_source'),
+                                ])->columns(1),
+                        ])->columnSpanFull(),
+
                         Forms\Components\TextInput::make('custom_fields.pdf_brochure')
                             ->label('PDF Brochure URL')
                             ->columnSpanFull(),
@@ -246,7 +262,7 @@ class ReviewOpenAIImport extends Page implements HasForms
     protected function getSingleImageSelectionField($name, $label, $sourceKey)
     {
         return Forms\Components\Radio::make($name)
-            ->label($label)
+            ->label($label) // Label might be empty if wrapped in fieldset with same label
             ->options(function (Forms\Get $get) use ($sourceKey) {
                 // Get URLs from the shared source (e.g., Exterior Gallery)
                 $urls = $get($sourceKey) ?? [];
@@ -270,7 +286,16 @@ class ReviewOpenAIImport extends Page implements HasForms
                 $options = [];
                 foreach ($urls as $url) {
                     // Display image as option label, wrapped in HtmlString to support HTML rendering
-                    $options[$url] = new \Illuminate\Support\HtmlString("<div style='display:flex; align-items:center; gap:10px;'><img src='{$url}' style='width:150px; height:auto; border-radius:4px; object-fit:cover;' /></div>");
+                    // Added @click.prevent to trigger Alpine Lightbox
+                    $options[$url] = new \Illuminate\Support\HtmlString("
+                        <div style='display:flex; align-items:center; gap:10px;'>
+                            <img 
+                                src='{$url}' 
+                                style='width:150px; height:auto; border-radius:4px; object-fit:cover; cursor: zoom-in;' 
+                                @click.prevent=\"\$dispatch('open-lightbox', { url: '{$url}' })\"
+                            />
+                        </div>
+                    ");
                 }
                 return $options;
             })
@@ -305,7 +330,8 @@ class ReviewOpenAIImport extends Page implements HasForms
 
                 $options = [];
                 foreach ($urls as $url) {
-                    $options[$url] = "<div style='display:flex; align-items:center; gap:10px;'><img src='{$url}' style='width:300px; height:auto; border-radius:4px; object-fit:cover;' /></div>";
+                    // Added @click.prevent to trigger Alpine Lightbox
+                    $options[$url] = "<div style='display:flex; align-items:center; gap:10px;'><img src='{$url}' style='width:300px; height:auto; border-radius:4px; object-fit:cover; cursor: zoom-in;' @click.prevent=\"\$dispatch('open-lightbox', { url: '{$url}' })\" /></div>";
                 }
                 return $options;
             })
