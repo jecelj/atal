@@ -32,7 +32,9 @@
                 // Logic based on User Request
                 if (!$isPublished) {
                     // Unpublished
-                    if ($syncState === 'pending') {
+                    // If no status record exists, it means it's clean (not on WP) -> Gray
+                    // If status exists AND is pending, it means we need to sync the deletion -> Orange
+                    if ($status && $status->status === 'pending') {
                         // Pending Sync (Needs to be removed from WP) -> Orange Warning
                         // Using CSS variables to match system theme exactly
                         $colorStyle = 'color: rgb(var(--warning-500));';
