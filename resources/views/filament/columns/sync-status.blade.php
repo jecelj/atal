@@ -34,12 +34,12 @@
                     // Unpublished
                     if ($syncState === 'pending') {
                         // Pending Sync (Needs to be removed from WP) -> Orange Warning
-                        $color = 'warning';
+                        $colorClass = 'text-orange-500';
                         $icon = 'heroicon-o-exclamation-triangle';
                         $tooltip = "{$site->name}: Pending Unpublish (Needs Sync)";
                     } else {
                         // Synced (Deleted) or Null -> Gray Minus
-                        $color = 'gray';
+                        $colorClass = 'text-gray-500';
                         $icon = 'heroicon-o-minus-circle';
                         $tooltip = "{$site->name}: Not Published (Skipped)";
                     }
@@ -47,18 +47,17 @@
                     // Published -> Check Sync Status
                     if ($syncState === 'synced') {
                         // Published & Synced -> Green Check
-                        $color = 'success';
+                        $colorClass = 'text-green-500';
                         $icon = 'heroicon-o-check-circle';
                         $tooltip = "{$site->name}: Synced " . ($status?->last_synced_at ? $status->last_synced_at->diffForHumans() : '');
                     } elseif ($syncState === 'failed') {
-                        // Published & Failed -> Red X (User said "rahlo oranžen klicaj" for "not synced", but failed is distinct)
-                        // I will use Red for Failed to distinguish from Pending.
-                        $color = 'danger';
+                        // Published & Failed -> Red X
+                        $colorClass = 'text-red-500';
                         $icon = 'heroicon-o-x-circle';
                         $tooltip = "{$site->name}: Failed - " . Str::limit($status->error_message ?? 'Unknown error', 50);
                     } else {
-                        // Published & Pending/Null -> Orange Warning ("rahlo oranžen klicaj")
-                        $color = 'warning';
+                        // Published & Pending/Null -> Orange Warning
+                        $colorClass = 'text-orange-500';
                         $icon = 'heroicon-o-exclamation-triangle';
                         $tooltip = "{$site->name}: Pending Sync";
                     }
@@ -66,7 +65,7 @@
             @endphp
 
             <div title="{{ $tooltip }}">
-                <x-filament::icon :icon="$icon" class="h-5 w-5 text-{{ $color }}-500" />
+                <x-filament::icon :icon="$icon" class="h-5 w-5 {{ $colorClass }}" />
             </div>
         @endforeach
     @endif
