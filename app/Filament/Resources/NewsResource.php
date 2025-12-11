@@ -379,11 +379,13 @@ class NewsResource extends Resource
 
                 Tables\Columns\ViewColumn::make('sync_status')
                     ->view('filament.columns.sync-status')
-                    ->label('Sync Status'),
+                    ->label('Sync Status')
+                    ->alignment('center'),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean()
-                    ->label('Published'),
+                    ->label('Published')
+                    ->alignment('center'),
 
                 Tables\Columns\IconColumn::make('img_opt_status')
                     ->label('Img Opt.')
@@ -392,7 +394,8 @@ class NewsResource extends Resource
                     ->falseIcon('heroicon-o-exclamation-triangle')
                     ->trueColor('success')
                     ->falseColor('warning')
-                    ->placeholder('No Info'),
+                    ->placeholder('No Info')
+                    ->alignment('center'),
 
                 Tables\Columns\IconColumn::make('translation_status')
                     ->label('Translations')
@@ -401,7 +404,8 @@ class NewsResource extends Resource
                     ->falseIcon('heroicon-o-exclamation-triangle')
                     ->trueColor('success')
                     ->falseColor('warning')
-                    ->placeholder('No Info'),
+                    ->placeholder('No Info')
+                    ->alignment('center'),
             ])
             ->actions([
                 Tables\Actions\Action::make('sync')

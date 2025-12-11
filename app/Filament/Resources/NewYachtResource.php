@@ -618,7 +618,8 @@ class NewYachtResource extends Resource
                     ->falseIcon('heroicon-o-exclamation-triangle')
                     ->trueColor('success')
                     ->falseColor('warning')
-                    ->placeholder('No Info'),
+                    ->placeholder('No Info')
+                    ->alignment('center'),
                 Tables\Columns\IconColumn::make('translation_status')
                     ->label('Translations')
                     ->boolean()
@@ -626,10 +627,12 @@ class NewYachtResource extends Resource
                     ->falseIcon('heroicon-o-exclamation-triangle')
                     ->trueColor('success')
                     ->falseColor('warning')
-                    ->placeholder('No Info'),
+                    ->placeholder('No Info')
+                    ->alignment('center'),
                 Tables\Columns\ViewColumn::make('sync_status')
                     ->view('filament.columns.sync-status')
-                    ->label('Sync Status'),
+                    ->label('Sync Status')
+                    ->alignment('center'),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')
                     ->offColor('danger')
@@ -641,7 +644,8 @@ class NewYachtResource extends Resource
                             'state' => $state ? 'published' : 'draft'
                         ]);
                     })
-                    ->label('Published'),
+                    ->label('Published')
+                    ->alignment('center'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d.m.Y')
                     ->sortable()

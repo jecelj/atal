@@ -1,4 +1,4 @@
-<div class="flex gap-1 items-center justify-start">
+<div class="flex gap-1 items-center justify-center">
     @php
         $sites = \App\Models\SyncSite::where('is_active', true)->orderBy('order')->get();
         $record = $getRecord();
