@@ -244,8 +244,8 @@ class NewYachtResource extends Resource
                 ->gridDirection('row'),
             'repeater' => Forms\Components\Repeater::make($fieldKey)
                 ->schema([
-                    Forms\Components\TextInput::make('name')
-                        ->label('Model Name')
+                    Forms\Components\TextInput::make('url')
+                        ->label('Video URL')
                         ->required(),
                 ])
                 ->addActionLabel('Add Video URL')
