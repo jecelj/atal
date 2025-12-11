@@ -58,7 +58,7 @@ class WordPressSyncService
     {
         // Find items that are marked as 'synced' or 'pending' but shouldn't be anymore
         $syncedItems = SyncStatus::where('sync_site_id', $site->id)
-            ->whereIn('status', ['synced', 'pending'])
+            ->whereIn('status', ['synced', 'pending', 'failed'])
             ->get();
 
         $toDelete = [];
