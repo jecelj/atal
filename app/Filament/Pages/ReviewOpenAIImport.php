@@ -291,7 +291,7 @@ class ReviewOpenAIImport extends Page implements HasForms
                         <div style='display:flex; align-items:center; gap:10px;'>
                             <img 
                                 src='{$url}' 
-                                style='width:150px; height:auto; border-radius:4px; object-fit:cover; cursor: zoom-in;' 
+                                style='width:300px; height:auto; border-radius:4px; object-fit:cover; cursor: zoom-in;' 
                                 @click.prevent=\"\$dispatch('open-lightbox', { url: '{$url}' })\"
                             />
                         </div>
