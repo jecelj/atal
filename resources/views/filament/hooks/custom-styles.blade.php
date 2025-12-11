@@ -17,12 +17,22 @@
         /* Spacing compensation */
         /* Pull it up slightly from default position, but keep it floating */
         margin-top: -1.5rem !important;
-        padding: 1.5rem;
-        /* Balanced padding (Top/Bottom/Left/Right) */
-        margin-bottom: 2rem;
+        
+        /* Visual Balance Correction: More top padding to account for line-height bias */
+        padding-top: 2rem !important; 
+        padding-bottom: 1.5rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
 
+        margin-bottom: 2rem;
+        
         /* Ensure it sits nicely */
         width: 100%;
+        
+        /* Ensure Flex Alignment */
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
     /* Dark Mode Styling */
@@ -39,10 +49,16 @@
         align-items: center;
     }
 
+    /* CRITICAL FIX: Ensure Topbar (User Menu) is ABOVE the Sticky Header */
+    .fi-topbar {
+        position: relative;
+        z-index: 50 !important; /* Higher than header's 20 */
+    }
+
     /* Fix Dropdown Menu Z-Index (User Menu, Tables, etc.) */
     /* Must be higher than sticky header (z-20) */
     /* Using extremely high value to guarantee visibility */
     .fi-dropdown-panel {
-        z-index: 10000 !important;
+        z-index: 100 !important;
     }
 </style>
