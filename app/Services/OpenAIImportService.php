@@ -117,15 +117,7 @@ class OpenAIImportService
                 ],
 
                 'tool_choice' => 'auto',
-                'parallel_tool_calls' => false,
-                'max_output_tokens' => 2000,
-
-                'text' => [
-                    'format' => [
-                        // Najboljša izbira za tvoj use-case (stroga JSON validacija)
-                        'type' => 'json_object'
-                    ]
-                ]
+                'parallel_tool_calls' => false
             ]);
 
         if ($response->failed()) {
