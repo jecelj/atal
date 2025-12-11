@@ -83,10 +83,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugins([
                 FilamentShieldPlugin::make(),
-            ])
-            ->renderHook(
-                'panels::body.end',
-                fn() => view('filament.hooks.custom-styles')
-            );
+            ]);
     }
 }
