@@ -117,11 +117,9 @@ class OpenAIImportService
                 ],
 
                 'tool_choice' => 'auto',
-
-                'max_output_tokens' => 8000,
-
-                // ključni fix — omogoči OpenAI-u, da sam izvede search:
-                'parallel_tool_calls' => false
+                'parallel_tool_calls' => false,
+                'max_output_tokens' => 2000,
+                'response_format' => ['type' => 'json_object']
             ]);
 
         if ($response->failed()) {
