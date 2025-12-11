@@ -67,8 +67,8 @@ class StatusCheckService
                 $isValid = false;
             }
 
-            // Check minimum size (must be > 30KB = 30720 bytes)
-            if ($media->size < 30720) {
+            // Check minimum size (must be > 5KB = 5120 bytes)
+            if ($media->size < 5120) {
                 $isValid = false;
             }
 
