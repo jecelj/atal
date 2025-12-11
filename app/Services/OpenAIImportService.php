@@ -109,7 +109,7 @@ class OpenAIImportService
         $response = Http::withToken($apiKey)
             ->timeout(600)
             ->post('https://api.openai.com/v1/responses', [
-                'model' => $settings->openai_model ?: 'gpt-5.1-chat-latest',
+                'model' => $settings->openai_model ?: 'gpt-5.1',
                 'input' => $fullPromptInput,
                 'tools' => [
                     [
