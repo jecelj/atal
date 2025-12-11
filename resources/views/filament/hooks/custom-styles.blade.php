@@ -64,4 +64,9 @@
     .fi-dropdown-panel {
         z-index: 100 !important;
     }
+
+    /* Disable Sticky Sidebar Header (User Request) */
+    .fi-sidebar-header {
+        position: relative !important;
+    }
 </style>
