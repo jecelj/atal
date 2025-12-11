@@ -115,12 +115,20 @@ class WordPressSyncService
 
         foreach ($records as $record) {
             if ($this->isFilteredOut($record, $site)) {
-                // If filtered out, ensure we don't have a pending status hanging around
-                SyncStatus::where('sync_site_id', $site->id)
-                    ->where('model_type', $typeKey)
-                    ->where('model_id', $record->id)
-                    ->where('status', 'pending')
-                    ->delete();
+                // If filtered out, mark as skipped so it doesn't show as Pending (Orange) or Failed (Red)
+                SyncStatus::updateOrCreate(
+                    [
+                        'sync_site_id' => $site->id,
+                        'model_type' => $typeKey,
+                        'model_id' => $record->id,
+                    ],
+                    [
+                        'status' => 'skipped',
+                        'last_synced_at' => now(),
+                        'error_message' => 'Filtered by configuration',
+                        'content_hash' => null, // Clear hash to force re-evaluation if filter changes
+                    ]
+                );
                 continue;
             }
 

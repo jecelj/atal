@@ -53,6 +53,11 @@
                         $colorStyle = 'color: rgb(var(--success-500));';
                         $icon = 'heroicon-o-check-circle';
                         $tooltip = "{$site->name}: Synced " . ($status?->last_synced_at ? $status->last_synced_at->diffForHumans() : '');
+                    } elseif ($syncState === 'skipped') {
+                        // Published but Skipped (Filtered) -> Gray Minus
+                        $colorStyle = 'color: rgb(var(--gray-400));';
+                        $icon = 'heroicon-o-minus-circle';
+                        $tooltip = "{$site->name}: Skipped (Filtered)";
                     } elseif ($syncState === 'failed') {
                         // Published & Failed -> Red X
                         $colorStyle = 'color: rgb(var(--danger-600));';
