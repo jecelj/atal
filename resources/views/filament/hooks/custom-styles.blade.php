@@ -37,4 +37,10 @@
     .fi-header-actions {
         align-items: center;
     }
+
+    /* Fix Dropdown Menu Z-Index (User Menu, Tables, etc.) */
+    /* Must be higher than sticky header (z-20) */
+    .fi-dropdown-panel {
+        z-index: 50 !important;
+    }
 </style>
