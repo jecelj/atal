@@ -24,13 +24,24 @@ class Atal_Sync_API
     {
         register_taxonomy('yacht_brand', ['new_yachts', 'used_yachts'], [
             'labels' => [
-                'name' => 'Brands & Models',
-                'singular_name' => 'Brand/Model',
+                'name' => 'Brands',
+                'singular_name' => 'Brand',
             ],
             'hierarchical' => true,
             'show_in_rest' => true,
             'show_admin_column' => true,
             'rewrite' => ['slug' => 'brand', 'hierarchical' => true],
+        ]);
+
+        register_taxonomy('yacht_model_type', ['new_yachts', 'used_yachts'], [
+            'labels' => [
+                'name' => 'Model Types',
+                'singular_name' => 'Model Type',
+            ],
+            'hierarchical' => true,
+            'show_in_rest' => true,
+            'show_admin_column' => true,
+            'rewrite' => ['slug' => 'model-type', 'hierarchical' => true],
         ]);
     }
 
@@ -425,37 +436,36 @@ class Atal_Sync_API
 
     private function set_brand_taxonomy($post_id, $brandData, $modelData)
     {
-        if (empty($brandData))
-            return;
-
-        // Get/Create Brand Term
-        $brandTerm = term_exists($brandData['name'], 'yacht_brand');
-        if (!$brandTerm) {
-            $brandTerm = wp_insert_term($brandData['name'], 'yacht_brand', ['slug' => $brandData['slug']]);
-        }
-        $brandTermId = is_array($brandTerm) ? $brandTerm['term_id'] : $brandTerm;
-
-        $termsToSet = [(int) $brandTermId];
-        $mainTermId = $brandTermId;
-
-        // Get/Create Model Term (Child of Brand)
-        if (!empty($modelData)) {
-            $modelTerm = term_exists($modelData['name'], 'yacht_brand', $brandTermId);
-            if (!$modelTerm) {
-                $modelTerm = wp_insert_term($modelData['name'], 'yacht_brand', [
-                    'slug' => $modelData['slug'],
-                    'parent' => $brandTermId
-                ]);
+        // 1. SYNC BRAND (yacht_brand)
+        if (!empty($brandData)) {
+            $brandTerm = term_exists($brandData['name'], 'yacht_brand');
+            if (!$brandTerm) {
+                $brandTerm = wp_insert_term($brandData['name'], 'yacht_brand', ['slug' => $brandData['slug']]);
             }
-            $modelTermId = is_array($modelTerm) ? $modelTerm['term_id'] : $modelTerm;
-            $termsToSet[] = (int) $modelTermId;
-            $mainTermId = $modelTermId; // We usually save the most specific term to the "brand" field if it's acting as Model selector
+            if (!is_wp_error($brandTerm)) {
+                $brandTermId = is_array($brandTerm) ? $brandTerm['term_id'] : $brandTerm;
+                wp_set_object_terms($post_id, [(int) $brandTermId], 'yacht_brand');
+                // Update ACF field 'brand'
+                update_post_meta($post_id, 'brand', $brandTermId);
+            }
+        } else {
+            wp_set_object_terms($post_id, [], 'yacht_brand');
+            update_post_meta($post_id, 'brand', '');
         }
 
-        wp_set_object_terms($post_id, $termsToSet, 'yacht_brand');
-
-        // Update ACF field 'brand' with the main term ID (compatible with Taxonomy field type saving Term ID)
-        update_post_meta($post_id, 'brand', $mainTermId);
+        // 2. SYNC MODEL TYPE (yacht_model_type)
+        if (!empty($modelData)) {
+            $modelTerm = term_exists($modelData['name'], 'yacht_model_type');
+            if (!$modelTerm) {
+                $modelTerm = wp_insert_term($modelData['name'], 'yacht_model_type', ['slug' => $modelData['slug']]);
+            }
+            if (!is_wp_error($modelTerm)) {
+                $modelTermId = is_array($modelTerm) ? $modelTerm['term_id'] : $modelTerm;
+                wp_set_object_terms($post_id, [(int) $modelTermId], 'yacht_model_type');
+            }
+        } else {
+            wp_set_object_terms($post_id, [], 'yacht_model_type');
+        }
     }
 
     private function save_translations($post_id, $translations)
