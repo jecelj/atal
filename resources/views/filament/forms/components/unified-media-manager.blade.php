@@ -46,11 +46,8 @@
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Media Manager</h3>
             <p class="text-sm text-gray-500">Categorize images and select main visuals.</p>
         </div>
-        <div class="text-sm text-gray-600 dark:text-gray-400 text-right">
+        <div class="text-sm text-gray-600 dark:text-gray-400">
             <span x-text="images ? images.length : 0"></span> images found
-            <!-- Debug Grid State -->
-            <div class="text-[10px] text-red-500" x-text="'Cover: ' + (coverImage ? coverImage.length : 0)"></div>
-            <div class="text-[10px] text-red-500" x-text="'Grid: ' + (gridImage ? gridImage.length : 0)"></div>
         </div>
     </div>
 
@@ -58,7 +55,12 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <template x-for="(image, index) in images" :key="index">
             <div class="relative group bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col"
-                :class="{ 'opacity-50 grayscale': image.category === 'trash', 'ring-2 ring-primary-500': isCover(image.url) }">
+                :class="{ 
+                    'opacity-50 grayscale': image.category === 'trash', 
+                    'ring-4 ring-indigo-500': isGridHover(image.url),
+                    'ring-4 ring-blue-500': !isGridHover(image.url) && isGrid(image.url),
+                    'ring-4 ring-green-500': !isGridHover(image.url) && !isGrid(image.url) && isCover(image.url)
+                }">
                 <!-- Image Preview -->
                 <div class="relative aspect-video bg-gray-100 dark:bg-gray-900 cursor-zoom-in"
                     @click="$dispatch('open-lightbox', { url: image.url })">
@@ -85,10 +87,7 @@
 
                     <!-- Category Selector -->
                     <div>
-                        <div class="flex justify-between">
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                            <span class="text-[10px] text-red-400 font-mono" x-text="image.category"></span>
-                        </div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
                         <select x-model="image.category"
                             class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
                             <option value="gallery_exterior">Exterior</option>
