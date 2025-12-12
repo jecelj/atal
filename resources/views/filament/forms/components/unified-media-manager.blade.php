@@ -56,11 +56,10 @@
         <template x-for="(image, index) in images" :key="index">
             <div class="relative group bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col"
                 :class="{ 
-                    'opacity-50 grayscale': image.category === 'trash', 
-                    'ring-4 ring-warning-500': isGridHover(image.url),
-                    'ring-4 ring-info-500': !isGridHover(image.url) && isGrid(image.url),
-                    'ring-4 ring-success-500': !isGridHover(image.url) && !isGrid(image.url) && isCover(image.url)
-                }">
+                    'opacity-50 grayscale': image.category === 'trash',
+                    'ring-4': isGridHover(image.url) || isGrid(image.url) || isCover(image.url)
+                }"
+                :style="isGridHover(image.url) ? '--tw-ring-color: #9333ea;' : (isGrid(image.url) ? '--tw-ring-color: #2563eb;' : (isCover(image.url) ? '--tw-ring-color: #16a34a;' : ''))">
                 <!-- Image Preview -->
                 <div class="relative aspect-video bg-gray-100 dark:bg-gray-900 cursor-zoom-in"
                     @click="$dispatch('open-lightbox', { url: image.url })">
