@@ -5,16 +5,15 @@
         gridHoverImage: $wire.entangle('data.custom_fields.grid_image_hover_url'),
         
         setCover(url) {
-            this.coverImage = url;
+            this.coverImage = [url];
         },
         setGrid(url) {
-            this.gridImage = url;
+            this.gridImage = [url];
         },
         setGridHover(url) {
-            this.gridHoverImage = url;
+            this.gridHoverImage = [url];
         },
         isCover(url) {
-            // Check if matches or if array check first element
             if (Array.isArray(this.coverImage)) return this.coverImage[0] == url;
             return this.coverImage == url;
         },
@@ -26,13 +25,13 @@
             if (Array.isArray(this.gridHoverImage)) return this.gridHoverImage[0] == url;
             return this.gridHoverImage == url;
         },
-        categories: {
-            'gallery_exterior': 'Exterior',
-            'gallery_interior': 'Interior',
-            'gallery_cockpit': 'Cockpit',
-            'gallery_layout': 'Layout',
-            'trash': 'Trash (Ignore)'
-        }
+        categories: [
+            { id: 'gallery_exterior', label: 'Exterior' },
+            { id: 'gallery_interior', label: 'Interior' },
+            { id: 'gallery_cockpit', label: 'Cockpit' },
+            { id: 'gallery_layout', label: 'Layout' },
+            { id: 'trash', label: 'Trash (Ignore)' }
+        ]
     }" class="space-y-4">
     <!-- Header / Info -->
     <div
@@ -80,8 +79,8 @@
                         <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
                         <select x-model="image.category"
                             class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
-                            <template x-for="(label, key) in categories" :key="key">
-                                <option :value="key" x-text="label"></option>
+                            <template x-for="cat in categories" :key="cat.id">
+                                <option :value="cat.id" x-text="cat.label"></option>
                             </template>
                         </select>
                     </div>

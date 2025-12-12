@@ -89,19 +89,44 @@ class ReviewOpenAIImport extends Page implements HasForms
             }
         }
 
+        // Log counts to debug "All Exterior" issue
+        Log::info('Review Page: Source Counts', [
+            'layout' => count($categories['gallery_layout'] ?? []),
+            'cockpit' => count($categories['gallery_cockpit'] ?? []),
+            'interior' => count($categories['gallery_interior'] ?? []),
+            'exterior' => count($categories['gallery_exterior'] ?? []),
+        ]);
+
         // Push this back into the data structure
         // We must update the cachedData array directly and then fill the form ONCE.
+
+        // SORT images by category priority (Exterior first for display)
+        // Order: Exterior, Interior, Cockpit, Layout, Trash
+        $order = [
+            'gallery_exterior' => 1,
+            'gallery_interior' => 2,
+            'gallery_cockpit' => 3,
+            'gallery_layout' => 4,
+            'trash' => 99
+        ];
+
+        usort($allImages, function ($a, $b) use ($order) {
+            $pA = $order[$a['category']] ?? 50;
+            $pB = $order[$b['category']] ?? 50;
+            return $pA <=> $pB;
+        });
+
         data_set($cachedData, 'custom_fields.all_images', $allImages);
 
         // Ensure cover/grid keys exist even if empty (for binding)
         if (!data_get($cachedData, 'custom_fields.cover_image_url'))
-            data_set($cachedData, 'custom_fields.cover_image_url', null);
+            data_set($cachedData, 'custom_fields.cover_image_url', []); // Force array
 
         if (!data_get($cachedData, 'custom_fields.grid_image_url'))
-            data_set($cachedData, 'custom_fields.grid_image_url', null);
+            data_set($cachedData, 'custom_fields.grid_image_url', []); // Force array
 
         if (!data_get($cachedData, 'custom_fields.grid_image_hover_url'))
-            data_set($cachedData, 'custom_fields.grid_image_hover_url', null);
+            data_set($cachedData, 'custom_fields.grid_image_hover_url', []); // Force array
 
         Log::info('Review Page: Prepared all_images', ['count' => count($allImages)]);
 
