@@ -131,7 +131,15 @@ class ReviewOpenAIImport extends Page implements HasForms
         if (!data_get($cachedData, 'custom_fields.grid_image_hover_url'))
             data_set($cachedData, 'custom_fields.grid_image_hover_url', []); // Force array
 
-        Log::info('Review Page: Prepared all_images', ['count' => count($allImages)]);
+        if (!data_get($cachedData, 'custom_fields.grid_image_hover_url'))
+            data_set($cachedData, 'custom_fields.grid_image_hover_url', []); // Force array
+
+        Log::info('Review Page: Prepared all_images', [
+            'count' => count($allImages),
+            'sample' => array_slice($allImages, 0, 5), // Log first 5 to check categories
+            'cover' => data_get($cachedData, 'custom_fields.cover_image_url'),
+            'grid' => data_get($cachedData, 'custom_fields.grid_image_url'),
+        ]);
 
         $this->form->fill($cachedData);
     }

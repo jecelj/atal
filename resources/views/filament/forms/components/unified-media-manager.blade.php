@@ -7,11 +7,17 @@
         setCover(url) {
             this.coverImage = [url];
         },
+        setCover(url) {
+            this.coverImage = [url];
+        },
         setGrid(url) {
             this.gridImage = [url];
+            // Force Livewire update if entangle is stuck
+            $wire.set('data.custom_fields.grid_image_url', [url]);
         },
         setGridHover(url) {
             this.gridHoverImage = [url];
+            $wire.set('data.custom_fields.grid_image_hover_url', [url]);
         },
         isCover(url) {
             if (Array.isArray(this.coverImage)) return this.coverImage[0] == url;
@@ -76,7 +82,10 @@
 
                     <!-- Category Selector -->
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                        <div class="flex justify-between">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                            <span class="text-[10px] text-red-400 font-mono" x-text="image.category"></span>
+                        </div>
                         <select x-model="image.category"
                             class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
                             <template x-for="cat in categories" :key="cat.id">
