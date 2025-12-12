@@ -46,6 +46,55 @@ class ReviewOpenAIImport extends Page implements HasForms
         Log::info('Review Page: Cached Data loaded', ['keys' => array_keys($cachedData)]);
 
         $this->form->fill($cachedData);
+
+        // Unified Media Manager Preparation
+        // Merge all legacy image fields into one 'all_images' collection for the UI
+        $data = $this->form->getState();
+        $allImages = [];
+
+        $categories = [
+            'gallery_exterior' => $data['custom_fields']['gallery_exterior_urls'] ?? [],
+            'gallery_interior' => $data['custom_fields']['gallery_interior_urls'] ?? [],
+            'gallery_cockpit' => $data['custom_fields']['gallery_cockpit_urls'] ?? [],
+            'gallery_layout' => $data['custom_fields']['gallery_layout_urls'] ?? [],
+        ];
+
+        foreach ($categories as $cat => $urls) {
+            if (is_array($urls)) {
+                foreach ($urls as $url) {
+                    if (!empty($url)) {
+                        // Prevent duplicates by URL
+                        $exists = false;
+                        foreach ($allImages as $img) {
+                            if ($img['url'] === $url) {
+                                $exists = true;
+                                break;
+                            }
+                        }
+                        if (!$exists) {
+                            $allImages[] = [
+                                'url' => $url,
+                                'category' => $cat,
+                                'original_category' => $cat
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Push this back into the form state
+        $data['custom_fields']['all_images'] = $allImages;
+
+        // Ensure cover/grid keys exist even if empty (for binding)
+        if (!isset($data['custom_fields']['cover_image_url']))
+            $data['custom_fields']['cover_image_url'] = null;
+        if (!isset($data['custom_fields']['grid_image_url']))
+            $data['custom_fields']['grid_image_url'] = null;
+        if (!isset($data['custom_fields']['grid_image_hover_url']))
+            $data['custom_fields']['grid_image_hover_url'] = null;
+
+        $this->form->fill($data);
     }
 
     public function form(Form $form): Form
@@ -175,39 +224,18 @@ class ReviewOpenAIImport extends Page implements HasForms
                     ])->columns(2),
 
                 Forms\Components\Section::make('Media & Documents')
-                    ->description('Primary images and documents')
+                    ->description('Review images and documents. Use the Media Manager to categorize images and select main visuals.')
                     ->schema([
-                        Forms\Components\View::make('filament.components.lightbox'), // Include Lightbox Component
+                        Forms\Components\View::make('filament.components.lightbox'),
 
-                        Forms\Components\Group::make([
-                            Forms\Components\Fieldset::make('Cover Image')
-                                ->schema([
-                                    $this->getSingleImageSelectionField('custom_fields.cover_image_url', '', 'custom_fields.gallery_exterior_urls_source'),
-                                ])->columns(1),
-
-                            Forms\Components\Fieldset::make('Grid Image')
-                                ->schema([
-                                    $this->getSingleImageSelectionField('custom_fields.grid_image_url', '', 'custom_fields.gallery_exterior_urls_source'),
-                                ])->columns(1),
-
-                            Forms\Components\Fieldset::make('Grid Image Hover')
-                                ->schema([
-                                    $this->getSingleImageSelectionField('custom_fields.grid_image_hover_url', '', 'custom_fields.gallery_exterior_urls_source'),
-                                ])->columns(1),
-                        ])->columnSpanFull(),
+                        // Unified Media Manager (Blade View)
+                        Forms\Components\ViewField::make('custom_fields.all_images')
+                            ->view('filament.forms.components.unified-media-manager')
+                            ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('custom_fields.pdf_brochure')
                             ->label('PDF Brochure URL')
                             ->columnSpanFull(),
-                    ]),
-
-                Forms\Components\Section::make('Images')
-                    ->description('Select images to import')
-                    ->schema([
-                        $this->getGalleryField('custom_fields.gallery_exterior_urls', 'Exterior Gallery', 'custom_fields.gallery_exterior_urls_source'),
-                        $this->getGalleryField('custom_fields.gallery_interior_urls', 'Interior Gallery', 'custom_fields.gallery_interior_urls_source'),
-                        $this->getGalleryField('custom_fields.gallery_cockpit_urls', 'Cockpit Gallery', 'custom_fields.gallery_cockpit_urls_source'),
-                        $this->getGalleryField('custom_fields.gallery_layout_urls', 'Layout Gallery', 'custom_fields.gallery_layout_urls_source'),
                     ]),
 
                 Forms\Components\Section::make('Video Gallery')
@@ -406,16 +434,32 @@ class ReviewOpenAIImport extends Page implements HasForms
             $customFields['gallery_exterrior_urls'] = $customFields['gallery_exterior_urls'] ?? []; // Typo legacy in Yacht.php
 
             // Media Process preparation
+            $allImages = $customFields['all_images'] ?? [];
+
+            // Re-distribute images based on 'category' from Unified Manager
             $mediaFields = [
                 'cover_image_url' => $customFields['cover_image_url'] ?? [],
                 'grid_image_url' => $customFields['grid_image_url'] ?? [],
                 'grid_image_hover_url' => $customFields['grid_image_hover_url'] ?? [],
-                'gallery_exterior_urls' => $customFields['gallery_exterior_urls'] ?? [],
-                'gallery_interior_urls' => $customFields['gallery_interior_urls'] ?? [],
-                'gallery_cockpit_urls' => $customFields['gallery_cockpit_urls'] ?? [],
-                'gallery_layout_urls' => $customFields['gallery_layout_urls'] ?? [],
+                'gallery_exterior_urls' => [],
+                'gallery_interior_urls' => [],
+                'gallery_cockpit_urls' => [],
+                'gallery_layout_urls' => [],
                 'pdf_brochure' => $customFields['pdf_brochure'] ?? null,
             ];
+
+            foreach ($allImages as $img) {
+                if (($img['category'] ?? 'trash') === 'trash')
+                    continue;
+
+                $cat = $img['category'];
+                // Map category names to field names if they match format 'gallery_TYPE'
+                $targetKey = $cat . '_urls';
+
+                if (isset($mediaFields[$targetKey])) {
+                    $mediaFields[$targetKey][] = $img['url'];
+                }
+            }
 
             // Clean custom fields (remove media placeholders to save space if needed,
             // but keeping them is fine for reference. We DO need to ensure 'lenght' is there.)
