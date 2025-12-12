@@ -61,7 +61,10 @@ class ReviewOpenAIImport extends Page implements HasForms
         $categories = [
             'gallery_layout' => $get('custom_fields.gallery_layout_urls'),
             'gallery_cockpit' => $get('custom_fields.gallery_cockpit_urls'),
-            'gallery_interior' => $get('custom_fields.gallery_interior_urls'),
+            'gallery_interior' => array_merge(
+                $get('custom_fields.gallery_interior_urls') ?? [],
+                $get('custom_fields.gallery_interrior_urls') ?? []
+            ),
             'gallery_exterior' => $get('custom_fields.gallery_exterior_urls'), // Bucket often used as "all images"
         ];
 
@@ -268,6 +271,11 @@ class ReviewOpenAIImport extends Page implements HasForms
                         Forms\Components\ViewField::make('custom_fields.all_images')
                             ->view('filament.forms.components.unified-media-manager')
                             ->columnSpanFull(),
+
+                        // Hidden fields to maintain state for bindings used in the Blade view
+                        Forms\Components\Hidden::make('custom_fields.cover_image_url'),
+                        Forms\Components\Hidden::make('custom_fields.grid_image_url'),
+                        Forms\Components\Hidden::make('custom_fields.grid_image_hover_url'),
 
                         Forms\Components\TextInput::make('custom_fields.pdf_brochure')
                             ->label('PDF Brochure URL')
