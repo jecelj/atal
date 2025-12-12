@@ -54,11 +54,15 @@ class ReviewOpenAIImport extends Page implements HasForms
         // Helper to safely get nested keys from cachedData (which is just an array)
         $get = fn($key) => data_get($cachedData, $key, []);
 
+        // Define categories with implicit priority (Specific -> Generic)
+        // We process them in this order. If an image appears in multiple (e.g. Interior AND Exterior),
+        // the FIRST one encountered wins (deduplication logic).
+        // So we put specific ones first.
         $categories = [
-            'gallery_exterior' => $get('custom_fields.gallery_exterior_urls'),
-            'gallery_interior' => $get('custom_fields.gallery_interior_urls'),
-            'gallery_cockpit' => $get('custom_fields.gallery_cockpit_urls'),
             'gallery_layout' => $get('custom_fields.gallery_layout_urls'),
+            'gallery_cockpit' => $get('custom_fields.gallery_cockpit_urls'),
+            'gallery_interior' => $get('custom_fields.gallery_interior_urls'),
+            'gallery_exterior' => $get('custom_fields.gallery_exterior_urls'), // Bucket often used as "all images"
         ];
 
         foreach ($categories as $cat => $urls) {
