@@ -443,8 +443,11 @@ class ReviewOpenAIImport extends Page implements HasForms
             // Media Processing (Post-Commit)
             // ---------------------------------------------------------
             try {
+                $failedAttachments = 0;
+                $failedUrls = [];
+
                 // Helper to attach media
-                $attachMedia = function ($urls, $collection) use ($yacht) {
+                $attachMedia = function ($urls, $collection) use ($yacht, &$failedAttachments, &$failedUrls) {
                     if (empty($urls))
                         return;
                     $urls = is_array($urls) ? $urls : [$urls];
@@ -456,6 +459,8 @@ class ReviewOpenAIImport extends Page implements HasForms
                                     ->toMediaCollection($collection);
                             } catch (\Exception $e) {
                                 Log::warning("Failed to attach media ($url) to $collection: " . $e->getMessage());
+                                $failedAttachments++;
+                                $failedUrls[] = $url;
                             }
                         }
                     }
@@ -491,7 +496,15 @@ class ReviewOpenAIImport extends Page implements HasForms
                     $attachMedia($mediaFields['pdf_brochure'], 'pdf_brochure');
                 }
 
-                Notification::make()->title('Yacht Imported Successfully')->success()->send();
+                if ($failedAttachments > 0) {
+                    Notification::make()
+                        ->title('Yacht Imported with Warnings')
+                        ->body("Imported successfully, but $failedAttachments images failed to download. Check logs for details.")
+                        ->warning()
+                        ->send();
+                } else {
+                    Notification::make()->title('Yacht Imported Successfully')->success()->send();
+                }
 
             } catch (\Exception $e) {
                 Log::error('Media Attachment Error: ' . $e->getMessage());
