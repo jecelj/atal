@@ -46,8 +46,11 @@
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Media Manager</h3>
             <p class="text-sm text-gray-500">Categorize images and select main visuals.</p>
         </div>
-        <div class="text-sm text-gray-600 dark:text-gray-400">
+        <div class="text-sm text-gray-600 dark:text-gray-400 text-right">
             <span x-text="images ? images.length : 0"></span> images found
+            <!-- Debug Grid State -->
+            <div class="text-[10px] text-red-500" x-text="'Cover: ' + (coverImage ? coverImage.length : 0)"></div>
+            <div class="text-[10px] text-red-500" x-text="'Grid: ' + (gridImage ? gridImage.length : 0)"></div>
         </div>
     </div>
 
@@ -88,15 +91,19 @@
                         </div>
                         <select x-model="image.category"
                             class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
-                            <template x-for="cat in categories" :key="cat.id">
-                                <option :value="cat.id" x-text="cat.label"></option>
-                            </template>
+                            <option value="gallery_exterior">Exterior</option>
+                            <option value="gallery_interior">Interior</option>
+                            <option value="gallery_cockpit">Cockpit</option>
+                            <option value="gallery_layout">Layout</option>
+                            <option value="trash">Trash (Ignore)</option>
                         </select>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700"
                         x-show="image.category !== 'trash'">
+                        <!-- Debug Button State -->
+                        <!-- <div class="w-full text-[10px] text-gray-400" x-text="'Grid: ' + (isGrid(image.url) ? 'YES' : 'NO')"></div> -->
                         <button type="button" @click="setCover(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
                             :class="isCover(image.url) ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:border-green-800' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
