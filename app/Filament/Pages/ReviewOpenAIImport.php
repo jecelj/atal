@@ -45,18 +45,20 @@ class ReviewOpenAIImport extends Page implements HasForms
 
         Log::info('Review Page: Cached Data loaded', ['keys' => array_keys($cachedData)]);
 
-        $this->form->fill($cachedData);
-
         // Unified Media Manager Preparation
         // Merge all legacy image fields into one 'all_images' collection for the UI
-        $data = $this->form->getState();
+        // CRITICAL FIX: Read from $cachedData directly because form schema no longer has these fields,
+        // so form->getState() would return null/empty for them.
         $allImages = [];
 
+        // Helper to safely get nested keys from cachedData (which is just an array)
+        $get = fn($key) => data_get($cachedData, $key, []);
+
         $categories = [
-            'gallery_exterior' => $data['custom_fields']['gallery_exterior_urls'] ?? [],
-            'gallery_interior' => $data['custom_fields']['gallery_interior_urls'] ?? [],
-            'gallery_cockpit' => $data['custom_fields']['gallery_cockpit_urls'] ?? [],
-            'gallery_layout' => $data['custom_fields']['gallery_layout_urls'] ?? [],
+            'gallery_exterior' => $get('custom_fields.gallery_exterior_urls'),
+            'gallery_interior' => $get('custom_fields.gallery_interior_urls'),
+            'gallery_cockpit' => $get('custom_fields.gallery_cockpit_urls'),
+            'gallery_layout' => $get('custom_fields.gallery_layout_urls'),
         ];
 
         foreach ($categories as $cat => $urls) {
@@ -83,18 +85,23 @@ class ReviewOpenAIImport extends Page implements HasForms
             }
         }
 
-        // Push this back into the form state
-        $data['custom_fields']['all_images'] = $allImages;
+        // Push this back into the data structure
+        // We must update the cachedData array directly and then fill the form ONCE.
+        data_set($cachedData, 'custom_fields.all_images', $allImages);
 
         // Ensure cover/grid keys exist even if empty (for binding)
-        if (!isset($data['custom_fields']['cover_image_url']))
-            $data['custom_fields']['cover_image_url'] = null;
-        if (!isset($data['custom_fields']['grid_image_url']))
-            $data['custom_fields']['grid_image_url'] = null;
-        if (!isset($data['custom_fields']['grid_image_hover_url']))
-            $data['custom_fields']['grid_image_hover_url'] = null;
+        if (!data_get($cachedData, 'custom_fields.cover_image_url'))
+            data_set($cachedData, 'custom_fields.cover_image_url', null);
 
-        $this->form->fill($data);
+        if (!data_get($cachedData, 'custom_fields.grid_image_url'))
+            data_set($cachedData, 'custom_fields.grid_image_url', null);
+
+        if (!data_get($cachedData, 'custom_fields.grid_image_hover_url'))
+            data_set($cachedData, 'custom_fields.grid_image_hover_url', null);
+
+        Log::info('Review Page: Prepared all_images', ['count' => count($allImages)]);
+
+        $this->form->fill($cachedData);
     }
 
     public function form(Form $form): Form
