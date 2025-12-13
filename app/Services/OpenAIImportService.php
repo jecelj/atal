@@ -99,9 +99,11 @@ class OpenAIImportService
             "MODEL = " . $model . "\n" .
             "MEDIA = " . $jsonMedia;
 
-        // EXTRACTION INPUT: BRAND, MODEL, RAW_HTML
+        // EXTRACTION INPUT: BRAND, MODEL, page_type, RAW_HTML
+        $pageType = $scrapeResult['page_type'] ?? '';
         $extractionInput = "BRAND = " . $brand . "\n" .
             "MODEL = " . $model . "\n" .
+            "page_type = " . $pageType . "\n" .
             "RAW_HTML = \"\"\"" . $rawHtml . "\"\"\"";
 
         Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction)...');
