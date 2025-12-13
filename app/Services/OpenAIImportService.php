@@ -101,31 +101,49 @@ class OpenAIImportService
 
         $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInput) {
             return [
-                // Request 1: Media Analysis (gpt-4o aka gpt-4.1 request)
+
+                // ===== MEDIA (no tools) =====
                 $pool->as('media')
                     ->withToken($apiKey)
                     ->timeout(600)
-                    ->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => 'gpt-4o', // User asked for 'gpt-4.1' - mapping to latest 4o
-                        'messages' => [
-                            ['role' => 'system', 'content' => $mediaPromptSystem],
-                            ['role' => 'user', 'content' => $mediaInput],
+                    ->post('https://api.openai.com/v1/responses', [
+                        'model' => 'gpt-4.1',
+                        'input' => [
+                            [
+                                'role' => 'system',
+                                'content' => $mediaPromptSystem
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => $mediaInput
+                            ]
                         ],
-                        'temperature' => 0.1, // Deterministic for JSON
+                        'temperature' => 0.1,
+                        'parallel_tool_calls' => false
                     ]),
 
-                // Request 2: Extraction (gpt-4o aka o4 request)
+                // ===== EXTRACTION (with web_search) =====
                 $pool->as('extraction')
                     ->withToken($apiKey)
                     ->timeout(600)
-                    ->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => 'gpt-4o', // User asked for 'o4' - mapping to latest 4o. 'o1-preview' handles heavy reasoning but 4o is robust.
-                        'messages' => [
-                            ['role' => 'system', 'content' => $extractionPromptSystem],
-                            ['role' => 'user', 'content' => $extractionInput],
+                    ->post('https://api.openai.com/v1/responses', [
+                        'model' => 'o4', // ali 'gpt-5.2-pro'
+                        'input' => [
+                            [
+                                'role' => 'system',
+                                'content' => $extractionPromptSystem
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => $extractionInput
+                            ]
                         ],
-                        'temperature' => 0.1,
-                        // 'tools' => [['type' => 'web_search']] // Standard API doesn't support this yet. Removed to prevent 400 error.
+                        'tools' => [
+                            ['type' => 'web_search']
+                        ],
+                        'tool_choice' => 'auto',
+                        'parallel_tool_calls' => false,
+                        'temperature' => 0.1
                     ])
             ];
         });
