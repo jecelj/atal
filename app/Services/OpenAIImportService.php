@@ -145,13 +145,13 @@ class OpenAIImportService
                             [
                                 'role' => 'system',
                                 'content' => [
-                                    ['type' => 'text', 'text' => $extractionPromptSystem]
+                                    ['type' => 'input_text', 'text' => $extractionPromptSystem]
                                 ]
                             ],
                             [
                                 'role' => 'user',
                                 'content' => [
-                                    ['type' => 'text', 'text' => $extractionInput]
+                                    ['type' => 'input_text', 'text' => $extractionInput]
                                 ]
                             ]
                         ],
