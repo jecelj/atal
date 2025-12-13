@@ -305,59 +305,68 @@ class OpenAIImportService
      */
     protected function translateData(array $sourceData, array $languages, string $apiKey)
     {
-        // Identify fields to translate
+        // Identify fields to translate and structure them as { 'en': '...' }
         $fieldsToTranslate = [
-            'sub_title' => $sourceData['sub_title']['en'] ?? ($sourceData['sub_title'] ?? ''),
-            'full_description' => $sourceData['full_description']['en'] ?? ($sourceData['full_description'] ?? ''),
-            'specifications' => $sourceData['specifications']['en'] ?? ($sourceData['specifications'] ?? ''),
-            'engine_location' => $sourceData['engine_location'] ?? '',
+            'sub_title' => ['en' => $sourceData['sub_title']['en'] ?? ($sourceData['sub_title'] ?? '')],
+            'full_description' => ['en' => $sourceData['full_description']['en'] ?? ($sourceData['full_description'] ?? '')],
+            'specifications' => ['en' => $sourceData['specifications']['en'] ?? ($sourceData['specifications'] ?? '')],
+            'engine_location' => ['en' => $sourceData['engine_location'] ?? ''],
         ];
-
-        // If English source is missing, we can't translate nicely.
-        // But the previous step might have returned flat strings if it ignored the language instruction.
-        // Let's assume input is [key => string] (English).
 
         // Fetch Prompt from Settings
         $settings = app(\App\Settings\OpenAiSettings::class);
         $customPrompt = $settings->openai_translation_prompt;
 
-        if (!empty($customPrompt)) {
-            // Replace placeholders if any (e.g. {{languages}}, {{json}})
-            // But user requested simple input. Let's just append the JSON and instructions.
-            // Actually, best to treat user input as the "System Instruction" or "Intro".
+        // Construct Final Prompt
+        $baseInstruction = !empty($customPrompt) 
+            ? $customPrompt 
+            : "You are a professional nautical translator. Translate the following technical yacht specifications JSON to the following languages.";
 
-            $prompt = $customPrompt . "\n\n" .
-                "TARGET LANGUAGES: " . json_encode($languages) . "\n\n" .
-                "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
-        } else {
-            // Fallback to Hardcoded Default
-            $prompt = "You are a professional nautical translator. Translate the following technical yacht specifications JSON to the following languages: " . json_encode($languages) . ".\n\n" .
-                "IMPORTANT RULES:\n" .
-                "1. Output must be valid JSON matching the structure: { 'key': { 'lang_code': 'translation' } }.\n" .
-                "2. For 'sub_title', 'full_description', 'specifications': Provide native, professional translations.\n" .
-                "3. FOR SLOVENIAN (sl): Use professional nautical terminology. Do NOT translate literally. (e.g. 'Head' -> 'Toaleta/WC', 'Beam' -> 'Širina', 'Draft' -> 'Ugrez').\n" .
-                "4. Keep HTML tags unchanged.\n\n" .
-                "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
-        }
-
+        // Append the standardized footer keys
+        $prompt = $baseInstruction . "\n\n" .
+            "LANGUAGES:\n" . json_encode($languages) . "\n\n" .
+            "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
+        
         try {
+            // Using gpt-4.1 on Custom Endpoint (v1/responses)
             $response = Http::withToken($apiKey)
-                ->timeout(120) // Give it time
-                ->post('https://api.openai.com/v1/chat/completions', [
-                    'model' => 'gpt-4o',
-                    'messages' => [
-                        ['role' => 'system', 'content' => 'You are a helpful translator assistant. Return valid JSON only.'],
-                        ['role' => 'user', 'content' => $prompt]
-                    ],
-                    'temperature' => 0.1
+                ->timeout(120)
+                ->post('https://api.openai.com/v1/responses', [
+                    'model' => 'gpt-4.1',
+                    'input' => [
+                        [
+                            'role' => 'system',
+                            'content' => [['type' => 'input_text', 'text' => 'You are a helpful translator assistant. Return valid JSON only.']]
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => [['type' => 'input_text', 'text' => $prompt]]
+                        ]
+                    ], 
+                    'temperature' => 0.1,
+                    'parallel_tool_calls' => false
                 ]);
 
             if ($response->failed()) {
                 Log::error('Translation Call Failed: ' . $response->body());
-                return []; // Fail silently, return original (English) data
+                return []; 
             }
 
-            $content = $response->json('choices.0.message.content');
+            // Handle Custom Endpoint Response Structure
+            $body = $response->json();
+            $content = null;
+
+            if (isset($body['choices'][0]['message']['content'])) {
+                $content = $body['choices'][0]['message']['content'];
+            } elseif (isset($body['output'][0]['content'][0]['text'])) {
+                $content = $body['output'][0]['content'][0]['text'];
+            }
+
+            if (!$content) {
+                 Log::error('Translation Response Empty/Invalid Format: ' . json_encode($body));
+                 return [];
+            }
+
             return $this->decodeOpenAIContent($content);
 
         } catch (\Exception $e) {
