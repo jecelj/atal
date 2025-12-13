@@ -64,7 +64,11 @@ class ManageExternalApiSettings extends SettingsPage
                         Forms\Components\Textarea::make('openai_prompt_no_images')
                             ->label('OpenAI Yacht Data Extractor')
                             ->rows(20)
-                            ->helperText('System prompt for extracting specifications and translations. Input: BRAND, MODEL, LANGUAGES, RAW_HTML.'),
+                            ->helperText('System prompt for extracting specifications. Input: BRAND, MODEL, RAW_HTML. Do not ask for translations here.'),
+                        Forms\Components\Textarea::make('openai_translation_prompt')
+                            ->label('OpenAI Translation Prompt (Input -> Output)')
+                            ->rows(15)
+                            ->helperText('System prompt for translating extracted JSON. Input: JSON (English keys), LANGUAGES (List). Rules: Technical terms, No literal translation.'),
                     ])
                     ->collapsible(),
 
