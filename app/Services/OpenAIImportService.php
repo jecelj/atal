@@ -318,15 +318,15 @@ class OpenAIImportService
         $customPrompt = $settings->openai_translation_prompt;
 
         // Construct Final Prompt
-        $baseInstruction = !empty($customPrompt) 
-            ? $customPrompt 
+        $baseInstruction = !empty($customPrompt)
+            ? $customPrompt
             : "You are a professional nautical translator. Translate the following technical yacht specifications JSON to the following languages.";
 
         // Append the standardized footer keys
         $prompt = $baseInstruction . "\n\n" .
             "LANGUAGES:\n" . json_encode($languages) . "\n\n" .
             "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
-        
+
         try {
             // Using gpt-4.1 on Custom Endpoint (v1/responses)
             $response = Http::withToken($apiKey)
@@ -342,14 +342,14 @@ class OpenAIImportService
                             'role' => 'user',
                             'content' => [['type' => 'input_text', 'text' => $prompt]]
                         ]
-                    ], 
+                    ],
                     'temperature' => 0.1,
                     'parallel_tool_calls' => false
                 ]);
 
             if ($response->failed()) {
                 Log::error('Translation Call Failed: ' . $response->body());
-                return []; 
+                return [];
             }
 
             // Handle Custom Endpoint Response Structure
@@ -363,8 +363,8 @@ class OpenAIImportService
             }
 
             if (!$content) {
-                 Log::error('Translation Response Empty/Invalid Format: ' . json_encode($body));
-                 return [];
+                Log::error('Translation Response Empty/Invalid Format: ' . json_encode($body));
+                return [];
             }
 
             return $this->decodeOpenAIContent($content);
@@ -374,14 +374,10 @@ class OpenAIImportService
             return [];
         }
     }
-}
 
     /**
      * Remove performWebSearch which is no longer used in linear flow
      */
-
-    }
-}
 
     /**
      * Call Browserless Function Endpoint
