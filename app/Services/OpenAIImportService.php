@@ -168,11 +168,11 @@ class OpenAIImportService
         // 6. PROCESS RESPONSES
         if ($responses['media']->failed()) {
             Log::error('OpenAI Media Call Failed: ' . $responses['media']->body());
-            return ['error' => 'Media Call Failed: ' . $responses['media']->status()];
+            return ['error' => 'Media Call Failed: ' . $responses['media']->status() . ' - ' . $responses['media']->body()];
         }
         if ($responses['extraction']->failed()) {
             Log::error('OpenAI Extraction Call Failed: ' . $responses['extraction']->body());
-            return ['error' => 'Extraction Call Failed: ' . $responses['extraction']->status()];
+            return ['error' => 'Extraction Call Failed: ' . $responses['extraction']->status() . ' - ' . $responses['extraction']->body()];
         }
 
         $mediaBody = $responses['media']->json();
