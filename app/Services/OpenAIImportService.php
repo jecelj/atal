@@ -292,10 +292,12 @@ class OpenAIImportService
         foreach ($multilingualFields as $field) {
             if (isset($decoded[$field])) {
                 if (is_string($decoded[$field])) {
-            return $decoded;
+                    $decoded[$field] = array_fill_keys($activeCodes, $decoded[$field]);
+                }
+            }
         }
 
-        return ['error' => 'No text data found in OpenAI response'];
+        return $decoded;
     }
 
     /**
