@@ -176,8 +176,24 @@ class OpenAIImportService
         $extractionBody = $responses['extraction']->json();
 
         // Check if responses are valid
-        $mediaContent = $mediaBody['choices'][0]['message']['content'] ?? null;
-        $extractionContent = $extractionBody['choices'][0]['message']['content'] ?? null;
+        // Check if responses are valid
+        // Standard OpenAI: ['choices'][0]['message']['content']
+        // Custom Endpoint: ['output'][0]['content'][0]['text']
+
+        $getOpenAIContent = function ($body) {
+            // 1. Try Standard Format
+            if (isset($body['choices'][0]['message']['content'])) {
+                return $body['choices'][0]['message']['content'];
+            }
+            // 2. Try Custom Endpoint Format
+            if (isset($body['output'][0]['content'][0]['text'])) {
+                return $body['output'][0]['content'][0]['text'];
+            }
+            return null;
+        };
+
+        $mediaContent = $getOpenAIContent($mediaBody);
+        $extractionContent = $getOpenAIContent($extractionBody);
 
         if (!$mediaContent) {
             Log::error('Media Response Empty/Invalid: ' . json_encode($mediaBody));
