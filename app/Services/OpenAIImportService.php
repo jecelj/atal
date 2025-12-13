@@ -123,26 +123,30 @@ class OpenAIImportService
                         'parallel_tool_calls' => false
                     ]),
 
-                // ===== EXTRACTION (gpt-4o) =====
+                // ===== EXTRACTION (gpt-5.1) =====
                 $pool->as('extraction')
                     ->withToken($apiKey)
-                    ->timeout(600)
+                    ->timeout(240) // priporočilo: ne 600
                     ->post('https://api.openai.com/v1/responses', [
-                        'model' => 'gpt-4o',
+                        'model' => 'gpt-5.1',
                         'input' => [
                             [
                                 'role' => 'system',
-                                'content' => [['type' => 'input_text', 'text' => $extractionPromptSystem]]
+                                'content' => [
+                                    ['type' => 'input_text', 'text' => $extractionPromptSystem]
+                                ]
                             ],
                             [
                                 'role' => 'user',
-                                'content' => [['type' => 'input_text', 'text' => $extractionInput]]
+                                'content' => [
+                                    ['type' => 'input_text', 'text' => $extractionInput]
+                                ]
                             ]
                         ],
-                        'tools' => [['type' => 'web_search']],
-                        'tool_choice' => 'auto',
-                        'temperature' => 0.1,
-                        'parallel_tool_calls' => false
+                        'tools' => [
+                            ['type' => 'web_search']
+                        ],
+                        'tool_choice' => 'auto'
                     ])
             ];
         });
