@@ -317,13 +317,28 @@ class OpenAIImportService
         // But the previous step might have returned flat strings if it ignored the language instruction.
         // Let's assume input is [key => string] (English).
 
-        $prompt = "You are a professional nautical translator. Translate the following technical yacht specifications JSON to the following languages: " . json_encode($languages) . ".\n\n" .
-            "IMPORTANT RULES:\n" .
-            "1. Output must be valid JSON matching the structure: { 'key': { 'lang_code': 'translation' } }.\n" .
-            "2. For 'sub_title', 'full_description', 'specifications': Provide native, professional translations.\n" .
-            "3. FOR SLOVENIAN (sl): Use professional nautical terminology. Do NOT translate literally. (e.g. 'Head' -> 'Toaleta/WC', 'Beam' -> 'Širina', 'Draft' -> 'Ugrez').\n" .
-            "4. Keep HTML tags unchanged.\n\n" .
-            "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
+        // Fetch Prompt from Settings
+        $settings = app(\App\Settings\OpenAiSettings::class);
+        $customPrompt = $settings->openai_translation_prompt;
+
+        if (!empty($customPrompt)) {
+            // Replace placeholders if any (e.g. {{languages}}, {{json}})
+            // But user requested simple input. Let's just append the JSON and instructions.
+            // Actually, best to treat user input as the "System Instruction" or "Intro".
+
+            $prompt = $customPrompt . "\n\n" .
+                "TARGET LANGUAGES: " . json_encode($languages) . "\n\n" .
+                "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
+        } else {
+            // Fallback to Hardcoded Default
+            $prompt = "You are a professional nautical translator. Translate the following technical yacht specifications JSON to the following languages: " . json_encode($languages) . ".\n\n" .
+                "IMPORTANT RULES:\n" .
+                "1. Output must be valid JSON matching the structure: { 'key': { 'lang_code': 'translation' } }.\n" .
+                "2. For 'sub_title', 'full_description', 'specifications': Provide native, professional translations.\n" .
+                "3. FOR SLOVENIAN (sl): Use professional nautical terminology. Do NOT translate literally. (e.g. 'Head' -> 'Toaleta/WC', 'Beam' -> 'Širina', 'Draft' -> 'Ugrez').\n" .
+                "4. Keep HTML tags unchanged.\n\n" .
+                "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
+        }
 
         try {
             $response = Http::withToken($apiKey)
