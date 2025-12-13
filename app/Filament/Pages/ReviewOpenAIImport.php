@@ -529,6 +529,8 @@ class ReviewOpenAIImport extends Page implements HasForms
                 'yacht_model_id' => $data['yacht_model_id'],
                 'price' => 0,
                 'custom_fields' => $customFields, // SAVE METADATA NOW
+                'translation_status' => null, // Reset status to unknown
+                'img_opt_status' => null,     // Reset status to unknown
             ]);
 
             \Illuminate\Support\Facades\DB::commit();
