@@ -152,7 +152,7 @@ class OpenAIImportService
                     ['type' => 'web_search']
                 ],
                 'tool_choice' => 'auto',
-                // 'temperature' => 0.1, 
+                'temperature' => 0.1, // Enabled for gpt-4o accuracy
                 'parallel_tool_calls' => false
             ]);
         Log::info('DEBUG: Extraction Call Finished. Status: ' . $extractionResponse->status());
