@@ -159,7 +159,7 @@ class OpenAIImportService
                             ['type' => 'web_search']
                         ],
                         'tool_choice' => 'auto',
-                        'temperature' => 0.1,          // dovoljeno
+                        // 'temperature' => 0.1,          // NI DOVOLJENO ZA TA MODEL
                         'parallel_tool_calls' => false
                     ])
             ];
