@@ -166,11 +166,26 @@ class OpenAIImportService
 
         // Helper to parse Custom/Standard response
         $getOpenAIContent = function ($body) {
+            // Standard OpenAI Chat Completion (choices)
             if (isset($body['choices'][0]['message']['content'])) {
                 return $body['choices'][0]['message']['content'];
             }
-            if (isset($body['output'][0]['content'][0]['text'])) {
-                return $body['output'][0]['content'][0]['text'];
+
+            // Custom Endpoint (v1/responses) - Iterate to find "message" type or valid text content
+            // The output array might contain tool calls first. We need the final generated message.
+            if (isset($body['output']) && is_array($body['output'])) {
+                foreach ($body['output'] as $item) {
+                    // Check for "message" type or simply content that has text
+                    if (isset($item['content'][0]['text'])) {
+                        // Some responses might have type 'message', others just content.
+                        // We look for a non-empty text field.
+                        // But we must skip 'web_search_call' if it accidentally has similar structure (unlikely but safe to check type)
+                        if (isset($item['type']) && $item['type'] === 'web_search_call') {
+                            continue;
+                        }
+                        return $item['content'][0]['text'];
+                    }
+                }
             }
             return null;
         };
