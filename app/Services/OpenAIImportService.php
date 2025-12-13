@@ -18,8 +18,8 @@ class OpenAIImportService
      */
     public function fetchData(string $url, array $context = [])
     {
-        // Prevent PHP timeout
-        set_time_limit(600);
+        set_time_limit(600); // Prevent PHP timeout
+        ini_set('max_execution_time', 600);
 
         // 1. MOCK MODE
         if ($url === 'http://localhost/mock-reload') {
