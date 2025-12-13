@@ -67,6 +67,10 @@ class OpenAIImportService
         $brand = $context['brand'] ?? '';
         $model = $context['model'] ?? '';
 
+        // Sanitize strings
+        $brand = mb_convert_encoding($brand, 'UTF-8', 'UTF-8');
+        $model = mb_convert_encoding($model, 'UTF-8', 'UTF-8');
+
         // Languages
         $activeLanguages = Language::pluck('code')->values()->toArray();
         $jsonLanguages = json_encode($activeLanguages);
@@ -87,6 +91,7 @@ class OpenAIImportService
 
         // HTML
         $rawHtml = $scrapeResult['raw_html_clean'] ?? '';
+        $rawHtml = mb_convert_encoding($rawHtml, 'UTF-8', 'UTF-8'); // Sanitize HTML for Extraction Call
 
         // Prepare Prompts inputs
         // MEDIA INPUT: BRAND, MODEL, MEDIA
