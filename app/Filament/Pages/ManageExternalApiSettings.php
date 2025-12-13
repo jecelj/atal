@@ -58,13 +58,13 @@ class ManageExternalApiSettings extends SettingsPage
                             ->default('You are a professional translator. Translate the given text accurately while maintaining the tone and context.')
                             ->helperText('System prompt that guides the AI on how to translate. This helps maintain consistency and quality.'),
                         Forms\Components\Textarea::make('openai_prompt')
-                            ->label('Yacht Import Prompt (With Images)')
+                            ->label('OpenAI Media Prompt')
                             ->rows(20)
-                            ->helperText('System prompt for the Yacht Import feature (Default). Paste the full prompt instructions here.'),
+                            ->helperText('System prompt for the Media classification and selection. Input: BRAND, MODEL, MEDIA (json).'),
                         Forms\Components\Textarea::make('openai_prompt_no_images')
-                            ->label('Yacht Import Prompt (NO Images)')
+                            ->label('OpenAI Yacht Data Extractor')
                             ->rows(20)
-                            ->helperText('System prompt for the Yacht Import feature when "Without Images" is selected. Paste the prompt instructions here. Usually faster and cheaper.'),
+                            ->helperText('System prompt for extracting specifications and translations. Input: BRAND, MODEL, LANGUAGES, RAW_HTML.'),
                     ])
                     ->collapsible(),
 
