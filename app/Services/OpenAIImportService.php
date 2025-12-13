@@ -142,8 +142,8 @@ class OpenAIImportService
                             ['type' => 'web_search']
                         ],
                         'tool_choice' => 'auto',
-                        'parallel_tool_calls' => false,
-                        'temperature' => 0.1
+                        'parallel_tool_calls' => false
+                        // 'temperature' => 1 // o1/o4 models typically require temperature 1 or default. Removing it is safest.
                     ])
             ];
         });
