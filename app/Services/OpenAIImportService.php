@@ -119,15 +119,11 @@ class OpenAIImportService
                         'input' => [
                             [
                                 'role' => 'system',
-                                'content' => [
-                                    ['type' => 'text', 'text' => $mediaPromptSystem]
-                                ]
+                                'content' => $mediaPromptSystem
                             ],
                             [
                                 'role' => 'user',
-                                'content' => [
-                                    ['type' => 'text', 'text' => $mediaInput]
-                                ]
+                                'content' => $mediaInput
                             ]
                         ],
                         'temperature' => 0.1,
