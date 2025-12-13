@@ -513,17 +513,43 @@ class OpenAIImportService
             }
 
             // Normalize Videos for Repeater: ['url1', 'url2'] -> [['url' => 'url1'], ['url' => 'url2']]
-            if (isset($decoded['video_url'])) {
-                $videos = [];
-                $rawVideos = is_array($decoded['video_url']) ? $decoded['video_url'] : [$decoded['video_url']];
-                foreach ($rawVideos as $v) {
-                    if (is_string($v) && !empty($v)) {
-                        $videos[] = ['url' => $v];
-                    } elseif (is_array($v) && isset($v['url'])) {
-                        $videos[] = $v;
+            // Handle aliases (youtube, video, video_links)
+            $videoKeys = ['video_url', 'youtube', 'video', 'videos', 'youtube_link', 'video_links'];
+            $allVideos = [];
+
+            foreach ($videoKeys as $key) {
+                if (isset($decoded[$key]) && !empty($decoded[$key])) {
+                    $raw = is_array($decoded[$key]) ? $decoded[$key] : [$decoded[$key]];
+                    foreach ($raw as $v) {
+                        if (is_string($v) && !empty($v)) {
+                            // Simple string URL
+                            $allVideos[] = ['url' => $v];
+                        } elseif (is_array($v) && isset($v['url'])) {
+                            // Already formatted
+                            $allVideos[] = $v;
+                        } elseif (is_array($v) && isset($v['link'])) {
+                            // Handle {link: '...'}
+                            $allVideos[] = ['url' => $v['link']];
+                        }
+                    }
+                    // Remove alias to clean up
+                    if ($key !== 'video_url')
+                        unset($decoded[$key]);
+                }
+            }
+
+            if (!empty($allVideos)) {
+                // If video_url already existed and we merged duplication, unique it
+                // Make unique by URL
+                $uniqueVideos = [];
+                $seenUrls = [];
+                foreach ($allVideos as $vid) {
+                    if (!in_array($vid['url'], $seenUrls)) {
+                        $seenUrls[] = $vid['url'];
+                        $uniqueVideos[] = $vid;
                     }
                 }
-                $decoded['video_url'] = $videos;
+                $decoded['video_url'] = $uniqueVideos;
             }
 
             // Normalize Length (ensure numeric)
