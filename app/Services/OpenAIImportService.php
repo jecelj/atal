@@ -225,8 +225,24 @@ class OpenAIImportService
         $finalData = array_merge($decodedExtraction, $decodedMedia);
 
         // Append Debug Info
-        $finalData['_debug_prompt'] = "MEDIA PROMPT:\n" . substr($mediaPromptSystem, 0, 200) . "...\n\nEXTRACTION PROMPT:\n" . substr($extractionPromptSystem, 0, 200) . "...";
-        $finalData['_debug_response'] = "Merged from two calls.";
+        // Append Debug Info
+        $debugPrompt = "===== STEP 1: MEDIA INPUT =====\n" . $mediaInput . "\n\n";
+        $debugPrompt .= "===== STEP 2: EXTRACTION INPUT =====\n" . $extractionInput . "\n\n";
+
+        $debugResponse = "===== STEP 1: MEDIA RESPONSE =====\n" . mb_substr(json_encode($decodedMedia, JSON_PRETTY_PRINT), 0, 2000) . "...\n\n";
+        $debugResponse .= "===== STEP 2: EXTRACTION RESPONSE (English) =====\n" . mb_substr(json_encode($decodedExtraction, JSON_PRETTY_PRINT), 0, 2000) . "...\n\n";
+
+        if (isset($translatedData) && !empty($translatedData)) {
+            // We need to fetch the translation prompt again or reconstruct it to log it, 
+            // but since translateData is protected and doesn't return the prompt, 
+            // we'll just log that it happened. Ideally translateData should return metadata.
+            // For now, let's log the fact.
+            $debugPrompt .= "===== STEP 3: TRANSLATION =====\n(Executed via translateData)\n";
+            $debugResponse .= "===== STEP 3: TRANSLATION RESPONSE =====\n" . mb_substr(json_encode($translatedData, JSON_PRETTY_PRINT), 0, 2000) . "...\n";
+        }
+
+        $finalData['_debug_prompt'] = $debugPrompt;
+        $finalData['_debug_response'] = $debugResponse;
 
         // Normalization (using existing processed method logic, but adapted)
         // Since we already decoded, we just need to pass it through normalization if needed.
