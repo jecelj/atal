@@ -99,23 +99,15 @@ class OpenAIImportService
             "MODEL = " . $model . "\n" .
             "MEDIA = " . $jsonMedia;
 
-        // EXTRACTION INPUT: BRAND, MODEL, LANGUAGES, RAW_HTML
+        // EXTRACTION INPUT: BRAND, MODEL, RAW_HTML
         $extractionInput = "BRAND = " . $brand . "\n" .
             "MODEL = " . $model . "\n" .
-            "LANGUAGES = " . $jsonLanguages . "\n" .
             "RAW_HTML = \"\"\"" . $rawHtml . "\"\"\"";
 
         Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction)...');
 
-        // 5. PARALLEL OPENAI CALLS
-        // Limit Extraction to English to speed up and separate concerns
-        $englishInput = json_encode(['en']);
-        $extractionInputOnlyEnglish = str_replace($jsonLanguages, $englishInput, $extractionInput);
-
-        Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction - English Only)...');
-
         // 5. PARALLEL OPENAI CALLS (Step 1 & 2)
-        $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInputOnlyEnglish) {
+        $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInput) {
             return [
                 // ===== MEDIA (gpt-4.1) =====
                 $pool->as('media')
@@ -131,7 +123,7 @@ class OpenAIImportService
                         'parallel_tool_calls' => false
                     ]),
 
-                // ===== EXTRACTION (gpt-4o) - English Only =====
+                // ===== EXTRACTION (gpt-4o) =====
                 $pool->as('extraction')
                     ->withToken($apiKey)
                     ->timeout(600)
@@ -144,7 +136,7 @@ class OpenAIImportService
                             ],
                             [
                                 'role' => 'user',
-                                'content' => [['type' => 'input_text', 'text' => $extractionInputOnlyEnglish]]
+                                'content' => [['type' => 'input_text', 'text' => $extractionInput]]
                             ]
                         ],
                         'tools' => [['type' => 'web_search']],
