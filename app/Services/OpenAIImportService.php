@@ -129,16 +129,31 @@ class OpenAIImportService
             ]);
         Log::info('DEBUG: Media Call Finished. Status: ' . $mediaResponse->status());
 
-        Log::info('DEBUG: Starting Extraction Call (gpt-4o)...');
+        Log::info('DEBUG: Starting Extraction Call (gpt-4o via Custom Endpoint)...');
         $extractionResponse = Http::withToken($apiKey)
             ->timeout(600)
-            ->post('https://api.openai.com/v1/chat/completions', [
+            ->post('https://api.openai.com/v1/responses', [
                 'model' => 'gpt-4o',
-                'messages' => [
-                    ['role' => 'system', 'content' => $extractionPromptSystem],
-                    ['role' => 'user', 'content' => $extractionInput],
+                'input' => [
+                    [
+                        'role' => 'system',
+                        'content' => [
+                            ['type' => 'input_text', 'text' => $extractionPromptSystem]
+                        ]
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            ['type' => 'input_text', 'text' => $extractionInput]
+                        ]
+                    ]
                 ],
-                // 'temperature' => 0.1, // Optional
+                'tools' => [
+                    ['type' => 'web_search']
+                ],
+                'tool_choice' => 'auto',
+                // 'temperature' => 0.1, 
+                'parallel_tool_calls' => false
             ]);
         Log::info('DEBUG: Extraction Call Finished. Status: ' . $extractionResponse->status());
 
