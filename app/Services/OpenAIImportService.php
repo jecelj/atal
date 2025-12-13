@@ -75,7 +75,15 @@ class OpenAIImportService
         $mediaData = $scrapeResult;
         unset($mediaData['raw_html_clean']);
         unset($mediaData['url']);
-        $jsonMedia = json_encode($mediaData, JSON_UNESCAPED_SLASHES);
+
+        // Fix Encoding for JSON
+        array_walk_recursive($mediaData, function (&$v) {
+            if (is_string($v)) {
+                $v = mb_convert_encoding($v, 'UTF-8', 'UTF-8');
+            }
+        });
+
+        $jsonMedia = json_encode($mediaData, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         // HTML
         $rawHtml = $scrapeResult['raw_html_clean'] ?? '';
