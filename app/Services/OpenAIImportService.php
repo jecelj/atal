@@ -127,24 +127,27 @@ class OpenAIImportService
                     ->withToken($apiKey)
                     ->timeout(600)
                     ->post('https://api.openai.com/v1/responses', [
-                        // ===== EXTRACTION (with web_search) =====
                         'model' => 'gpt-5.2-pro',
                         'input' => [
                             [
                                 'role' => 'system',
-                                'content' => $extractionPromptSystem
+                                'content' => [
+                                    ['type' => 'text', 'text' => $extractionPromptSystem]
+                                ]
                             ],
                             [
                                 'role' => 'user',
-                                'content' => $extractionInput
+                                'content' => [
+                                    ['type' => 'text', 'text' => $extractionInput]
+                                ]
                             ]
                         ],
                         'tools' => [
                             ['type' => 'web_search']
                         ],
                         'tool_choice' => 'auto',
-                        'parallel_tool_calls' => false,
-                        'temperature' => 0.1
+                        'temperature' => 0.1,          // dovoljeno
+                        'parallel_tool_calls' => false
                     ])
             ];
         });
