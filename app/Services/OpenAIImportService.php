@@ -108,62 +108,59 @@ class OpenAIImportService
         Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction)...');
 
         // 5. PARALLEL OPENAI CALLS
-        // Note: User requested models 'gpt-4.1' and 'o4'. 
-        // We map them to standard models or use as requested if available via custom endpoint.
-        // Assuming standard API usage: v1/chat/completions.
+        // Note: User requested models 'gpt-4.1'        // 5. SEQUENTIAL OPENAI CALLS (DEBUGGING MODE)
+        Log::info('DEBUG: Starting Media Call...');
+        $mediaResponse = Http::withToken($apiKey)
+            ->timeout(600)
+            ->post('https://api.openai.com/v1/responses', [
+                'model' => 'gpt-4.1',
+                'input' => [
+                    [
+                        'role' => 'system',
+                        'content' => $mediaPromptSystem
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => $mediaInput
+                    ]
+                ],
+                'temperature' => 0.1,
+                'parallel_tool_calls' => false
+            ]);
+        Log::info('DEBUG: Media Call Finished. Status: ' . $mediaResponse->status());
 
-        $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInput) {
-            return [
+        Log::info('DEBUG: Starting Extraction Call...');
+        $extractionResponse = Http::withToken($apiKey)
+            ->timeout(600)
+            ->post('https://api.openai.com/v1/responses', [
+                'model' => 'gpt-5.2-pro',
+                'input' => [
+                    [
+                        'role' => 'system',
+                        'content' => [
+                            ['type' => 'input_text', 'text' => $extractionPromptSystem]
+                        ]
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            ['type' => 'input_text', 'text' => $extractionInput]
+                        ]
+                    ]
+                ],
+                'tools' => [
+                    ['type' => 'web_search']
+                ],
+                'tool_choice' => 'auto',
+                // 'temperature' => 0.1,          // NI DOVOLJENO ZA TA MODEL
+                'parallel_tool_calls' => false
+            ]);
+        Log::info('DEBUG: Extraction Call Finished. Status: ' . $extractionResponse->status());
 
-                // ===== MEDIA (no tools) =====
-                $pool->as('media')
-                    ->withToken($apiKey)
-                    ->timeout(600)
-                    ->post('https://api.openai.com/v1/responses', [
-                        'model' => 'gpt-4.1',
-                        'input' => [
-                            [
-                                'role' => 'system',
-                                'content' => $mediaPromptSystem
-                            ],
-                            [
-                                'role' => 'user',
-                                'content' => $mediaInput
-                            ]
-                        ],
-                        'temperature' => 0.1,
-                        'parallel_tool_calls' => false
-                    ]),
-
-                // ===== EXTRACTION (with web_search) =====
-                $pool->as('extraction')
-                    ->withToken($apiKey)
-                    ->timeout(600)
-                    ->post('https://api.openai.com/v1/responses', [
-                        'model' => 'gpt-5.2-pro',
-                        'input' => [
-                            [
-                                'role' => 'system',
-                                'content' => [
-                                    ['type' => 'input_text', 'text' => $extractionPromptSystem]
-                                ]
-                            ],
-                            [
-                                'role' => 'user',
-                                'content' => [
-                                    ['type' => 'input_text', 'text' => $extractionInput]
-                                ]
-                            ]
-                        ],
-                        'tools' => [
-                            ['type' => 'web_search']
-                        ],
-                        'tool_choice' => 'auto',
-                        // 'temperature' => 0.1,          // NI DOVOLJENO ZA TA MODEL
-                        'parallel_tool_calls' => false
-                    ])
-            ];
-        });
+        $responses = [
+            'media' => $mediaResponse,
+            'extraction' => $extractionResponse
+        ];
 
         // 6. PROCESS RESPONSES
         if ($responses['media']->failed()) {
