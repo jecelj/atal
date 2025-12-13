@@ -182,8 +182,13 @@ class OpenAIImportService
         $mediaContent = $mediaBody['choices'][0]['message']['content'] ?? null;
         $extractionContent = $extractionBody['choices'][0]['message']['content'] ?? null;
 
-        if (!$mediaContent || !$extractionContent) {
-            return ['error' => 'One of the OpenAI responses was empty. Check logs.'];
+        if (!$mediaContent) {
+            Log::error('Media Response Empty/Invalid: ' . json_encode($mediaBody));
+            return ['error' => 'Media Response Content Empty. Raw: ' . substr(json_encode($mediaBody), 0, 500)];
+        }
+        if (!$extractionContent) {
+            Log::error('Extraction Response Empty/Invalid: ' . json_encode($extractionBody));
+            return ['error' => 'Extraction Response Content Empty. Raw: ' . substr(json_encode($extractionBody), 0, 500)];
         }
 
         // Decode JSONs
