@@ -380,6 +380,9 @@ class OpenAIImportService
      * Remove performWebSearch which is no longer used in linear flow
      */
 
+    }
+}
+
     /**
      * Call Browserless Function Endpoint
      */
