@@ -108,61 +108,54 @@ class OpenAIImportService
         Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction)...');
 
         // 5. PARALLEL OPENAI CALLS
-        // Note: User requested models 'gpt-4.1'        // 5. SEQUENTIAL OPENAI CALLS (DEBUGGING MODE)
-        Log::info('DEBUG: Starting Media Call...');
-        $mediaResponse = Http::withToken($apiKey)
-            ->timeout(600)
-            ->post('https://api.openai.com/v1/responses', [
-                'model' => 'gpt-4.1',
-                'input' => [
-                    [
-                        'role' => 'system',
-                        'content' => $mediaPromptSystem
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => $mediaInput
-                    ]
-                ],
-                'temperature' => 0.1,
-                'parallel_tool_calls' => false
-            ]);
-        Log::info('DEBUG: Media Call Finished. Status: ' . $mediaResponse->status());
+        // Limit Extraction to English to speed up and separate concerns
+        $englishInput = json_encode(['en']);
+        $extractionInputOnlyEnglish = str_replace($jsonLanguages, $englishInput, $extractionInput);
 
-        Log::info('DEBUG: Starting Extraction Call (gpt-4o via Custom Endpoint)...');
-        $extractionResponse = Http::withToken($apiKey)
-            ->timeout(600)
-            ->post('https://api.openai.com/v1/responses', [
-                'model' => 'gpt-4o',
-                'input' => [
-                    [
-                        'role' => 'system',
-                        'content' => [
-                            ['type' => 'input_text', 'text' => $extractionPromptSystem]
-                        ]
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => [
-                            ['type' => 'input_text', 'text' => $extractionInput]
-                        ]
-                    ]
-                ],
-                'tools' => [
-                    ['type' => 'web_search']
-                ],
-                'tool_choice' => 'auto',
-                'temperature' => 0.1, // Enabled for gpt-4o accuracy
-                'parallel_tool_calls' => false
-            ]);
-        Log::info('DEBUG: Extraction Call Finished. Status: ' . $extractionResponse->status());
+        Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction - English Only)...');
 
-        $responses = [
-            'media' => $mediaResponse,
-            'extraction' => $extractionResponse
-        ];
+        // 5. PARALLEL OPENAI CALLS (Step 1 & 2)
+        $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInputOnlyEnglish) {
+            return [
+                // ===== MEDIA (gpt-4.1) =====
+                $pool->as('media')
+                    ->withToken($apiKey)
+                    ->timeout(600)
+                    ->post('https://api.openai.com/v1/responses', [
+                        'model' => 'gpt-4.1',
+                        'input' => [
+                            ['role' => 'system', 'content' => $mediaPromptSystem],
+                            ['role' => 'user', 'content' => $mediaInput]
+                        ],
+                        'temperature' => 0.1,
+                        'parallel_tool_calls' => false
+                    ]),
 
-        // 6. PROCESS RESPONSES
+                // ===== EXTRACTION (gpt-4o) - English Only =====
+                $pool->as('extraction')
+                    ->withToken($apiKey)
+                    ->timeout(600)
+                    ->post('https://api.openai.com/v1/responses', [
+                        'model' => 'gpt-4o',
+                        'input' => [
+                            [
+                                'role' => 'system',
+                                'content' => [['type' => 'input_text', 'text' => $extractionPromptSystem]]
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => [['type' => 'input_text', 'text' => $extractionInputOnlyEnglish]]
+                            ]
+                        ],
+                        'tools' => [['type' => 'web_search']],
+                        'tool_choice' => 'auto',
+                        'temperature' => 0.1,
+                        'parallel_tool_calls' => false
+                    ])
+            ];
+        });
+
+        // 6. PROCESS INITIAL RESPONSES
         if ($responses['media']->failed()) {
             Log::error('OpenAI Media Call Failed: ' . $responses['media']->body());
             return ['error' => 'Media Call Failed: ' . $responses['media']->status() . ' - ' . $responses['media']->body()];
@@ -175,17 +168,11 @@ class OpenAIImportService
         $mediaBody = $responses['media']->json();
         $extractionBody = $responses['extraction']->json();
 
-        // Check if responses are valid
-        // Check if responses are valid
-        // Standard OpenAI: ['choices'][0]['message']['content']
-        // Custom Endpoint: ['output'][0]['content'][0]['text']
-
+        // Helper to parse Custom/Standard response
         $getOpenAIContent = function ($body) {
-            // 1. Try Standard Format
             if (isset($body['choices'][0]['message']['content'])) {
                 return $body['choices'][0]['message']['content'];
             }
-            // 2. Try Custom Endpoint Format
             if (isset($body['output'][0]['content'][0]['text'])) {
                 return $body['output'][0]['content'][0]['text'];
             }
@@ -209,12 +196,21 @@ class OpenAIImportService
         $decodedExtraction = $this->decodeOpenAIContent($extractionContent);
 
         if (isset($decodedMedia['error']))
-            return $decodedMedia; // Return decoding error
+            return $decodedMedia;
         if (isset($decodedExtraction['error']))
             return $decodedExtraction;
 
-        // 7. MERGE DATA
-        // Merge extraction data (main) with media data
+        // 7. TRANSLATION CALL (Step 3 - Sequential)
+        // Only if we have extraction data
+        Log::info('DEBUG: Starting Translation Call (Step 3)...');
+        $translatedData = $this->translateData($decodedExtraction, $activeLanguages, $apiKey);
+
+        // Merge translated data back into extraction data (overwriting English-only fields with Multilingual ones)
+        if (!empty($translatedData)) {
+            $decodedExtraction = array_replace_recursive($decodedExtraction, $translatedData);
+        }
+
+        // 8. MERGE FINAL DATA
         $finalData = array_merge($decodedExtraction, $decodedMedia);
 
         // Append Debug Info
@@ -296,14 +292,63 @@ class OpenAIImportService
         foreach ($multilingualFields as $field) {
             if (isset($decoded[$field])) {
                 if (is_string($decoded[$field])) {
-                    $decoded[$field] = array_fill_keys($activeCodes, $decoded[$field]);
-                }
-            }
+            return $decoded;
         }
 
-        return $decoded;
+        return ['error' => 'No text data found in OpenAI response'];
     }
 
+    /**
+     * Translate extracted data to target languages using a dedicated API call.
+     */
+    protected function translateData(array $sourceData, array $languages, string $apiKey)
+    {
+        // Identify fields to translate
+        $fieldsToTranslate = [
+            'sub_title' => $sourceData['sub_title']['en'] ?? ($sourceData['sub_title'] ?? ''),
+            'full_description' => $sourceData['full_description']['en'] ?? ($sourceData['full_description'] ?? ''),
+            'specifications' => $sourceData['specifications']['en'] ?? ($sourceData['specifications'] ?? ''),
+            'engine_location' => $sourceData['engine_location'] ?? '',
+        ];
+
+        // If English source is missing, we can't translate nicely.
+        // But the previous step might have returned flat strings if it ignored the language instruction.
+        // Let's assume input is [key => string] (English).
+
+        $prompt = "You are a professional nautical translator. Translate the following technical yacht specifications JSON to the following languages: " . json_encode($languages) . ".\n\n" .
+            "IMPORTANT RULES:\n" .
+            "1. Output must be valid JSON matching the structure: { 'key': { 'lang_code': 'translation' } }.\n" .
+            "2. For 'sub_title', 'full_description', 'specifications': Provide native, professional translations.\n" .
+            "3. FOR SLOVENIAN (sl): Use professional nautical terminology. Do NOT translate literally. (e.g. 'Head' -> 'Toaleta/WC', 'Beam' -> 'Širina', 'Draft' -> 'Ugrez').\n" .
+            "4. Keep HTML tags unchanged.\n\n" .
+            "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->timeout(120) // Give it time
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => 'gpt-4o',
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a helpful translator assistant. Return valid JSON only.'],
+                        ['role' => 'user', 'content' => $prompt]
+                    ],
+                    'temperature' => 0.1
+                ]);
+
+            if ($response->failed()) {
+                Log::error('Translation Call Failed: ' . $response->body());
+                return []; // Fail silently, return original (English) data
+            }
+
+            $content = $response->json('choices.0.message.content');
+            return $this->decodeOpenAIContent($content);
+
+        } catch (\Exception $e) {
+            Log::error('Translation Error: ' . $e->getMessage());
+            return [];
+        }
+    }
+}
 
     /**
      * Remove performWebSearch which is no longer used in linear flow
