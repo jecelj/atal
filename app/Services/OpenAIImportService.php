@@ -127,7 +127,8 @@ class OpenAIImportService
                     ->withToken($apiKey)
                     ->timeout(600)
                     ->post('https://api.openai.com/v1/responses', [
-                        'model' => 'o4', // ali 'gpt-5.2-pro'
+                        // ===== EXTRACTION (with web_search) =====
+                        'model' => 'gpt-5.2-pro',
                         'input' => [
                             [
                                 'role' => 'system',
@@ -142,8 +143,8 @@ class OpenAIImportService
                             ['type' => 'web_search']
                         ],
                         'tool_choice' => 'auto',
-                        'parallel_tool_calls' => false
-                        // 'temperature' => 1 // o1/o4 models typically require temperature 1 or default. Removing it is safest.
+                        'parallel_tool_calls' => false,
+                        'temperature' => 0.1
                     ])
             ];
         });
