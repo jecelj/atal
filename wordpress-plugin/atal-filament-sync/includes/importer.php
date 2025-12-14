@@ -251,6 +251,18 @@ function atal_import_single_yacht($yacht_data)
         atal_log("Created post ID: $post_id");
     }
 
+    // --- SAVE HARDCODED PROPERTIES (Price, Year, Location) ---
+    // These are sent as top-level keys in the JSON payload, not in custom_fields
+    if (isset($yacht_data['location'])) {
+        update_field('location', $yacht_data['location'], $post_id);
+    }
+    if (isset($yacht_data['price'])) {
+        update_field('price', $yacht_data['price'], $post_id);
+    }
+    if (isset($yacht_data['year'])) {
+        update_field('year', $yacht_data['year'], $post_id);
+    }
+
     // --- SAVE DEFAULT LANGUAGE CUSTOM FIELDS ---
     if (function_exists('update_field') && isset($default_translation['custom_fields'])) {
         foreach ($default_translation['custom_fields'] as $key => $value) {

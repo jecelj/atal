@@ -314,7 +314,8 @@ class WordPressSyncService
             if ($type === 'used_yacht') {
                 $payload['price'] = $record->price;
                 $payload['year'] = $record->year;
-                $payload['location_id'] = $record->location_id; // Map location text later if needed
+                // Fix: Send location Name as 'location' text field instead of ID
+                $payload['location'] = $record->location?->name;
             }
 
             // Translations
