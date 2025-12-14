@@ -552,6 +552,42 @@ class WordPressSyncService
                 'active' => true,
                 'description' => '',
             ];
+
+            // FIX: Inject Static Fields (Price, Year, Location) for Used Yachts
+            if ($entityType === 'used_yacht') {
+                $staticFields = [
+                    [
+                        'key' => 'field_price',
+                        'name' => 'price',
+                        'label' => 'Price',
+                        'type' => 'text', // Simple text for formatted price
+                        'required' => 0,
+                        'wrapper' => ['width' => '50'],
+                    ],
+                    [
+                        'key' => 'field_year',
+                        'name' => 'year',
+                        'label' => 'Year',
+                        'type' => 'number',
+                        'required' => 0,
+                        'wrapper' => ['width' => '50'],
+                    ],
+                    [
+                        'key' => 'field_location', // This was missing!
+                        'name' => 'location',
+                        'label' => 'Location',
+                        'type' => 'text',
+                        'required' => 0,
+                        'wrapper' => ['width' => '100'],
+                    ]
+                ];
+
+                // Merge static fields at start of fields array
+                $fieldGroups[count($fieldGroups) - 1]['fields'] = array_merge(
+                    $staticFields,
+                    $fieldGroups[count($fieldGroups) - 1]['fields']
+                );
+            }
         }
 
         return $fieldGroups;
