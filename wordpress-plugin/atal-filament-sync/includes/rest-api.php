@@ -122,7 +122,7 @@ function atal_sync_rest_push($request)
             $type = $payload['type'];
             // Route to appropriate importer
             if ($type === 'news') {
-                $res = atal_import_news(['news' => [$payload]]);
+                $res = atal_import_news($payload);
                 if (isset($res['imported']) && $res['imported'] > 0)
                     $importedCount++;
                 else
