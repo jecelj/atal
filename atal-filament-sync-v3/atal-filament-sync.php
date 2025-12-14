@@ -3,7 +3,7 @@
  * Plugin Name: Kreativne komunikacije - Yachts & News Sync (Master-Push)
  * Plugin URI: https://atal.at
  * Description: Receives pushed yacht and news data from Filament Master, supports Falang and ACF.
- * Version: 3.1.0
+ * Version: 3.2.0
  * Author: Kreativne komunikacije
  * Text Domain: kk-sync
  * Requires PHP: 8.0
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('ATAL_SYNC_VERSION', '3.1.0');
+define('ATAL_SYNC_VERSION', '3.2.0');
 define('ATAL_SYNC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
 // Include files

@@ -65,6 +65,11 @@ class Atal_Sync_API
         // Config Handling
         if ($action === 'config') {
             update_option('atal_sync_acf_config', $items);
+
+            // Trigger auto-registration immediately
+            $this->register_synced_fields();
+            $this->register_falang_fields();
+
             return rest_ensure_response([
                 'success' => true,
                 'message' => 'Field configuration updated',
