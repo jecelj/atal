@@ -439,7 +439,7 @@ class WordPressSyncService
             default => null
         };
     }
-    protected function syncConfig(SyncSite $site, array &$errors)
+    public function syncConfig(SyncSite $site, array &$errors)
     {
         $configPayload = $this->prepareConfigPayload();
 

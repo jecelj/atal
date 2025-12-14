@@ -142,9 +142,29 @@ class ManageNewsFields extends Page
             ]);
         }
 
-        Notification::make()
-            ->title('Saved successfully')
-            ->success()
-            ->send();
+        // Trigger Sync to WordPress Sites
+        try {
+            $syncService = app(\App\Services\WordPressSyncService::class);
+            $sites = \App\Models\SyncSite::where('is_active', true)->get();
+            $errors = [];
+            $syncedCount = 0;
+
+            foreach ($sites as $site) {
+                // Call the now public syncConfig method
+                $syncService->syncConfig($site, $errors);
+
+                if (empty($errors)) {
+                    $syncedCount++;
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Field Sync Error: ' . $e->getMessage());
+        }
+
+        if ($syncedCount > 0) {
+            Notification::make()->title('Saved & Synced Fields to ' . $syncedCount . ' Sites')->success()->send();
+        } else {
+            Notification::make()->title('Saved (Sync Skipped/Failed)')->success()->send();
+        }
     }
 }
