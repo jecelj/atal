@@ -485,6 +485,11 @@ class Atal_Sync_API
             if (!$language || empty($language->locale))
                 continue;
 
+            // Skip default language (Falang uses main post content for default)
+            $default_lang_slug = $model->get_default_language()->slug ?? 'sl';
+            if ($langCode === $default_lang_slug)
+                continue;
+
             $prefix = '_' . $language->locale . '_';
 
             foreach ($fields as $key => $value) {
@@ -498,6 +503,12 @@ class Atal_Sync_API
 
                 // Save Prefixed Meta
                 update_post_meta($post_id, $prefix . $metaKey, $value);
+
+                // Special Case: Auto-generate Slug for Title
+                if ($metaKey === 'post_title' && !empty($value)) {
+                    $slug = sanitize_title($value);
+                    update_post_meta($post_id, $prefix . 'post_name', $slug);
+                }
             }
             // Mark Published
             update_post_meta($post_id, $prefix . 'published', 1);
