@@ -292,10 +292,13 @@ class WordPressSyncService
                     return is_array($vals) ? ($vals[$code] ?? '') : '';
                 };
 
-                $translations[$lang] = [
+                // Get translatable custom fields
+                $transFields = $this->extractCustomFields($record, 'news', $lang, [], true);
+
+                $translations[$lang] = array_merge([
                     'title' => $getNewsTrans('title', $lang),
                     'content' => $getNewsTrans('content', $lang),
-                ];
+                ], $transFields);
             }
             $payload['translations'] = $translations;
 
@@ -319,10 +322,14 @@ class WordPressSyncService
             foreach ($supportedLangs as $lang) {
                 if ($lang === $defaultLang)
                     continue;
-                $translations[$lang] = [
+
+                // Get translatable custom fields
+                $transFields = $this->extractCustomFields($record, $type, $lang, [], true);
+
+                $translations[$lang] = array_merge([
                     'title' => $record->getTranslation('name', $lang, false),
                     'name' => $record->getTranslation('name', $lang, false),
-                ];
+                ], $transFields);
             }
             $payload['translations'] = $translations;
 
@@ -353,12 +360,17 @@ class WordPressSyncService
         return $payload;
     }
 
-    protected function extractCustomFields($record, $entityType, $defaultLang, $supportedLangs = [])
+    protected function extractCustomFields($record, $entityType, $defaultLang, $supportedLangs = [], $onlyMultilingual = false)
     {
         $fields = [];
         $configs = FormFieldConfiguration::where('entity_type', $entityType)->get();
 
         foreach ($configs as $config) {
+            // Skip non-multilingual fields if requested
+            if ($onlyMultilingual && !$config->is_multilingual) {
+                continue;
+            }
+
             $key = $config->field_key;
             $type = $this->mapInputTypeToACF($config->field_type); // Get normalized type logic
 
