@@ -18,9 +18,12 @@ class EditNewYacht extends EditRecord
                 ->icon('heroicon-m-language')
                 ->color('info')
                 ->action(function () {
+                    \Illuminate\Support\Facades\Log::info('Translate All clicked');
                     $this->save();
                     $record = $this->getRecord();
-                    $this->dispatch('open-translation-modal', yachtId: $record->id);
+                    \Illuminate\Support\Facades\Log::info('Dispatching open-translation-modal for yacht: ' . $record->id);
+                    $this->dispatch('open-translation-modal', yachtId: $record->id)
+                        ->to(\App\Filament\Widgets\TranslationProgressWidget::class);
                 }),
             Actions\Action::make('optimizeImages')
                 ->label('Optimize Images')

@@ -15,6 +15,7 @@ class TranslationProgressWidget extends Widget
     #[On('open-translation-modal')]
     public function openModal(int $yachtId, string $type = 'yacht')
     {
+        \Illuminate\Support\Facades\Log::info('TranslationProgressWidget: Event received for yacht ' . $yachtId);
         $this->yachtId = $yachtId;
         $this->type = $type;
         $this->dispatch('open-modal', id: 'translation-progress');

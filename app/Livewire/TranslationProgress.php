@@ -21,6 +21,7 @@ class TranslationProgress extends Component
 
     public function mount($yachtId, $type = 'yacht')
     {
+        \Illuminate\Support\Facades\Log::info('TranslationProgress: Component mounted for yacht ' . $yachtId);
         $this->yachtId = $yachtId;
         $this->type = $type;
         $this->prepareTranslations();
