@@ -20,6 +20,7 @@ class ImageOptimizationProgress extends Component
     {
         $this->recordId = $recordId;
         $this->type = $type;
+        $this->dispatch('open-modal', id: 'image-optimization-progress');
     }
 
     public function startOptimization()

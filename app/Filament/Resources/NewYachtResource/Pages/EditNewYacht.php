@@ -32,9 +32,10 @@ class EditNewYacht extends EditRecord
                 ->icon('heroicon-m-photo')
                 ->color('warning')
                 ->action(function () {
-                    $this->save();
+                    $this->save(shouldRedirect: false);
                     $record = $this->getRecord();
-                    $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'yacht');
+                    $this->dispatch('open-optimization-modal', recordId: $record->id, type: 'yacht')
+                        ->to(\App\Filament\Widgets\ImageOptimizationProgressWidget::class);
                 }),
             Actions\DeleteAction::make(),
             Actions\Action::make('cancel')

@@ -1,5 +1,6 @@
 <div x-data="{
         init() {
+            $dispatch('open-modal', { id: 'image-optimization-progress' });
             if (@js(!$isStarted) && @js(!$isCompleted)) {
                 $wire.startOptimization();
             }
