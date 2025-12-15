@@ -167,4 +167,69 @@ class TranslationService
 
         return $translations;
     }
+    /**
+     * Translate a structured array of fields preserving keys
+     *
+     * @param array $data Associative array of content to translate
+     * @param string $targetLanguage Target language code
+     * @param string $sourceLanguage Source language code
+     * @return array|null Translated array or null on failure
+     */
+    public function translateStructured(
+        array $data,
+        string $targetLanguage,
+        string $sourceLanguage = 'en'
+    ): ?array {
+        if (empty($this->settings->openai_secret)) {
+            Log::warning('OpenAI API key not configured');
+            return null;
+        }
+
+        try {
+            $systemPrompt = $this->settings->openai_context ?:
+                'You are a professional translator. Translate the values in the JSON object accurately while maintaining the tone and context.';
+
+            $systemPrompt .= "\n\nYou must return valid JSON. keys must remain unchanged. Text should be translated from {$sourceLanguage} to {$targetLanguage}. Do not translate specific brand names or technical terms that should remain in English.";
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->settings->openai_secret,
+                'Content-Type' => 'application/json',
+            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
+                        'model' => $this->settings->openai_model ?? 'gpt-4o-mini-2024-07-18',
+                        'messages' => [
+                            [
+                                'role' => 'system',
+                                'content' => $systemPrompt,
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => json_encode($data, JSON_UNESCAPED_UNICODE),
+                            ],
+                        ],
+                        'response_format' => ['type' => 'json_object'],
+                        'temperature' => 0.3,
+                    ]);
+
+            if ($response->successful()) {
+                $content = $response->json()['choices'][0]['message']['content'] ?? null;
+                if ($content) {
+                    return json_decode($content, true);
+                }
+            }
+
+            Log::error('OpenAI API error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Translation failed', [
+                'error' => $e->getMessage(),
+                'target' => $targetLanguage,
+            ]);
+
+            return null;
+        }
+    }
 }

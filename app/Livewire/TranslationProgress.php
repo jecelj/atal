@@ -13,7 +13,7 @@ class TranslationProgress extends Component
     public $yachtId;
     public $type = 'yacht'; // 'yacht' or 'news'
     public $logs = [];
-    public $pendingTranslations = [];
+    public $pendingTranslations = []; // List of languages to process
     public $total = 0;
     public $processed = 0;
     public $isCompleted = false;
@@ -42,58 +42,59 @@ class TranslationProgress extends Component
             return;
         }
 
-        // 1. Standard fields
-        $translatableFields = $this->getTranslatableFields();
-        foreach ($translatableFields as $field) {
-            $sourceContent = $this->getTranslation($record, $field, $defaultLanguage->code);
-            if (empty($sourceContent))
-                continue;
+        // Gather all translatable data by language
+        foreach ($targetLanguages as $language) {
+            $batchData = [];
 
-            foreach ($targetLanguages as $language) {
+            // 1. Standard fields
+            $translatableFields = $this->getTranslatableFields();
+            foreach ($translatableFields as $field) {
+                // Check if target already has content
                 $existing = $this->getTranslation($record, $field, $language->code);
-                if (empty($existing)) {
-                    $this->pendingTranslations[] = [
-                        'type' => 'standard',
-                        'field' => $field,
-                        'language_code' => $language->code,
-                        'language_name' => $language->name,
-                        'source' => $sourceContent
-                    ];
-                } else {
-                    $this->addLog("Skipping {$field} ({$language->name}) - already exists", 'skipped');
+                if (!empty($existing)) {
+                    // Optionally skip or overwrite. Current logic: skip if exists
+                    // But if user clicked "Translate All", they might expect full sync?
+                    // Previous logic was: skip if !empty. Let's keep that safely.
+                    continue;
+                }
+
+                $sourceContent = $this->getTranslation($record, $field, $defaultLanguage->code);
+                if (!empty($sourceContent)) {
+                    $batchData['standard:' . $field] = $sourceContent;
                 }
             }
-        }
 
-        // 2. Custom fields (Only relevant if custom_fields exist)
-        $customFields = $record->custom_fields ?? [];
-        $configFields = $this->getConfigFields($record);
+            // 2. Custom fields
+            $customFields = $record->custom_fields ?? [];
+            $configFields = $this->getConfigFields($record);
 
-        foreach ($configFields as $config) {
-            $fieldKey = $config->field_key;
-            $fieldLabel = $config->label;
+            foreach ($configFields as $config) {
+                $fieldKey = $config->field_key;
 
-            if (!isset($customFields[$fieldKey]) || !is_array($customFields[$fieldKey]))
-                continue;
+                if (!isset($customFields[$fieldKey]) || !is_array($customFields[$fieldKey]))
+                    continue;
 
-            $sourceContent = $customFields[$fieldKey][$defaultLanguage->code] ?? null;
-            if (empty($sourceContent))
-                continue;
-
-            foreach ($targetLanguages as $language) {
+                // Check existing
                 $existing = $customFields[$fieldKey][$language->code] ?? null;
-                if (empty($existing)) {
-                    $this->pendingTranslations[] = [
-                        'type' => 'custom',
-                        'field' => $fieldKey,
-                        'label' => $fieldLabel,
-                        'language_code' => $language->code,
-                        'language_name' => $language->name,
-                        'source' => $sourceContent
-                    ];
-                } else {
-                    $this->addLog("Skipping {$fieldLabel} ({$language->name}) - already exists", 'skipped');
+                if (!empty($existing)) {
+                    continue;
                 }
+
+                $sourceContent = $customFields[$fieldKey][$defaultLanguage->code] ?? null;
+                if (!empty($sourceContent)) {
+                    // Flatten structure for translation service: custom:field_key
+                    $batchData['custom:' . $fieldKey] = $sourceContent;
+                }
+            }
+
+            if (!empty($batchData)) {
+                $this->pendingTranslations[] = [
+                    'language_code' => $language->code,
+                    'language_name' => $language->name,
+                    'data' => $batchData
+                ];
+            } else {
+                $this->addLog("Skipping {$language->name} - nothing to translate", 'skipped');
             }
         }
 
@@ -177,34 +178,48 @@ class TranslationProgress extends Component
         $languages = Language::all();
         $defaultLanguage = $languages->where('is_default', true)->first();
 
-        $fieldName = $item['type'] === 'standard' ? $item['field'] : ($item['label'] ?? $item['field']);
+        $fieldCount = count($item['data']);
+        $this->addLog("Translating {$fieldCount} fields to {$item['language_name']}...", 'processing');
 
         try {
             $start = microtime(true);
-            $translated = $service->translate(
-                $item['source'],
+
+            // Use new structured translation
+            $translatedBatch = $service->translateStructured(
+                $item['data'],
                 $item['language_code'],
                 $defaultLanguage->code
             );
+
             $duration = round(microtime(true) - $start, 2);
 
-            if ($translated) {
-                if ($item['type'] === 'standard') {
-                    $this->setTranslation($record, $item['field'], $item['language_code'], $translated);
-                    $record->save();
-                } else {
-                    $customFields = $record->custom_fields ?? [];
-                    $customFields[$item['field']][$item['language_code']] = $translated;
-                    $record->custom_fields = $customFields;
-                    $record->save();
+            if ($translatedBatch) {
+                // Apply translations back to record
+                $customFields = $record->custom_fields ?? [];
+
+                foreach ($translatedBatch as $key => $value) {
+                    if (str_starts_with($key, 'standard:')) {
+                        $fieldName = substr($key, 9);
+                        $this->setTranslation($record, $fieldName, $item['language_code'], $value);
+                    } elseif (str_starts_with($key, 'custom:')) {
+                        $fieldKey = substr($key, 7);
+                        $customFields[$fieldKey][$item['language_code']] = $value;
+                    }
                 }
 
-                $this->addLog("Translated {$fieldName} to {$item['language_name']} ({$duration}s)", 'done');
+                // Save custom fields if modified
+                if (!empty($customFields)) {
+                    $record->custom_fields = $customFields;
+                }
+
+                $record->save();
+
+                $this->addLog("Completed {$item['language_name']} in {$duration}s", 'done');
             } else {
-                $this->addLog("Failed to translate {$fieldName} to {$item['language_name']}", 'error');
+                $this->addLog("Failed to translate batch for {$item['language_name']}", 'error');
             }
         } catch (\Exception $e) {
-            $this->addLog("Error translating {$fieldName}: " . $e->getMessage(), 'error');
+            $this->addLog("Error translating {$item['language_name']}: " . $e->getMessage(), 'error');
         }
 
         $this->processed++;
