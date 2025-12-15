@@ -225,6 +225,7 @@ class OpenAIImportService
 
         // 7. TRANSLATION CALL (Step 3 - Sequential)
         // Only if we have extraction data
+        /*
         Log::info('DEBUG: Starting Translation Call (Step 3)...');
         $transStart = microtime(true);
         $translatedData = $this->translateData($decodedExtraction, $activeLanguages, $apiKey);
@@ -235,6 +236,7 @@ class OpenAIImportService
         if (!empty($translatedData)) {
             $decodedExtraction = array_replace_recursive($decodedExtraction, $translatedData);
         }
+        */
 
         // 8. MERGE FINAL DATA
         $finalData = array_merge($decodedExtraction, $decodedMedia);
@@ -247,6 +249,7 @@ class OpenAIImportService
         $debugResponse = "===== STEP 1: MEDIA RESPONSE =====\n" . mb_substr(json_encode($decodedMedia, JSON_PRETTY_PRINT), 0, 2000) . "...\n\n";
         $debugResponse .= "===== STEP 2: EXTRACTION RESPONSE (English) =====\n" . mb_substr(json_encode($decodedExtraction, JSON_PRETTY_PRINT), 0, 2000) . "...\n\n";
 
+        /*
         if (isset($translatedData) && !empty($translatedData)) {
             // We need to fetch the translation prompt again or reconstruct it to log it, 
             // but since translateData is protected and doesn't return the prompt, 
@@ -255,6 +258,7 @@ class OpenAIImportService
             $debugPrompt .= "===== STEP 3: TRANSLATION =====\n(Executed via translateData)\n";
             $debugResponse .= "===== STEP 3: TRANSLATION RESPONSE =====\n" . mb_substr(json_encode($translatedData, JSON_PRETTY_PRINT), 0, 2000) . "...\n";
         }
+        */
 
         $finalData['_debug_prompt'] = $debugPrompt;
         $finalData['_debug_response'] = $debugResponse;
@@ -575,7 +579,10 @@ class OpenAIImportService
                 if (isset($decoded[$field])) {
                     if (is_string($decoded[$field])) {
                         // Broadcast string to all languages
-                        $decoded[$field] = array_fill_keys($activeCodes, $decoded[$field]);
+                        // $decoded[$field] = array_fill_keys($activeCodes, $decoded[$field]);
+
+                        // Modified: Only populate English, leave others empty/null
+                        $decoded[$field] = ['en' => $decoded[$field]];
                     } elseif (is_array($decoded[$field])) {
                         // Ensure keys exist? Not strictly necessary if Filament handles missing keys gracefully.
                         // But good to ensure it's not [0 => 'desc'] but ['en' => 'desc']
