@@ -248,6 +248,30 @@ class SyncController extends Controller
                     // Get non-multilingual value
                     $value = $customFields[$config->field_key] ?? '';
                 }
+
+                // SPECIAL HANDLING: Repeater Flattening
+                // If the field is a repeater (array of arrays with 'url'), flatten it
+                if ($config->field_type === 'repeater' && is_array($value)) {
+                    $limit = 3; // Limit to 3 items
+                    for ($i = 0; $i < $limit; $i++) {
+                        // Assuming the repeater schema has a 'url' key (Common for video links)
+                        // Or just taking the first value if it's a simple repeater?
+                        // Based on NewYachtResource, it is TextInput::make('url')
+                        $item = $value[$i] ?? null;
+                        $itemValue = '';
+
+                        if (is_array($item)) {
+                            $itemValue = $item['url'] ?? (array_values($item)[0] ?? '');
+                        } elseif (is_string($item)) {
+                            $itemValue = $item;
+                        }
+
+                        $fields[$config->field_key . '_' . ($i + 1)] = $itemValue;
+                    }
+                    // Do not add the original array to $fields to avoid confusion, or keep it?
+                    // Let's keep distinct fields.
+                    continue;
+                }
             }
 
             $fields[$config->field_key] = $value;
@@ -342,16 +366,34 @@ class SyncController extends Controller
                 // so it can hold the translated string (e.g. "Diesel") instead of a select value or taxonomy ID.
                 $type = $config->sync_as_taxonomy ? 'text' : $this->mapFieldType($config->field_type);
 
+                if ($config->field_type === 'repeater') {
+                    // Expand repeater into 3 text fields
+                    $expandedFields = [];
+                    for ($i = 1; $i <= 3; $i++) {
+                        $expandedFields[] = [
+                            'key' => 'field_' . $config->field_key . '_' . $i,
+                            'name' => $config->field_key . '_' . $i,
+                            'label' => $config->label . ' ' . $i,
+                            'type' => 'text', // Flattened to text
+                            'required' => false, // sub-fields probably not required
+                            'group' => $config->group ?? 'General',
+                        ];
+                    }
+                    return $expandedFields;
+                }
+
                 return [
-                    'key' => 'field_' . $config->field_key,
-                    'name' => $config->field_key,
-                    'label' => $config->label,
-                    'type' => $type,
-                    'required' => $config->is_required,
-                    'group' => $config->group ?? 'General',
-                    'options' => $config->options ?? [],
+                    [
+                        'key' => 'field_' . $config->field_key,
+                        'name' => $config->field_key,
+                        'label' => $config->label,
+                        'type' => $type,
+                        'required' => $config->is_required,
+                        'group' => $config->group ?? 'General',
+                        'options' => $config->options ?? [],
+                    ]
                 ];
-            });
+            })->flatten(1); // Flatten the array of arrays
 
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
