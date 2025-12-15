@@ -255,6 +255,7 @@ class NewYachtResource extends Resource
                 ->collection($config->field_key)
                 ->image()
                 ->imageEditor()
+                ->downloadable()
                 ->maxSize(20480)
                 ->imagePreviewHeight('250')
                 ->panelLayout('compact')
@@ -301,6 +302,7 @@ class NewYachtResource extends Resource
                 ->collection($config->field_key)
                 ->image()
                 ->imageEditor()
+                ->downloadable()
                 ->multiple()
                 ->reorderable()
                 ->maxSize(20480)
@@ -348,6 +350,7 @@ class NewYachtResource extends Resource
                     }),
             'file' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
+                ->downloadable()
                 ->maxSize(20480)
                 ->panelLayout('compact')
                 ->extraAttributes(['class' => 'single-element'])

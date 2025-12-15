@@ -189,6 +189,7 @@ class NewsResource extends Resource
                 ->collection($config->field_key)
                 ->image()
                 ->imageEditor()
+                ->downloadable()
                 ->maxSize(20480)
                 ->imagePreviewHeight('250')
                 ->panelLayout('compact')
@@ -199,6 +200,7 @@ class NewsResource extends Resource
                 ->imageEditor()
                 ->multiple()
                 ->reorderable()
+                ->downloadable()
                 ->maxSize(20480)
                 ->maxFiles(50)
                 ->imagePreviewHeight('150')
@@ -206,6 +208,7 @@ class NewsResource extends Resource
                 ->columnSpanFull(),
             'file' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
                 ->collection($config->field_key)
+                ->downloadable()
                 ->maxSize(20480)
                 ->panelLayout('compact')
                 ->extraAttributes(['class' => 'single-element']),
