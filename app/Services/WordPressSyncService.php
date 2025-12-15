@@ -397,6 +397,28 @@ class WordPressSyncService
             // 3. Handle Normal Fields (Text, Repeater, etc.)
             $val = $record->custom_fields[$key] ?? null;
 
+            // REPEATER FLATTENING (Data)
+            if ($config->field_type === 'repeater') {
+                $limit = 3;
+                if (is_array($val)) {
+                    for ($i = 0; $i < $limit; $i++) {
+                        $item = $val[$i] ?? null;
+                        $itemValue = '';
+                        if (is_array($item)) {
+                            $itemValue = $item['url'] ?? (array_values($item)[0] ?? '');
+                        } elseif (is_string($item)) {
+                            $itemValue = $item;
+                        }
+                        $fields[$key . '_' . ($i + 1)] = $itemValue;
+                    }
+                } else {
+                    // Empty values if not array
+                    for ($i = 1; $i <= $limit; $i++)
+                        $fields[$key . '_' . $i] = '';
+                }
+                continue;
+            }
+
             if ($config->is_multilingual) {
                 if (is_array($val)) {
                     $fields[$key] = $val[$defaultLang] ?? null;
@@ -479,11 +501,31 @@ class WordPressSyncService
 
                 // Default Type Mapping
                 $type = $this->mapInputTypeToACF($config->field_type);
+
+                // REPEATER FLATTENING
+                if ($config->field_type === 'repeater') {
+                    $expandedFields = [];
+                    for ($i = 1; $i <= 3; $i++) {
+                        $expandedFields[] = [
+                            'key' => 'field_' . $config->field_key . '_' . $i,
+                            'name' => $config->field_key . '_' . $i,
+                            'label' => $config->label . ' ' . $i,
+                            'type' => 'text',
+                            'required' => 0,
+                            'instructions' => '',
+                            'conditional_logic' => 0,
+                            'wrapper' => ['width' => '33', 'class' => '', 'id' => ''],
+                            'default_value' => '',
+                        ];
+                    }
+                    return $expandedFields;
+                }
+
                 $fieldData = [
                     'key' => 'field_' . $config->field_key,
                     'name' => $config->field_key,
                     'label' => $config->label,
-                    'type' => $type,
+                    'type' => $type, // ...
                     'required' => $config->is_required ? 1 : 0,
                     'instructions' => '',
                     'conditional_logic' => 0,
@@ -517,9 +559,10 @@ class WordPressSyncService
                     $fieldData['choices'] = collect($config->options ?? [])->pluck('label', 'value')->toArray();
                 }
 
-                return $fieldData;
+                return [$fieldData]; // Wrap single item in array for consistent flattening
             })
                 ->filter()
+                ->flatten(1) // Flatten the array of arrays
                 ->values()
                 ->toArray();
 
