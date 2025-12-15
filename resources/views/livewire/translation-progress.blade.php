@@ -1,5 +1,8 @@
 <div x-data="{
         init() {
+            // Dispatch open event immediately when this component is rendered
+            $dispatch('open-modal', { id: 'translation-progress' });
+            
             if (@js(!$isStarted) && @js(!$isCompleted)) {
                 $wire.startTranslation();
                 this.processNext();
