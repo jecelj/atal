@@ -21,9 +21,14 @@ class TranslationProgress extends Component
 
     public function mount($yachtId, $type = 'yacht')
     {
+        // Log is already there
         \Illuminate\Support\Facades\Log::info('TranslationProgress: Component mounted for yacht ' . $yachtId);
         $this->yachtId = $yachtId;
         $this->type = $type;
+
+        // Dispatch open-modal from here to ensure the Livewire component is rendered
+        $this->dispatch('open-modal', id: 'translation-progress');
+
         $this->prepareTranslations();
     }
 

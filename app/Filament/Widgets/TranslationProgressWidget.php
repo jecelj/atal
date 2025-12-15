@@ -18,6 +18,6 @@ class TranslationProgressWidget extends Widget
         \Illuminate\Support\Facades\Log::info('TranslationProgressWidget: Event received for yacht ' . $yachtId);
         $this->yachtId = $yachtId;
         $this->type = $type;
-        $this->dispatch('open-modal', id: 'translation-progress');
+        // The modal opening is now handled by the inner component's mount method
     }
 }
