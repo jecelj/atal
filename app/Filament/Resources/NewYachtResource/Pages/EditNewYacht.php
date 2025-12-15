@@ -16,10 +16,12 @@ class EditNewYacht extends EditRecord
             Actions\Action::make('translateAll')
                 ->label('Translate All')
                 ->icon('heroicon-m-language')
-                ->color('info')
                 ->action(function () {
                     \Illuminate\Support\Facades\Log::info('Translate All clicked');
-                    $this->save();
+
+                    // Save without redirecting to keep the Livewire context/events alive
+                    $this->save(shouldRedirect: false);
+
                     $record = $this->getRecord();
                     \Illuminate\Support\Facades\Log::info('Dispatching open-translation-modal for yacht: ' . $record->id);
                     $this->dispatch('open-translation-modal', yachtId: $record->id)

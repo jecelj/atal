@@ -16,11 +16,12 @@ class EditNews extends EditRecord
             Actions\Action::make('translateAll')
                 ->label('Translate All')
                 ->icon('heroicon-m-language')
-                ->color('info')
                 ->action(function () {
-                    $this->save();
+                    \Illuminate\Support\Facades\Log::info('Translate All clicked (News)');
+                    $this->save(shouldRedirect: false);
                     $record = $this->getRecord();
-                    $this->dispatch('open-translation-modal', yachtId: $record->id, type: 'news');
+                    $this->dispatch('open-translation-modal', yachtId: $record->id, type: 'news')
+                        ->to(\App\Filament\Widgets\TranslationProgressWidget::class);
                 }),
             Actions\Action::make('optimizeImages')
                 ->label('Optimize Images')
