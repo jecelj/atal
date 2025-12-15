@@ -102,17 +102,20 @@
                         <!-- <div class="w-full text-[10px] text-gray-400" x-text="'Grid: ' + (isGrid(image.url) ? 'YES' : 'NO')"></div> -->
                         <button type="button" @click="setCover(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                            :class="isCover(image.url) ? 'bg-green-600 text-white border-green-600 hover:bg-green-700 dark:bg-green-600 dark:border-green-600' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
+                            :class="isCover(image.url) ? 'text-white' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'"
+                            :style="isCover(image.url) ? 'background-color: #16a34a; border-color: #16a34a;' : ''">
                             Cover
                         </button>
                         <button type="button" @click="setGrid(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                            :class="isGrid(image.url) ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
+                            :class="isGrid(image.url) ? 'text-white' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'"
+                            :style="isGrid(image.url) ? 'background-color: #2563eb; border-color: #2563eb;' : ''">
                             Grid
                         </button>
                         <button type="button" @click="setGridHover(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                            :class="isGridHover(image.url) ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:border-indigo-600' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
+                            :class="isGridHover(image.url) ? 'text-white' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'"
+                            :style="isGridHover(image.url) ? 'background-color: #9333ea; border-color: #9333ea;' : ''">
                             Hover
                         </button>
                     </div>
