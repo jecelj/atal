@@ -159,27 +159,39 @@ class TranslationProgress extends Component
             : FormFieldConfiguration::forUsedYachts()->where('is_multilingual', true)->get();
     }
 
+    public $currentBatch = null;
+
     public function startTranslation()
     {
         $this->isStarted = true;
     }
 
-    public function translateNext()
+    public function prepareNextBatch()
     {
         if (empty($this->pendingTranslations)) {
             $this->isCompleted = true;
             $this->addLog("All translations completed successfully!", 'completed');
+            return false;
+        }
+
+        $this->currentBatch = array_shift($this->pendingTranslations);
+        $fieldCount = count($this->currentBatch['data']);
+        $this->addLog("Translating {$fieldCount} fields to {$this->currentBatch['language_name']}...", 'processing');
+
+        return true;
+    }
+
+    public function processCurrentBatch()
+    {
+        if (!$this->currentBatch) {
             return;
         }
 
-        $item = array_shift($this->pendingTranslations);
+        $item = $this->currentBatch;
         $record = $this->getRecord();
         $service = app(TranslationService::class);
         $languages = Language::all();
         $defaultLanguage = $languages->where('is_default', true)->first();
-
-        $fieldCount = count($item['data']);
-        $this->addLog("Translating {$fieldCount} fields to {$item['language_name']}...", 'processing');
 
         try {
             $start = microtime(true);
@@ -222,6 +234,7 @@ class TranslationProgress extends Component
             $this->addLog("Error translating {$item['language_name']}: " . $e->getMessage(), 'error');
         }
 
+        $this->currentBatch = null;
         $this->processed++;
     }
 

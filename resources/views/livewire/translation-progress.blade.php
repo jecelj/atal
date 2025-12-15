@@ -7,9 +7,16 @@
         },
         processNext() {
             if (@js(!$isCompleted)) {
-                $wire.translateNext().then(() => {
-                    if (!@js($isCompleted)) {
-                        this.processNext();
+                $wire.prepareNextBatch().then(hasMore => {
+                    if (hasMore) {
+                        // Allow UI to update with 'currentBatch' info before starting heavy work
+                        setTimeout(() => {
+                            $wire.processCurrentBatch().then(() => {
+                                if (!@js($isCompleted)) {
+                                    this.processNext();
+                                }
+                            });
+                        }, 100); 
                     }
                 });
             }
@@ -28,6 +35,12 @@
                 <div class="bg-primary-600 h-2.5 rounded-full transition-all duration-500"
                     style="width: {{ ($processed / $total) * 100 }}%"></div>
             </div>
+
+            @if($currentBatch)
+                <div class="mt-2 text-sm text-primary-600 font-medium animate-pulse">
+                    Currently translating: {{ $currentBatch['language_name'] }}...
+                </div>
+            @endif
         </div>
     @endif
 
@@ -39,7 +52,7 @@
         @foreach($logs as $log)
             <div class="flex items-center justify-between text-sm border-b pb-1 last:border-0 dark:border-gray-700">
                 <span
-                    class="{{ $log['status'] === 'error' ? 'text-danger-600' : ($log['status'] === 'skipped' ? 'text-gray-500' : ($log['status'] === 'done' ? 'text-success-600' : 'text-gray-700 dark:text-gray-300')) }}">
+                    class="{{ $log['status'] === 'error' ? 'text-danger-600' : ($log['status'] === 'skipped' ? 'text-gray-500' : ($log['status'] === 'done' ? 'text-success-600' : ($log['status'] === 'processing' ? 'text-info-600' : 'text-gray-700 dark:text-gray-300'))) }}">
                     {{ $log['message'] }}
                 </span>
                 <span class="text-xs text-gray-400">
@@ -58,7 +71,7 @@
     @else
         <div class="mt-4 flex items-center gap-2 text-primary-600">
             <x-filament::loading-indicator class="h-5 w-5" />
-            <span>Translating... ({{ $processed }}/{{ $total }})</span>
+            <span>Processing...</span>
         </div>
     @endif
 </div>
