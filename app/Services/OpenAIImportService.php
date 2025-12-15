@@ -58,7 +58,11 @@ class OpenAIImportService
             return ['error' => 'OpenAI Yacht Data Extractor Prompt not configured'];
 
         // 3. CALL BROWSERLESS
+        $browserlessStart = microtime(true);
         $scrapeResult = $this->callBrowserless($url, $browserlessKey, $browserlessScript);
+        $browserlessDuration = round(microtime(true) - $browserlessStart, 2);
+        Log::info("OpenAI Import: Browserless finished in {$browserlessDuration}s");
+
         if (isset($scrapeResult['error'])) {
             return ['error' => 'Browserless Error: ' . $scrapeResult['error']];
         }
@@ -107,6 +111,9 @@ class OpenAIImportService
             "RAW_HTML = \"\"\"" . $rawHtml . "\"\"\"";
 
         Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction)...');
+        Log::info("OpenAI Import: Payload Sizes - Media: " . strlen($mediaInput) . " chars, Extraction: " . strlen($extractionInput) . " chars");
+
+        $openaiStart = microtime(true);
 
         // 5. PARALLEL OPENAI CALLS (Step 1 & 2)
         $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInput) {
@@ -152,6 +159,9 @@ class OpenAIImportService
                     ])
             ];
         });
+
+        $openaiDuration = round(microtime(true) - $openaiStart, 2);
+        Log::info("OpenAI Import: Parallel OpenAI finished in {$openaiDuration}s");
 
         // 6. PROCESS INITIAL RESPONSES
         if ($responses['media']->failed()) {
@@ -216,7 +226,10 @@ class OpenAIImportService
         // 7. TRANSLATION CALL (Step 3 - Sequential)
         // Only if we have extraction data
         Log::info('DEBUG: Starting Translation Call (Step 3)...');
+        $transStart = microtime(true);
         $translatedData = $this->translateData($decodedExtraction, $activeLanguages, $apiKey);
+        $transDuration = round(microtime(true) - $transStart, 2);
+        Log::info("OpenAI Import: Translation finished in {$transDuration}s");
 
         // Merge translated data back into extraction data (overwriting English-only fields with Multilingual ones)
         if (!empty($translatedData)) {
