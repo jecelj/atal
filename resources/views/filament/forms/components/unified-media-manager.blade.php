@@ -56,10 +56,8 @@
         <template x-for="(image, index) in images" :key="index">
             <div class="relative group bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col"
                 :class="{ 
-                    'opacity-50 grayscale': image.category === 'trash',
-                    'ring-4': isGridHover(image.url) || isGrid(image.url) || isCover(image.url)
-                }"
-                :style="isGridHover(image.url) ? '--tw-ring-color: #9333ea;' : (isGrid(image.url) ? '--tw-ring-color: #2563eb;' : (isCover(image.url) ? '--tw-ring-color: #16a34a;' : ''))">
+                    'opacity-50 grayscale': image.category === 'trash'
+                }">
                 <!-- Image Preview -->
                 <div class="relative aspect-video bg-gray-100 dark:bg-gray-900 cursor-zoom-in"
                     @click="$dispatch('open-lightbox', { url: image.url })">
@@ -104,17 +102,17 @@
                         <!-- <div class="w-full text-[10px] text-gray-400" x-text="'Grid: ' + (isGrid(image.url) ? 'YES' : 'NO')"></div> -->
                         <button type="button" @click="setCover(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                            :class="isCover(image.url) ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:border-green-800' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
+                            :class="isCover(image.url) ? 'bg-green-600 text-white border-green-600 hover:bg-green-700 dark:bg-green-600 dark:border-green-600' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
                             Cover
                         </button>
                         <button type="button" @click="setGrid(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                            :class="isGrid(image.url) ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
+                            :class="isGrid(image.url) ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
                             Grid
                         </button>
                         <button type="button" @click="setGridHover(image.url)"
                             class="flex-1 px-2 py-1 text-xs font-medium text-center rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                            :class="isGridHover(image.url) ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
+                            :class="isGridHover(image.url) ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:border-indigo-600' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'">
                             Hover
                         </button>
                     </div>
