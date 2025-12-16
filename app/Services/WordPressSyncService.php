@@ -425,16 +425,25 @@ class WordPressSyncService
 
                 // Helper to get label (Robust)
                 $findLabel = function ($v) use ($options, $defaultLang) {
+                    // Safeguard: If $v is an array, flatten it (messy data protection)
+                    // This prevents "Array to string conversion" in implode later
+                    if (is_array($v)) {
+                        // Attempt to find based on first value or just return encoded
+                        $v = implode(',', $v);
+                    }
+
                     $opt = $options->firstWhere('value', $v);
                     if (!$opt)
-                        return $v; // Fallback to value
+                        return (string) $v; // Fallback to value
 
                     // Use data_get to support both Array and Object (stdClass)
-                    // and handle missing keys gracefully
                     $translated = data_get($opt, 'label_' . $defaultLang);
                     $default = data_get($opt, 'label');
 
-                    return $translated ?? ($default ?? $v);
+                    $result = $translated ?? ($default ?? $v);
+
+                    // Final safeguard: Ensure result is string
+                    return is_array($result) ? implode(',', $result) : (string) $result;
                 };
 
                 if (is_array($val)) {
