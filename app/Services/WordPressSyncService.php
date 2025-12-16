@@ -535,9 +535,9 @@ class WordPressSyncService
 
                 // Special Case: Brand/Model as Taxonomy ID
                 // Old Plugin logic: If name is 'brand' -> type=taxonomy, taxonomy=yacht_brand
-                if ($config->field_key === 'brand' || $config->sync_as_taxonomy) {
+                if ($config->field_key === 'brand') {
                     $fieldData['type'] = 'taxonomy';
-                    $fieldData['taxonomy'] = 'yacht_brand'; // Default to yacht_brand for now, or make dynamic later
+                    $fieldData['taxonomy'] = 'yacht_brand';
                     $fieldData['field_type'] = 'select';
                     $fieldData['allow_null'] = 0;
                     $fieldData['add_term'] = 0;
@@ -546,6 +546,12 @@ class WordPressSyncService
                     $fieldData['return_format'] = 'id';
                     $fieldData['multiple'] = 0;
                 }
+                // Fix: Do not force 'taxonomy' type for other sync_as_taxonomy fields unless we have a specific taxonomy mapping.
+                // For now, let generic 'sync_as_taxonomy' fields fall through to be handled as Text/Select META fields in WP
+                // because the WP plugin implementation of "Sync as Taxonomy" implies we send the *Translated Value* as text, 
+                // NOT that we map it to a WP Taxonomy ID (except for Brand/Model).
+                // See formatYacht() logic: it sends text values for these fields.
+
 
                 // Special Case: Image / Gallery params
                 if ($type === 'image' || $type === 'gallery') {
