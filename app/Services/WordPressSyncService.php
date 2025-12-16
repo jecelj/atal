@@ -422,7 +422,18 @@ class WordPressSyncService
             // Handle Select/Checkbox/Radio fields for display (convert value to label)
             if (in_array($type, ['select', 'checkbox', 'radio'])) {
                 $options = collect($config->options ?? []);
-                $findLabel = fn($value) => $options->firstWhere('value', $value)['label'] ?? $value;
+
+                // Helper to get label (Robust)
+                $findLabel = function ($v) use ($options, $defaultLang) {
+                    $opt = $options->firstWhere('value', $v);
+                    if (!$opt)
+                        return $v; // Fallback to value if option not found
+
+                    // Try exact language code (e.g. label_sl)
+                    // If mismatch (sl vs si), try common variations or fallback to label
+                    return $opt['label_' . $defaultLang]
+                        ?? ($opt['label'] ?? $v);
+                };
 
                 if (is_array($val)) {
                     // Checkbox list
