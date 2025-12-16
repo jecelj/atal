@@ -484,6 +484,12 @@ class WordPressSyncService
                 $fields[$key] = $val;
             }
         }
+
+        // Inject Brand Logo URL (Denormalization for Frontend/Yootheme)
+        if (in_array($entityType, ['used_yacht', 'new_yacht']) && $record->brand && $record->brand->logo) {
+            $fields['brand_logo_url'] = \Illuminate\Support\Facades\Storage::disk('public')->url($record->brand->logo);
+        }
+
         return $fields;
     }
 
@@ -638,6 +644,21 @@ class WordPressSyncService
                 ->flatten(1) // Flatten the array of arrays
                 ->values()
                 ->toArray();
+
+            // Inject Brand Logo Field Definition (Denormalization)
+            if (in_array($entityType, ['new_yacht', 'used_yacht'])) {
+                $fields[] = [
+                    'key' => 'field_brand_logo_url',
+                    'name' => 'brand_logo_url',
+                    'label' => 'Brand Logo URL',
+                    'type' => 'text',
+                    'required' => 0,
+                    'instructions' => 'Auto-synced from Brand Logo',
+                    'conditional_logic' => 0,
+                    'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
+                    'default_value' => '',
+                ];
+            }
 
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
