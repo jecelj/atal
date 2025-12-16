@@ -23,6 +23,7 @@ return new class extends Migration {
                     'value' => 'vat_included',
                     'label' => 'VAT included', // English default
                     'label_sl' => 'Z DDV',
+                    'label_si' => 'Z DDV', // Cover SI code
                     'label_de' => 'MwSt. enthalten',
                     'label_hr' => 'PDV uključen',
                     'label_it' => 'IVA inclusa',
@@ -35,6 +36,7 @@ return new class extends Migration {
                     'value' => 'vat_excluded',
                     'label' => 'VAT excluded',
                     'label_sl' => 'Brez DDV',
+                    'label_si' => 'Brez DDV', // Cover SI code
                     'label_de' => 'MwSt. ausweisbar', // or exklusive
                     'label_hr' => 'PDV nije uključen',
                     'label_it' => 'IVA esclusa',
