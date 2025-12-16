@@ -433,8 +433,20 @@ class WordPressSyncService
                     }
 
                     $opt = $options->firstWhere('value', $v);
+
+                    // FALLBACK: Reverse Lookup (Match by Label)
+                    // If the DB stored the text "VAT excl." instead of key "vat_excluded",
+                    // we try to find the option that has this label (in default language usually).
+                    if (!$opt) {
+                        $opt = $options->first(function ($item) use ($v) {
+                            $lbl = data_get($item, 'label');
+                            return strcasecmp((string) $lbl, (string) $v) === 0;
+                        });
+                    }
+
                     if (!$opt)
                         return (string) $v; // Fallback to value
+
 
                     // Use data_get to support both Array and Object (stdClass)
                     $translated = data_get($opt, 'label_' . $defaultLang);
