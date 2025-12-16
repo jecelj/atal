@@ -551,6 +551,12 @@ class WordPressSyncService
                 // because the WP plugin implementation of "Sync as Taxonomy" implies we send the *Translated Value* as text, 
                 // NOT that we map it to a WP Taxonomy ID (except for Brand/Model).
                 // See formatYacht() logic: it sends text values for these fields.
+                if ($config->sync_as_taxonomy && !in_array($config->field_key, ['brand', 'model'])) {
+                    $type = 'text';
+                    $fieldData['type'] = 'text';
+                    // Clear choices/select props if it's becoming text
+                    unset($fieldData['choices']);
+                }
 
 
                 // Special Case: Image / Gallery params
