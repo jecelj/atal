@@ -533,12 +533,18 @@ class WordPressSyncService
                     'default_value' => '',
                 ];
 
+                // Override Type for Selects -> Text
+                // To support "Translated Values" as simple text in WP
+                if (in_array($type, ['select', 'checkbox', 'radio'])) {
+                    $fieldData['type'] = 'text';
+                }
+
                 // Special Case: Brand/Model as Taxonomy ID
                 // Old Plugin logic: If name is 'brand' -> type=taxonomy, taxonomy=yacht_brand
                 if ($config->field_key === 'brand') {
                     $fieldData['type'] = 'taxonomy';
                     $fieldData['taxonomy'] = 'yacht_brand';
-                    $fieldData['field_type'] = 'select';
+                    $fieldData['field_type'] = 'select'; // ACF taxonomy field props
                     $fieldData['allow_null'] = 0;
                     $fieldData['add_term'] = 0;
                     $fieldData['save_terms'] = 1;
