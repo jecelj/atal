@@ -419,6 +419,27 @@ class WordPressSyncService
                 continue;
             }
 
+            // Handle Select/Checkbox/Radio fields for display (convert value to label)
+            if (in_array($type, ['select', 'checkbox', 'radio'])) {
+                $options = collect($config->options ?? []);
+                $findLabel = fn($value) => $options->firstWhere('value', $value)['label'] ?? $value;
+
+                if (is_array($val)) {
+                    // Checkbox list
+                    $labels = array_map($findLabel, $val);
+                    $fields[$key] = implode(', ', $labels);
+                } else {
+                    $fields[$key] = $val ? $findLabel($val) : '';
+                }
+
+                // DEBUG LOGGING
+                if ($key === 'tax_price') {
+                    \Illuminate\Support\Facades\Log::info("Sync Debug [{$defaultLang}]: Resolving tax_price '{$val}' -> '{$fields[$key]}'");
+                }
+
+                continue;
+            }
+
             if ($config->is_multilingual) {
                 if (is_array($val)) {
                     $fields[$key] = $val[$defaultLang] ?? null;
