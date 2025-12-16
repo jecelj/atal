@@ -427,12 +427,14 @@ class WordPressSyncService
                 $findLabel = function ($v) use ($options, $defaultLang) {
                     $opt = $options->firstWhere('value', $v);
                     if (!$opt)
-                        return $v; // Fallback to value if option not found
+                        return $v; // Fallback to value
 
-                    // Try exact language code (e.g. label_sl)
-                    // If mismatch (sl vs si), try common variations or fallback to label
-                    return $opt['label_' . $defaultLang]
-                        ?? ($opt['label'] ?? $v);
+                    // Use data_get to support both Array and Object (stdClass)
+                    // and handle missing keys gracefully
+                    $translated = data_get($opt, 'label_' . $defaultLang);
+                    $default = data_get($opt, 'label');
+
+                    return $translated ?? ($default ?? $v);
                 };
 
                 if (is_array($val)) {
