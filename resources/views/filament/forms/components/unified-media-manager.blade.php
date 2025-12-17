@@ -1,5 +1,5 @@
 @php
-    $viewData = $getField()->getViewData();
+    $viewData = $component->getViewData();
     $categories = $viewData['categories'] ?? [
         'gallery_exterior' => 'Exterior',
         'gallery_interior' => 'Interior',
