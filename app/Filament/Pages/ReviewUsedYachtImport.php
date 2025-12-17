@@ -53,20 +53,24 @@ class ReviewUsedYachtImport extends Page implements HasForms
         if ($image1) {
             $allImages[] = [
                 'url' => $image1,
-                'category' => 'cover_image',
+                'category' => 'image_1',
                 'original_category' => 'image_1'
             ];
             // Ensure array structure for binding
-            data_set($cachedData, 'custom_fields.cover_image', [$image1]); // Normalized field
+            data_set($cachedData, 'custom_fields.image_1', [$image1]); // Normalized field
         }
 
         // Gallery -> Gallery
         $gallery = data_get($cachedData, 'galerie') ?? data_get($cachedData, 'custom_fields.galerie') ?? [];
+        if (is_array($gallery)) {
+            $gallery = array_reverse($gallery); // Fix reverse order
+        }
+
         foreach ($gallery as $url) {
             if (!empty($url)) {
                 $allImages[] = [
                     'url' => $url,
-                    'category' => 'gallery', // General gallery
+                    'category' => 'galerie', // General gallery
                     'original_category' => 'galerie'
                 ];
             }
@@ -107,7 +111,15 @@ class ReviewUsedYachtImport extends Page implements HasForms
 
         foreach ($fieldsToMap as $key) {
             if (isset($cachedData[$key]) && !isset($cachedData['custom_fields'][$key])) {
-                data_set($cachedData, "custom_fields.{$key}", $cachedData[$key]);
+                $value = $cachedData[$key];
+
+                // Handle Multilingual Text Fields (wrap in array ['en' => 'value'])
+                if (in_array($key, ['short_description', 'equipment_and_other_information'])) {
+                    $activeLang = \App\Models\Language::where('is_default', true)->value('code') ?? 'en';
+                    $value = [$activeLang => $value];
+                }
+
+                data_set($cachedData, "custom_fields.{$key}", $value);
             }
         }
 
@@ -193,7 +205,7 @@ class ReviewUsedYachtImport extends Page implements HasForms
                             ->columnSpanFull(),
 
                         // Hidden fields to maintain binding for manual overrides if needed
-                        Forms\Components\Hidden::make('custom_fields.cover_image'),
+                        Forms\Components\Hidden::make('custom_fields.image_1'),
 
                         Forms\Components\TextInput::make('custom_fields.pdf_b')
                             ->label('PDF Brochure URL')
@@ -302,9 +314,9 @@ class ReviewUsedYachtImport extends Page implements HasForms
                     $cat = $img['category'] ?? 'trash';
                     $url = $img['url'];
 
-                    if ($cat === 'cover_image' || $cat === 'image_1') {
+                    if ($cat === 'image_1') {
                         $coverUrls[] = $url;
-                    } elseif ($cat === 'gallery') {
+                    } elseif ($cat === 'galerie') {
                         $galleryUrls[] = $url;
                     }
                 }
