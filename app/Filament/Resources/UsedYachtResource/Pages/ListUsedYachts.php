@@ -18,6 +18,68 @@ class ListUsedYachts extends ListRecords
             Actions\CreateAction::make()
                 ->label('Add Used Yacht')
                 ->icon('heroicon-o-plus'),
+            Actions\Action::make('add_openai')
+                ->label('Import Used Yacht AI')
+                ->icon('heroicon-o-sparkles')
+                ->color('info')
+                ->form([
+                    \Filament\Forms\Components\Select::make('brand_id')
+                        ->label('Brand')
+                        ->options(\App\Models\Brand::all()->pluck('name', 'id'))
+                        ->createOptionForm([
+                            \Filament\Forms\Components\TextInput::make('name')->required(),
+                        ])
+                        ->createOptionUsing(fn($data) => \App\Models\Brand::create($data)->id)
+                        ->searchable()
+                        ->preload()
+                        ->required(),
+                    \Filament\Forms\Components\TextInput::make('url')
+                        ->label('Yacht URL')
+                        ->url()
+                        ->required()
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data) {
+                    set_time_limit(600);
+                    $service = new \App\Services\OpenAIImportService();
+
+                    // Show Notification
+                    \Filament\Notifications\Notification::make()
+                        ->title('Import Started')
+                        ->body('Fetching data from URL... This may take a minute.')
+                        ->info()
+                        ->send();
+
+                    $brand = \App\Models\Brand::find($data['brand_id']);
+                    $context = [
+                        'brand' => $brand ? $brand->name : '',
+                        'model' => '',
+                    ];
+
+                    $extractedData = $service->fetchUsedYachtData($data['url'], $context);
+
+                    if (isset($extractedData['error'])) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('OpenAI Import Failed')
+                            ->body($extractedData['error'])
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+
+                    $importId = uniqid('import_used_');
+                    $mergedData = array_merge((array) $extractedData, [
+                        'brand_id' => $data['brand_id'],
+                        'original_url' => $data['url'],
+                        // Store full extracted data properly
+                        'custom_fields' => $extractedData,
+                        'title' => $extractedData['title'] ?? null,
+                    ]);
+
+                    \Illuminate\Support\Facades\Cache::put('openai_import_used_' . $importId, $mergedData, 3600);
+
+                    return redirect()->to(\App\Filament\Pages\ReviewUsedYachtImport::getUrl(['import_id' => $importId]));
+                }),
             Actions\Action::make('checkStatus')
                 ->label('Check Status')
                 ->icon('heroicon-o-check-circle')

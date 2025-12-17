@@ -10,6 +10,117 @@ use App\Settings\OpenAiSettings;
 class OpenAIImportService
 {
     /**
+     * Fetch USED yacht data using specialized single-prompt approach (Adventure Boat).
+     */
+    public function fetchUsedYachtData(string $url, array $context = [])
+    {
+        set_time_limit(600);
+        ini_set('max_execution_time', 600);
+
+        // 1. FETCH SETTINGS
+        $url = trim($url);
+        if (!preg_match('/^https?:\/\//', $url)) {
+            $url = 'https://' . $url;
+        }
+
+        Log::info('OpenAI Used Yacht Import: Starting import for URL: ' . $url);
+        $settings = app(OpenAiSettings::class);
+        $apiKey = $settings->openai_secret;
+        $browserlessKey = $settings->browserless_api_key;
+        $browserlessScript = $settings->browserless_script;
+
+        // Custom Prompt for Used Yacht
+        $systemPrompt = $settings->adventure_boat_prompt;
+
+        if (!$apiKey)
+            return ['error' => 'OpenAI API Key not configured'];
+        if (!$browserlessKey)
+            return ['error' => 'Browserless API Key not configured'];
+        if (empty($systemPrompt))
+            return ['error' => 'Adventure Boat Prompt not configured in Settings'];
+
+        // 2. CALL BROWSERLESS
+        $browserlessStart = microtime(true);
+        $scrapeResult = $this->callBrowserless($url, $browserlessKey, $browserlessScript);
+        $browserlessDuration = round(microtime(true) - $browserlessStart, 2);
+        Log::info("OpenAI Used Yacht Import: Browserless finished in {$browserlessDuration}s");
+
+        if (isset($scrapeResult['error'])) {
+            return ['error' => 'Browserless Error: ' . $scrapeResult['error']];
+        }
+
+        // 3. PREPARE INPUTS
+        // Clean Media
+        $mediaData = $scrapeResult;
+        unset($mediaData['raw_html_clean']);
+        unset($mediaData['url']);
+
+        // Fix Encoding
+        array_walk_recursive($mediaData, function (&$v) {
+            if (is_string($v))
+                $v = mb_convert_encoding($v, 'UTF-8', 'UTF-8');
+        });
+        $jsonMedia = json_encode($mediaData, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        // Clean HTML
+        $rawHtml = $scrapeResult['raw_html_clean'] ?? '';
+        $rawHtml = mb_convert_encoding($rawHtml, 'UTF-8', 'UTF-8');
+
+        // Construct User Input
+        $userInput = "raw_html = \"\"\"" . $rawHtml . "\"\"\"\n\n" .
+            "media = " . $jsonMedia;
+
+        Log::info('OpenAI Used Yacht Import: Calling OpenAI...');
+        $openaiStart = microtime(true);
+
+        // 4. CALL OPENAI (Single Call)
+        try {
+            $response = Http::withToken($apiKey)
+                ->timeout(240)
+                ->post('https://api.openai.com/v1/chat/completions', [ // Using chat completions for GPT-4o compatibility
+                    'model' => 'gpt-4o', // Or gpt-4-turbo
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userInput]
+                    ],
+                    'temperature' => 0.1,
+                ]);
+
+            if ($response->failed()) {
+                Log::error('OpenAI Call Failed: ' . $response->body());
+                return ['error' => 'OpenAI Call Failed: ' . $response->status() . ' - ' . $response->body()];
+            }
+
+            $body = $response->json();
+            $content = $body['choices'][0]['message']['content'] ?? null;
+
+            if (!$content) {
+                return ['error' => 'OpenAI returned empty content'];
+            }
+
+            // Decode
+            $decoded = $this->decodeOpenAIContent($content);
+            if (isset($decoded['error']))
+                return $decoded;
+
+            // 5. NORMALIZE
+            // We reuse normalizeData but might need specific Used Yacht tweaks
+            // For now, standard normalization is likely fine as User prompt requests specific structure
+            $finalData = $this->normalizeData($decoded);
+
+            // Add Debug info
+            $finalData['_debug_prompt'] = "SYSTEM PROMPT:\n" . substr($systemPrompt, 0, 500) . "...\n\nUSER INPUT:\n" . substr($userInput, 0, 500) . "... (truncated)";
+            $finalData['_debug_response'] = $content;
+
+            return $finalData;
+
+        } catch (\Exception $e) {
+            Log::error('OpenAI Exception: ' . $e->getMessage());
+            return ['error' => 'Exception: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Fetch yacht data using Browserless Scrape + OpenAI Analysis
      *
      * @param string $url
