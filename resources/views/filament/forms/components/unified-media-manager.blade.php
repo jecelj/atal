@@ -1,6 +1,5 @@
 @php
-    $viewData = $component->getViewData();
-    $categories = $viewData['categories'] ?? [
+    $categories = $categories ?? [
         'gallery_exterior' => 'Exterior',
         'gallery_interior' => 'Interior',
         'gallery_cockpit' => 'Cockpit',
@@ -14,8 +13,7 @@
     }
 
     // Default buttons configuration
-    // actions: 'cover', 'grid', 'hover' mapped to js functions setCover, setGrid, setGridHover
-    $allowedButtons = $viewData['buttons'] ?? ['cover', 'grid', 'hover'];
+    $allowedButtons = $buttons ?? ['cover', 'grid', 'hover'];
 @endphp
 
 <div x-data="{
