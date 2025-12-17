@@ -62,12 +62,10 @@ class ReviewUsedYachtImport extends Page implements HasForms
 
         // Gallery -> Gallery
         $gallery = data_get($cachedData, 'galerie') ?? data_get($cachedData, 'custom_fields.galerie') ?? [];
-        if (is_array($gallery)) {
-            $gallery = array_reverse($gallery); // Fix reverse order
-        }
 
         foreach ($gallery as $url) {
-            if (!empty($url)) {
+            // Prevent duplication: Skip if this URL is already the Main Image
+            if (!empty($url) && $url !== $image1) {
                 $allImages[] = [
                     'url' => $url,
                     'category' => 'galerie', // General gallery
