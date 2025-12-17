@@ -652,7 +652,8 @@ class WordPressSyncService
                 }
 
                 // Choices for Select/Checkbox
-                if (in_array($type, ['select', 'checkbox', 'radio'])) {
+                // Fix: Only add choices if type is NOT text (i.e. if we decided to keep it as select)
+                if (in_array($type, ['select', 'checkbox', 'radio']) && $fieldData['type'] !== 'text') {
                     $fieldData['choices'] = collect($config->options ?? [])->pluck('label', 'value')->toArray();
                 }
 
