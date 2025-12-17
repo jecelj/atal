@@ -470,7 +470,8 @@ class WordPressSyncService
                 // DEBUG LOGGING
                 if ($key === 'tax_price' || $entityType === 'new_yacht') {
                     // Log new_yacht select fields too
-                    \Illuminate\Support\Facades\Log::info("Sync Debug [{$defaultLang}] {$entityType}.{$key}: '{$val}' -> '{$fields[$key]}'");
+                    $safeVal = is_array($val) ? json_encode($val) : $val;
+                    \Illuminate\Support\Facades\Log::info("Sync Debug [{$defaultLang}] {$entityType}.{$key}: '{$safeVal}' -> '{$fields[$key]}'");
                 }
 
                 continue;
