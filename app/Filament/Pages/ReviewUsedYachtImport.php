@@ -80,6 +80,37 @@ class ReviewUsedYachtImport extends Page implements HasForms
             $cachedData['name'] = $cachedData['title'];
         }
 
+        // Populate custom_fields from flat cachedData
+        $fieldsToMap = [
+            'price',
+            'tax_price',
+            'year',
+            'length',
+            'beam',
+            'draft',
+            'engines',
+            'engine_hours',
+            'fuel',
+            'fuel_tank_capacity',
+            'water_capacity',
+            'berths',
+            'cabins',
+            'bathrooms',
+            'max_persons',
+            'short_description',
+            'equipment_and_other_information',
+            'pdf_b',
+            'image_1',
+            'galerie',
+            'location'
+        ];
+
+        foreach ($fieldsToMap as $key) {
+            if (isset($cachedData[$key]) && !isset($cachedData['custom_fields'][$key])) {
+                data_set($cachedData, "custom_fields.{$key}", $cachedData[$key]);
+            }
+        }
+
         $this->form->fill($cachedData);
     }
 
@@ -286,35 +317,18 @@ class ReviewUsedYachtImport extends Page implements HasForms
                 // Process Attachments
                 foreach ($coverUrls as $url) {
                     if (filter_var($url, FILTER_VALIDATE_URL)) {
-                        $yacht->addMediaFromUrl($url)->toMediaCollection('image'); // UsedYacht usually uses 'image' or 'cover'? Checking Resource... 'image' field in buildSingleField used collection $config->field_key. 
-                        // Wait, UsedYachtResource uses CONFIGURATION.
-                        // We need to know the exact collection names.
-                        // Standard 'image' field likely has key 'main_image' or 'image'. 
-                        // Let's assume 'main_image' or look at common practice. 
-                        // Ideally we should check `FormFieldConfiguration` for UsedYachts.
-                        // But for now let's use a safe guess or 'default'.
-                        // Actually, let's use 'main_image' as it's common. Or just 'image'.
-                        // Re-checking UsedYachtResource... 
-                        // It uses `$config->field_key` as collection.
-                        // I will use 'main_image' for cover and 'gallery' for gallery.
+                        $yacht->addMediaFromUrl($url)->toMediaCollection('image_1');
                     }
-                }
-
-                // Special handling: The prompt extracts 'image_1'. I'll map it to 'main_image' collection.
-                if (!empty($coverUrls)) {
-                    // Retrying with 'main_image'
-                    foreach ($coverUrls as $url)
-                        $yacht->addMediaFromUrl($url)->toMediaCollection('main_image');
                 }
 
                 foreach ($galleryUrls as $url) {
                     if (filter_var($url, FILTER_VALIDATE_URL)) {
-                        $yacht->addMediaFromUrl($url)->toMediaCollection('gallery');
+                        $yacht->addMediaFromUrl($url)->toMediaCollection('galerie');
                     }
                 }
 
                 if (!empty($customFields['pdf_b']) && filter_var($customFields['pdf_b'], FILTER_VALIDATE_URL)) {
-                    $yacht->addMediaFromUrl($customFields['pdf_b'])->toMediaCollection('attachments');
+                    $yacht->addMediaFromUrl($customFields['pdf_b'])->toMediaCollection('pdf_b');
                 }
 
             } catch (\Exception $e) {
