@@ -339,6 +339,7 @@ class ReviewUsedYachtImport extends Page implements HasForms
                     }
                 }
 
+                $galleryUrls = array_reverse($galleryUrls);
                 foreach ($galleryUrls as $url) {
                     if (filter_var($url, FILTER_VALIDATE_URL)) {
                         $yacht->addMediaFromUrl($url)->toMediaCollection('galerie');
