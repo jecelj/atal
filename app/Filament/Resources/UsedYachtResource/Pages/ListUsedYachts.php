@@ -19,7 +19,7 @@ class ListUsedYachts extends ListRecords
                 ->label('Add Used Yacht')
                 ->icon('heroicon-o-plus'),
             Actions\Action::make('add_openai')
-                ->label('Import Used Yacht AI')
+                ->label('AventuraBoat AI import')
                 ->icon('heroicon-o-sparkles')
                 ->color('info')
                 ->form([
