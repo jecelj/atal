@@ -112,13 +112,6 @@ class ReviewUsedYachtImport extends Page implements HasForms
         foreach ($fieldsToMap as $key) {
             if (isset($cachedData[$key]) && !isset($cachedData['custom_fields'][$key])) {
                 $value = $cachedData[$key];
-
-                // Handle Multilingual Text Fields (wrap in array ['en' => 'value'])
-                if (in_array($key, ['short_description', 'equipment_and_other_information'])) {
-                    $activeLang = \App\Models\Language::where('is_default', true)->value('code') ?? 'en';
-                    $value = [$activeLang => $value];
-                }
-
                 data_set($cachedData, "custom_fields.{$key}", $value);
             }
         }
@@ -202,6 +195,12 @@ class ReviewUsedYachtImport extends Page implements HasForms
                         Forms\Components\View::make('filament.components.lightbox'),
                         Forms\Components\ViewField::make('custom_fields.all_images')
                             ->view('filament.forms.components.unified-media-manager')
+                            ->viewData([
+                                'categories' => [
+                                    'image_1' => 'Main Image',
+                                    'galerie' => 'Gallery'
+                                ]
+                            ])
                             ->columnSpanFull(),
 
                         // Hidden fields to maintain binding for manual overrides if needed
@@ -278,6 +277,16 @@ class ReviewUsedYachtImport extends Page implements HasForms
 
             // 4. Custom Fields Cleaning
             $customFields = $data['custom_fields'] ?? [];
+
+            // Wrap Text Fields in Multilingual Array (All Active Languages)
+            // Use the $activeLanguages array defined above (ensure it's available)
+            // If defined inside standard try block, we can reuse it.
+            // Check lines 268-269 for definition.
+            foreach (['short_description', 'equipment_and_other_information'] as $key) {
+                if (!empty($customFields[$key]) && !is_array($customFields[$key])) {
+                    $customFields[$key] = array_fill_keys($activeLanguages, $customFields[$key]);
+                }
+            }
             // Remove huge debug info and temp images from DB storage if desired
             // unset($customFields['all_images']); // Keep for reference or remove? usually remove.
 
