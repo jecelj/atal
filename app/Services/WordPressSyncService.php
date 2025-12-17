@@ -493,6 +493,21 @@ class WordPressSyncService
             $fields['brand_logo_url'] = \Illuminate\Support\Facades\Storage::disk('public')->url($record->brand->logo);
         }
 
+        // AUTO-INJECT ACF REFERENCES
+        // Since we are forcing 'field_' + key in config, we need to link data to it.
+        // We clone the array to iterate safe.
+        $keys = array_keys($fields);
+        foreach ($keys as $k) {
+            // Skip if already underscore or brand logo (handled separately?)
+            if (str_starts_with($k, '_'))
+                continue;
+            if ($k === 'brand_logo_url')
+                continue; // Handled manually or by plugin? No, better add it too.
+
+            // We assume schema key is 'field_' + key
+            $fields['_' . $k] = 'field_' . $k;
+        }
+
         return $fields;
     }
 
