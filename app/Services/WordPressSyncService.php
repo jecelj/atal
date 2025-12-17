@@ -463,12 +463,14 @@ class WordPressSyncService
                     $labels = array_map($findLabel, $val);
                     $fields[$key] = implode(', ', $labels);
                 } else {
-                    $fields[$key] = $val ? $findLabel($val) : '';
+                    // Fix: Use strict null check so '0' is not treated as empty
+                    $fields[$key] = ($val !== null && $val !== '') ? $findLabel($val) : '';
                 }
 
                 // DEBUG LOGGING
-                if ($key === 'tax_price') {
-                    \Illuminate\Support\Facades\Log::info("Sync Debug [{$defaultLang}]: Resolving tax_price '{$val}' -> '{$fields[$key]}'");
+                if ($key === 'tax_price' || $entityType === 'new_yacht') {
+                    // Log new_yacht select fields too
+                    \Illuminate\Support\Facades\Log::info("Sync Debug [{$defaultLang}] {$entityType}.{$key}: '{$val}' -> '{$fields[$key]}'");
                 }
 
                 continue;
