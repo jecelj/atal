@@ -198,8 +198,10 @@ class ReviewUsedYachtImport extends Page implements HasForms
                             ->viewData([
                                 'categories' => [
                                     'image_1' => 'Main Image',
-                                    'galerie' => 'Gallery'
-                                ]
+                                    'galerie' => 'Gallery',
+                                    'trash' => 'Trash'
+                                ],
+                                'buttons' => ['image_1']
                             ])
                             ->columnSpanFull(),
 
