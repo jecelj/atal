@@ -14,6 +14,7 @@ class OpenAiSettings extends Settings
     public ?string $openai_translation_prompt;
     public ?string $browserless_api_key;
     public ?string $browserless_script;
+    public ?string $adventure_boat_prompt;
 
     public static function group(): string
     {

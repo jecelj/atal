@@ -69,6 +69,10 @@ class ManageExternalApiSettings extends SettingsPage
                             ->label('OpenAI Translation Prompt (Input -> Output)')
                             ->rows(15)
                             ->helperText('System prompt for translating extracted JSON. Input: JSON (English keys), LANGUAGES (List). Rules: Technical terms, No literal translation.'),
+                        Forms\Components\Textarea::make('adventure_boat_prompt')
+                            ->label('Adventure Boat Used Yacht OpenAI Prompt')
+                            ->rows(15)
+                            ->helperText('description: adventurebuat used yacht openAi'),
                     ])
                     ->collapsible(),
 
