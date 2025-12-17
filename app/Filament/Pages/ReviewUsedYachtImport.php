@@ -197,7 +197,6 @@ class ReviewUsedYachtImport extends Page implements HasForms
                             ->view('filament.forms.components.unified-media-manager')
                             ->viewData([
                                 'categories' => [
-                                    'image_1' => 'Main Image',
                                     'galerie' => 'Gallery',
                                     'trash' => 'Trash'
                                 ],
@@ -280,13 +279,11 @@ class ReviewUsedYachtImport extends Page implements HasForms
             // 4. Custom Fields Cleaning
             $customFields = $data['custom_fields'] ?? [];
 
-            // Wrap Text Fields in Multilingual Array (All Active Languages)
-            // Use the $activeLanguages array defined above (ensure it's available)
-            // If defined inside standard try block, we can reuse it.
-            // Check lines 268-269 for definition.
+            // Wrap Text Fields in Multilingual Array (Default Language Only)
+            $defaultLang = \App\Models\Language::where('is_default', true)->value('code') ?? 'en';
             foreach (['short_description', 'equipment_and_other_information'] as $key) {
                 if (!empty($customFields[$key]) && !is_array($customFields[$key])) {
-                    $customFields[$key] = array_fill_keys($activeLanguages, $customFields[$key]);
+                    $customFields[$key] = [$defaultLang => $customFields[$key]];
                 }
             }
             // Remove huge debug info and temp images from DB storage if desired
