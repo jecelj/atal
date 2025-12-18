@@ -222,6 +222,22 @@ class ReviewUsedYachtImport extends Page implements HasForms
 
                         Forms\Components\TextInput::make('custom_fields.video_url')
                             ->label('Video URL (Youtube)')
+                            ->columnSpanFull()
+                            ->live(onBlur: true), // Enable live updates for preview
+
+                        Forms\Components\Placeholder::make('video_preview')
+                            ->label('Video Preview')
+                            ->content(function (\Filament\Forms\Get $get) {
+                                $url = $get('custom_fields.video_url');
+                                if (!$url)
+                                    return 'No video URL provided';
+
+                                if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+                                    $embedUrl = "https://www.youtube.com/embed/" . $matches[1];
+                                    return new \Illuminate\Support\HtmlString("<iframe width='100%' height='400' src='{$embedUrl}' frameborder='0' allowfullscreen class='rounded-lg border border-gray-200'></iframe>");
+                                }
+                                return 'Invalid YouTube URL';
+                            })
                             ->columnSpanFull(),
                     ]),
 
