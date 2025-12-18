@@ -34,7 +34,7 @@ class ListUsedYachts extends ListRecords
                         ->preload()
                         ->required(),
                     \Filament\Forms\Components\TextInput::make('url')
-                        ->label('Yacht URL')
+                        ->label('Aventura: EN URL')
                         ->url()
                         ->required()
                         ->columnSpanFull(),
