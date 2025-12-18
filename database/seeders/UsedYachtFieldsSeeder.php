@@ -241,6 +241,16 @@ class UsedYachtFieldsSeeder extends Seeder
                 "is_multilingual" => false,
                 "order" => 42,
             ],
+            [
+                "entity_type" => "used_yacht",
+                "group" => "Media",
+                "field_key" => "video_url",
+                "field_type" => "text",
+                "label" => "Video URL (Youtube)",
+                "is_required" => false,
+                "is_multilingual" => false,
+                "order" => 43,
+            ],
         ];
 
         // Clean existing Used Yacht fields

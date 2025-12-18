@@ -107,13 +107,24 @@ class ReviewUsedYachtImport extends Page implements HasForms
             'location'
         ];
 
-        foreach ($fieldsToMap as $key) {
-            if (isset($cachedData[$key]) && !isset($cachedData['custom_fields'][$key])) {
-                $value = $cachedData[$key];
+        // Initialize custom_fields with flat data where keys match
+        foreach ($cachedData as $key => $value) {
+            if (!in_array($key, ['custom_fields', 'raw_html', 'media']) && !array_key_exists($key, $cachedData['custom_fields'] ?? [])) {
                 data_set($cachedData, "custom_fields.{$key}", $value);
             }
         }
 
+        // Handle Video URL (Flatten array of arrays to single string)
+        $videoData = data_get($cachedData, 'video_url') ?? data_get($cachedData, 'custom_fields.video_url');
+        if (is_array($videoData) && !empty($videoData)) {
+            // Normalized data is [['url' => '...']]
+            $firstVideoUrl = $videoData[0]['url'] ?? ($videoData[0] ?? null);
+            if (is_string($firstVideoUrl)) {
+                data_set($cachedData, 'custom_fields.video_url', $firstVideoUrl);
+            }
+        }
+
+        // Initialize form with cached data
         $this->form->fill($cachedData);
     }
 
@@ -207,6 +218,10 @@ class ReviewUsedYachtImport extends Page implements HasForms
 
                         Forms\Components\TextInput::make('custom_fields.pdf_b')
                             ->label('PDF Brochure URL')
+                            ->columnSpanFull(),
+
+                        Forms\Components\TextInput::make('custom_fields.video_url')
+                            ->label('Video URL (Youtube)')
                             ->columnSpanFull(),
                     ]),
 
