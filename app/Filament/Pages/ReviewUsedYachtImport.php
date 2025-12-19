@@ -301,7 +301,8 @@ class ReviewUsedYachtImport extends Page implements HasForms
             $slug = \Illuminate\Support\Str::slug($data['name']);
             $originalSlug = $slug;
             $count = 1;
-            while (UsedYacht::where('slug', $slug)->exists()) {
+            // Use withoutGlobalScopes to check against ALL yachts (New & Used)
+            while (\App\Models\Yacht::withoutGlobalScopes()->where('slug', $slug)->exists()) {
                 $slug = $originalSlug . '-' . $count++;
             }
 

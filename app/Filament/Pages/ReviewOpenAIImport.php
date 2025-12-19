@@ -464,13 +464,20 @@ class ReviewOpenAIImport extends Page implements HasForms
             $count = 1;
 
             // Handle Slug Uniqueness / Double Submit
-            while (NewYacht::where('slug', $slug)->exists()) {
+            // Handle Slug Uniqueness / Double Submit
+            // Use withoutGlobalScopes to check against ALL yachts (New & Used)
+            while (\App\Models\Yacht::withoutGlobalScopes()->where('slug', $slug)->exists()) {
+                // If it's a double-submit of the same import request (within 1 min), ignore it.
+                // We check NewYacht specifically here for double-submit logic as we are creating a NewYacht.
+                // But for conflict prevention, we check global.
                 $existing = NewYacht::where('slug', $slug)->first();
-                if ($existing->created_at->diffInMinutes(now()) < 1) {
+                if ($existing && $existing->created_at->diffInMinutes(now()) < 1) {
                     \Illuminate\Support\Facades\DB::rollBack();
                     Notification::make()->title('Yacht Imported Successfully (Duplicate Request Ignored)')->success()->send();
                     return redirect()->route('filament.admin.resources.new-yachts.index');
                 }
+
+                // Duplicate found (either old NewYacht or a UsedYacht with same slug), increment.
                 $slug = $originalSlug . '-' . $count++;
             }
 

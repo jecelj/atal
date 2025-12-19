@@ -82,7 +82,7 @@ class NewsResource extends Resource
 
                     Forms\Components\TextInput::make('slug')
                         ->required()
-                        ->unique(ignoreRecord: true),
+                        ->unique(table: 'news', column: 'slug', ignoreRecord: true),
                 ]),
         ];
 

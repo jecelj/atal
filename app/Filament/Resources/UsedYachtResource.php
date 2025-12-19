@@ -99,7 +99,7 @@ class UsedYachtResource extends Resource
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
-                        ->unique(ignoreRecord: true),
+                        ->unique(table: 'yachts', column: 'slug', ignoreRecord: true),
                     Forms\Components\Select::make('state')
                         ->options([
                             'draft' => 'Draft',
