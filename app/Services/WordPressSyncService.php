@@ -477,11 +477,54 @@ class WordPressSyncService
                 continue;
             }
 
-            if ($config->is_multilingual) {
-                if (is_array($val)) {
-                    $fields[$key] = $val[$defaultLang] ?? null;
-                } else {
-                    $fields[$key] = $val;
+            // Handle Multilingual OR Sync-as-Taxonomy fields
+            if ($config->is_multilingual || $config->sync_as_taxonomy) {
+                // Determine value logic
+                if ($config->sync_as_taxonomy) {
+                    // For sync_as_taxonomy, we use the Master Value (single) to find the Translated Label
+                    // The logic is similar to Select handling above, but specific for the target language.
+
+                    if (in_array($type, ['select', 'checkbox', 'radio'])) {
+                        $options = collect($config->options ?? []);
+
+                        $findTransLabel = function ($v) use ($options, $defaultLang) {
+                            if (is_array($v))
+                                $v = implode(',', $v);
+
+                            $opt = $options->firstWhere('value', $v);
+                            // Fallback reversible lookup
+                            if (!$opt) {
+                                $opt = $options->first(function ($item) use ($v) {
+                                    return strcasecmp((string) data_get($item, 'label'), (string) $v) === 0;
+                                });
+                            }
+
+                            if (!$opt)
+                                return (string) $v;
+
+                            // Get label for TARGET language (defaultLang here is the requested output lang)
+                            $translated = data_get($opt, 'label_' . $defaultLang);
+                            return $translated ?? (data_get($opt, 'label') ?? $v);
+                        };
+
+                        if (is_array($val)) {
+                            $labels = array_map($findTransLabel, $val);
+                            $fields[$key] = implode(', ', $labels);
+                        } else {
+                            $fields[$key] = ($val !== null && $val !== '') ? $findTransLabel($val) : '';
+                        }
+                    } else {
+                        // Fallback for non-select fields marked as sync_as_taxonomy (uncommon)
+                        $fields[$key] = $val;
+                    }
+
+                } elseif ($config->is_multilingual) {
+                    // Standard Multilingual Field Logic
+                    if (is_array($val)) {
+                        $fields[$key] = $val[$defaultLang] ?? null;
+                    } else {
+                        $fields[$key] = $val;
+                    }
                 }
             } else {
                 $fields[$key] = $val;
@@ -636,9 +679,11 @@ class WordPressSyncService
                 // because the WP plugin implementation of "Sync as Taxonomy" implies we send the *Translated Value* as text, 
                 // NOT that we map it to a WP Taxonomy ID (except for Brand/Model).
                 // See formatYacht() logic: it sends text values for these fields.
+
+                // FORCE TEXT type for 'Sync as Taxonomy' fields (they are pseudo-multilingual)
                 if ($config->sync_as_taxonomy && !in_array($config->field_key, ['brand', 'model'])) {
-                    $type = 'text';
-                    $fieldData['type'] = 'text';
+                    $type = 'text'; // Override local var
+                    $fieldData['type'] = 'text'; // Override payload
                     // Clear choices/select props if it's becoming text
                     unset($fieldData['choices']);
                 }
