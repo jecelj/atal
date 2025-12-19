@@ -367,8 +367,8 @@ class WordPressSyncService
         $configs = FormFieldConfiguration::where('entity_type', $entityType)->get();
 
         foreach ($configs as $config) {
-            // Skip non-multilingual fields if requested
-            if ($onlyMultilingual && !$config->is_multilingual) {
+            // Skip non-multilingual fields if requested, BUT allow Sync as Taxonomy fields (as they are pseudo-multilingual)
+            if ($onlyMultilingual && !$config->is_multilingual && !$config->sync_as_taxonomy) {
                 continue;
             }
 
