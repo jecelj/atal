@@ -73,6 +73,12 @@ class ManageExternalApiSettings extends SettingsPage
                             ->label('Adventure Boat Used Yacht OpenAI Prompt')
                             ->rows(15)
                             ->helperText('description: adventurebuat used yacht openAi'),
+                        Forms\Components\TextInput::make('openai_source_language')
+                            ->label('Source Language Code')
+                            ->default('en')
+                            ->required()
+                            ->maxLength(2)
+                            ->helperText('The 2-letter ISO code of the source language (e.g., "en", "sl"). This is used as the source for AI translations.'),
                         Forms\Components\Textarea::make('yootheme_falang_prompt')
                             ->label('Yootheme Falang Translation Prompt')
                             ->rows(15)

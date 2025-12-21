@@ -797,6 +797,7 @@ class WordPressSyncService
         $fieldGroups['openai_config'] = [
             'api_key' => $openAiSettings->openai_secret,
             'yootheme_prompt' => $openAiSettings->yootheme_falang_prompt,
+            'source_language' => $openAiSettings->openai_source_language ?? 'en',
         ];
 
         return $fieldGroups;
