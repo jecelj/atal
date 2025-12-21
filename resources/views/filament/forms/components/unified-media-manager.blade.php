@@ -120,7 +120,10 @@
 
                     <!-- Category Selector -->
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">
+                            Category
+                            <span x-text="'[' + image.category + ']'" class="text-red-600 font-bold ml-1"></span>
+                        </label>
                         <select x-model="image.category"
                             class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
                             <template x-for="cat in categories" :key="cat.id">
