@@ -42,18 +42,43 @@ class ListNews extends ListRecords
                 ->action(function () {
                     $records = \App\Models\News::all();
                     $service = app(\App\Services\WordPressSyncService::class);
-                    $count = 0;
+                    $successCount = 0;
+                    $failCount = 0;
 
                     foreach ($records as $record) {
-                        $service->syncNews($record);
-                        $count++;
+                        $results = $service->syncNews($record);
+                        $allOk = true;
+
+                        if (empty($results)) {
+                            continue;
+                        }
+
+                        foreach ($results as $res) {
+                            if (!$res['success']) {
+                                $allOk = false;
+                            }
+                        }
+
+                        if ($allOk) {
+                            $successCount++;
+                        } else {
+                            $failCount++;
+                        }
                     }
 
-                    \Filament\Notifications\Notification::make()
-                        ->success()
-                        ->title('Sync Completed')
-                        ->body("Processed {$count} news items.")
-                        ->send();
+                    if ($failCount > 0) {
+                        \Filament\Notifications\Notification::make()
+                            ->warning()
+                            ->title('Sync Completed with Errors')
+                            ->body("Success: {$successCount}, Failed: {$failCount}. Check Sync Status column.")
+                            ->send();
+                    } else {
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title('Sync Completed')
+                            ->body("All {$successCount} items synced successfully.")
+                            ->send();
+                    }
                 }),
         ];
     }
