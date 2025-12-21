@@ -1,28 +1,17 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Spatie\LaravelSettings\Migrations\SettingsMigration;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class extends SettingsMigration {
     public function up(): void
     {
-        Schema::table('settings', function (Blueprint $table) {
-            //
-        });
+        $defaultPrompt = "You are a professional translator. Translate the following text from {SOURCE_LANG} to {TARGET_LANG}. Maintain formatting and HTML tags.";
+
+        $this->migrator->add('openai.yootheme_falang_prompt', $defaultPrompt);
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::table('settings', function (Blueprint $table) {
-            //
-        });
+        $this->migrator->delete('openai.yootheme_falang_prompt');
     }
 };
