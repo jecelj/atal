@@ -73,6 +73,10 @@ class ManageExternalApiSettings extends SettingsPage
                             ->label('Adventure Boat Used Yacht OpenAI Prompt')
                             ->rows(15)
                             ->helperText('description: adventurebuat used yacht openAi'),
+                        Forms\Components\Textarea::make('yootheme_falang_prompt')
+                            ->label('Yootheme Falang Translation Prompt')
+                            ->rows(15)
+                            ->helperText('System prompt for Yootheme/Falang translator. Use "You are a professional translator..."'),
                     ])
                     ->collapsible(),
 

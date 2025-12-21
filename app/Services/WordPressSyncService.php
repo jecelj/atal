@@ -791,6 +791,14 @@ class WordPressSyncService
             }
         }
 
+
+
+        $openAiSettings = app(\App\Settings\OpenAiSettings::class);
+        $fieldGroups['openai_config'] = [
+            'api_key' => $openAiSettings->openai_secret,
+            'yootheme_prompt' => $openAiSettings->yootheme_falang_prompt,
+        ];
+
         return $fieldGroups;
     }
 
