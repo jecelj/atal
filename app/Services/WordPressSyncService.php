@@ -795,8 +795,8 @@ class WordPressSyncService
 
         $openAiSettings = app(\App\Settings\OpenAiSettings::class);
 
-        // Determine Source Language: Site Default -> Global Setting -> 'en'
-        $sourceLang = $site->default_language ?? $openAiSettings->openai_source_language ?? 'en';
+        // Determine Source Language: Site Default -> 'en'
+        $sourceLang = $site->default_language ?? 'en';
 
         $fieldGroups['openai_config'] = [
             'api_key' => $openAiSettings->openai_secret,
