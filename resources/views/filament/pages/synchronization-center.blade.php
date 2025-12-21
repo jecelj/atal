@@ -18,7 +18,7 @@
                             @endif
 
                             @if($site->last_synced_at)
-                                <span class="text-sm text-gray-500 ml-2">
+                                <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">
                                     Last synced: {{ $site->last_synced_at->diffForHumans() }}
                                 </span>
                             @else
@@ -31,7 +31,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <h3 class="font-bold mb-2">Configuration</h3>
-                        <ul class="text-sm space-y-1 text-gray-600">
+                        <ul class="text-sm space-y-1 text-gray-600 dark:text-gray-400">
                             <li><strong>URL:</strong> {{ $site->url }}</li>
                             <li><strong>Default Language:</strong> {{ $site->default_language }}</li>
                             <li><strong>Supported Languages:</strong> {{ implode(', ', $site->supported_languages ?? []) }}
@@ -59,13 +59,14 @@
                     <div>
                         <h3 class="font-bold mb-2">Last Sync Result</h3>
                         @if($site->last_sync_result)
-                            <div class="bg-gray-50 p-2 rounded text-xs font-mono overflow-auto max-h-40">
+                            <div
+                                class="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs font-mono overflow-auto max-h-40 dark:text-gray-100">
                                 @if(isset($site->last_sync_result['success']) && $site->last_sync_result['success'])
-                                    <span class="text-success-600">SUCCESS</span><br>
+                                    <span class="text-success-600 dark:text-success-400">SUCCESS</span><br>
                                     Imported: {{ $site->last_sync_result['imported'] ?? 0 }}<br>
                                     Timestamp: {{ $site->last_sync_result['timestamp'] ?? '' }}
                                 @else
-                                    <span class="text-danger-600">FAILED</span><br>
+                                    <span class="text-danger-600 dark:text-danger-400">FAILED</span><br>
                                     Error:
                                     {{ is_array($site->last_sync_result['errors'] ?? null) ? implode(', ', $site->last_sync_result['errors']) : ($site->last_sync_result['error'] ?? 'Unknown') }}
                                 @endif
