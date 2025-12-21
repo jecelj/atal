@@ -727,7 +727,7 @@ class WordPressSyncService
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
                 'used_yacht' => 'used_yachts',
-                'news' => 'post',
+                'news' => 'news',
                 default => 'post',
             };
 
