@@ -100,6 +100,20 @@ class ReviewOpenAIImport extends Page implements HasForms
             'exterior' => count($categories['gallery_exterior'] ?? []),
         ]);
 
+        // DEBUG NOTIFICATION
+        Notification::make()
+            ->title('Debug: Image Categories')
+            ->body(sprintf(
+                "Int: %d, Ext: %d, Cockpit: %d\nFirst Int: %s",
+                count($categories['gallery_interior'] ?? []),
+                count($categories['gallery_exterior'] ?? []),
+                count($categories['gallery_cockpit'] ?? []),
+                substr(($categories['gallery_interior'][0] ?? 'NONE'), 0, 50)
+            ))
+            ->warning()
+            ->persistent()
+            ->send();
+
         // Push this back into the data structure
         // We must update the cachedData array directly and then fill the form ONCE.
 
