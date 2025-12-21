@@ -58,61 +58,60 @@ class ReviewOpenAIImport extends Page implements HasForms
         // We process them in this order. If an image appears in multiple (e.g. Interior AND Exterior),
         // the FIRST one encountered wins (deduplication logic).
         // So we put specific ones first.
-        $categories = [
+        // DEDUPLICATION WITH PRIORITY MAP
+        // We iterate all sources. If an URL appears in multiple, the one with HIGHEST priority wins.
+        // Priority: Layout > Cockpit > Interior > Exterior
+        $categoriesVars = [
             'gallery_layout' => $get('custom_fields.gallery_layout_urls'),
             'gallery_cockpit' => $get('custom_fields.gallery_cockpit_urls'),
             'gallery_interior' => array_merge(
                 $get('custom_fields.gallery_interior_urls') ?? [],
                 $get('custom_fields.gallery_interrior_urls') ?? []
             ),
-            'gallery_exterior' => $get('custom_fields.gallery_exterior_urls'), // Bucket often used as "all images"
+            'gallery_exterior' => $get('custom_fields.gallery_exterior_urls'),
         ];
 
-        foreach ($categories as $cat => $urls) {
+        $priority = [
+            'gallery_exterior' => 1,
+            'gallery_interior' => 10,
+            'gallery_cockpit' => 20,
+            'gallery_layout' => 30,
+        ];
+
+        $urlCategoryMap = [];
+
+        foreach ($categoriesVars as $cat => $urls) {
             if (is_array($urls)) {
                 foreach ($urls as $url) {
-                    if (!empty($url)) {
-                        // Prevent duplicates by URL
-                        $exists = false;
-                        foreach ($allImages as $img) {
-                            if ($img['url'] === $url) {
-                                $exists = true;
-                                break;
-                            }
-                        }
-                        if (!$exists) {
-                            $allImages[] = [
-                                'url' => $url,
-                                'category' => $cat,
-                                'original_category' => $cat
-                            ];
+                    if (!empty($url) && is_string($url)) {
+                        $url = trim($url);
+
+                        $currentP = $priority[$cat] ?? 0;
+                        // Use existing category to determine its priority. default to -1 if not set
+                        $existingCat = $urlCategoryMap[$url] ?? '';
+                        $existingP = empty($existingCat) ? -1 : ($priority[$existingCat] ?? 0);
+
+                        if ($currentP >= $existingP) {
+                            // >= ensures we update. Since Specific has Higher P, it will overwrite Generic.
+                            $urlCategoryMap[$url] = $cat;
                         }
                     }
                 }
             }
         }
 
-        // Log counts to debug "All Exterior" issue
-        Log::info('Review Page: Source Counts', [
-            'layout' => count($categories['gallery_layout'] ?? []),
-            'cockpit' => count($categories['gallery_cockpit'] ?? []),
-            'interior' => count($categories['gallery_interior'] ?? []),
-            'exterior' => count($categories['gallery_exterior'] ?? []),
-        ]);
+        // Reconstruct allImages from Map
+        foreach ($urlCategoryMap as $url => $cat) {
+            $allImages[] = [
+                'url' => $url,
+                'category' => $cat,
+                'original_category' => $cat
+            ];
+        }
 
-        // DEBUG NOTIFICATION
-        Notification::make()
-            ->title('Debug: Image Categories')
-            ->body(sprintf(
-                "Int: %d, Ext: %d, Cockpit: %d\nFirst Int: %s",
-                count($categories['gallery_interior'] ?? []),
-                count($categories['gallery_exterior'] ?? []),
-                count($categories['gallery_cockpit'] ?? []),
-                substr(($categories['gallery_interior'][0] ?? 'NONE'), 0, 50)
-            ))
-            ->warning()
-            ->persistent()
-            ->send();
+        Log::info('Review Page: Source Counts (Processed with Priority)', [
+            'total_unique' => count($allImages),
+        ]);
 
         // Push this back into the data structure
         // We must update the cachedData array directly and then fill the form ONCE.
