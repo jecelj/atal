@@ -39,18 +39,41 @@ class ManageExternalApiSettings extends SettingsPage
                         Forms\Components\Select::make('openai_model')
                             ->label('OpenAI Model')
                             ->options([
-                                'gpt-4o-mini-2024-07-18' => 'GPT-4o Mini (2024-07-18) - Recommended',
-                                'gpt-4o-mini' => 'GPT-4o Mini (Latest)',
-                                'gpt-4o' => 'GPT-4o (Latest)',
+                                // O1 Series (Reasoning Models - Best for complex translations)
+                                'o1' => 'O1 (Latest) - Advanced Reasoning',
+                                'o1-2024-12-17' => 'O1 (2024-12-17)',
+                                'o1-mini' => 'O1 Mini - Faster Reasoning',
+                                'o1-mini-2024-09-12' => 'O1 Mini (2024-09-12)',
+
+                                // GPT-4.5 Series (Not yet released, placeholder)
+                                // 'gpt-4.5-turbo' => 'GPT-4.5 Turbo (Latest)',
+
+                                // GPT-4o Series (Recommended for professional translation)
+                                'gpt-4o' => 'GPT-4o (Latest) - Recommended',
                                 'gpt-4o-2024-11-20' => 'GPT-4o (2024-11-20)',
+                                'gpt-4o-2024-08-06' => 'GPT-4o (2024-08-06)',
+                                'gpt-4o-2024-05-13' => 'GPT-4o (2024-05-13)',
+                                'chatgpt-4o-latest' => 'ChatGPT-4o (Latest)',
+
+                                // GPT-4o Mini Series (Cost-effective)
+                                'gpt-4o-mini' => 'GPT-4o Mini (Latest)',
+                                'gpt-4o-mini-2024-07-18' => 'GPT-4o Mini (2024-07-18)',
+
+                                // GPT-4 Turbo Series
                                 'gpt-4-turbo' => 'GPT-4 Turbo (Latest)',
                                 'gpt-4-turbo-2024-04-09' => 'GPT-4 Turbo (2024-04-09)',
+                                'gpt-4-turbo-preview' => 'GPT-4 Turbo Preview',
+
+                                // GPT-4 Classic
                                 'gpt-4' => 'GPT-4',
-                                'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
+                                'gpt-4-0613' => 'GPT-4 (0613)',
+
+                                // GPT-3.5 (Legacy)
+                                'gpt-3.5-turbo' => 'GPT-3.5 Turbo (Legacy)',
                             ])
-                            ->default('gpt-4o-mini-2024-07-18')
+                            ->default('gpt-4o')
                             ->required()
-                            ->helperText('Select the OpenAI model to use for translations. GPT-4o Mini is recommended for cost-effectiveness.'),
+                            ->helperText('Select the OpenAI model for translations. O1 series for complex content, GPT-4o for professional quality, GPT-4o Mini for cost-effectiveness.'),
                         Forms\Components\Textarea::make('openai_context')
                             ->label('Translation Context')
                             ->rows(5)
