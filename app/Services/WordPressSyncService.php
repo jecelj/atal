@@ -598,7 +598,7 @@ class WordPressSyncService
     }
     public function syncConfig(SyncSite $site, array &$errors)
     {
-        $configPayload = $this->prepareConfigPayload();
+        $configPayload = $this->prepareConfigPayload($site);
 
         // Push Config
         if (!$this->pushToWordPress($site, 'config', $configPayload)) {
@@ -606,7 +606,7 @@ class WordPressSyncService
         }
     }
 
-    protected function prepareConfigPayload(): array
+    protected function prepareConfigPayload(?SyncSite $site = null): array
     {
         $fieldGroups = [];
 
@@ -794,10 +794,14 @@ class WordPressSyncService
 
 
         $openAiSettings = app(\App\Settings\OpenAiSettings::class);
+
+        // Determine Source Language: Site Default -> Global Setting -> 'en'
+        $sourceLang = $site->default_language ?? $openAiSettings->openai_source_language ?? 'en';
+
         $fieldGroups['openai_config'] = [
             'api_key' => $openAiSettings->openai_secret,
             'yootheme_prompt' => $openAiSettings->yootheme_falang_prompt,
-            'source_language' => $openAiSettings->openai_source_language ?? 'en',
+            'source_language' => $sourceLang,
         ];
 
         return $fieldGroups;
