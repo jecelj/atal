@@ -123,9 +123,9 @@
                         <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
                         <select x-model="images[index].category"
                             class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
-                            <template x-for="cat in categories" :key="cat.id">
-                                <option :value="cat.id" x-text="cat.label"></option>
-                            </template>
+                            @foreach($normalizedCategories as $cat)
+                                <option value="{{ $cat['id'] }}">{{ $cat['label'] }}</option>
+                            @endforeach
                         </select>
                     </div>
 
