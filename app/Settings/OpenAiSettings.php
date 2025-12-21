@@ -16,7 +16,6 @@ class OpenAiSettings extends Settings
     public ?string $browserless_script;
     public ?string $adventure_boat_prompt;
     public ?string $yootheme_falang_prompt;
-    public ?string $openai_source_language;
 
     public static function group(): string
     {
