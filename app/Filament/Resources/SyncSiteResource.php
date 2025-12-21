@@ -150,6 +150,28 @@ class SyncSiteResource extends Resource
                     ->native(false),
             ])
             ->actions([
+                Tables\Actions\Action::make('sync_config')
+                    ->label('Sync Configuration')
+                    ->icon('heroicon-o-cog')
+                    ->color('warning')
+                    ->action(function (SyncSite $record) {
+                        $service = app(\App\Services\WordPressSyncService::class);
+                        $errors = [];
+                        $service->syncConfig($record, $errors);
+
+                        if (empty($errors)) {
+                            \Filament\Notifications\Notification::make()
+                                ->success()
+                                ->title('Configuration Synced')
+                                ->send();
+                        } else {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Sync Failed')
+                                ->body(implode("\n", $errors))
+                                ->send();
+                        }
+                    }),
                 Tables\Actions\Action::make('sync')
                     ->label('Sync')
                     ->icon('heroicon-o-arrow-path')
