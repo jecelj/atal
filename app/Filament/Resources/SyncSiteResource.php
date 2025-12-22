@@ -18,7 +18,7 @@ class SyncSiteResource extends Resource
 
     protected static ?string $navigationLabel = 'Sync Sites';
 
-    protected static ?string $navigationGroup = 'Migration';
+    protected static ?string $navigationGroup = 'Configuration';
 
     protected static ?int $navigationSort = 1;
 
