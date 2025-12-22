@@ -48,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
                 'Synchronization',
                 'Master Data',
                 'Configuration',
+                'Shield',
                 'Migration',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
