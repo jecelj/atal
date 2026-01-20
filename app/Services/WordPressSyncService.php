@@ -536,6 +536,11 @@ class WordPressSyncService
             $fields['brand_logo_url'] = \Illuminate\Support\Facades\Storage::disk('public')->url($record->brand->logo);
         }
 
+        // Inject Brand Name (Denormalization - plain text without taxonomy link)
+        if (in_array($entityType, ['used_yacht', 'new_yacht']) && $record->brand) {
+            $fields['brand_name'] = $record->brand->name;
+        }
+
         // AUTO-INJECT ACF REFERENCES
         // Since we are forcing 'field_' + key in config, we need to link data to it.
         // We clone the array to iterate safe.
@@ -544,8 +549,8 @@ class WordPressSyncService
             // Skip if already underscore or brand logo (handled separately?)
             if (str_starts_with($k, '_'))
                 continue;
-            if ($k === 'brand_logo_url')
-                continue; // Handled manually or by plugin? No, better add it too.
+            if ($k === 'brand_logo_url' || $k === 'brand_name')
+                continue; // Auto-injected fields, ACF refs added by plugin
 
             // We assume schema key is 'field_' + key
             $fields['_' . $k] = 'field_' . $k;
@@ -718,6 +723,17 @@ class WordPressSyncService
                     'type' => 'text',
                     'required' => 0,
                     'instructions' => 'Auto-synced from Brand Logo',
+                    'conditional_logic' => 0,
+                    'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
+                    'default_value' => '',
+                ];
+                $fields[] = [
+                    'key' => 'field_brand_name',
+                    'name' => 'brand_name',
+                    'label' => 'Brand Name',
+                    'type' => 'text',
+                    'required' => 0,
+                    'instructions' => 'Auto-synced from Brand',
                     'conditional_logic' => 0,
                     'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
                     'default_value' => '',

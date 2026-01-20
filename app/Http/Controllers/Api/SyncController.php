@@ -199,6 +199,7 @@ class SyncController extends Controller
                 'name' => $yacht->brand->name,
                 'slug' => Str::slug($yacht->brand->name),
             ],
+            'brand_name' => $yacht->brand->name, // Non-multilingual text field
             'model' => $yacht->yachtModel ? [
                 'id' => $yacht->yachtModel->id,
                 'name' => $yacht->yachtModel->name,
@@ -394,6 +395,18 @@ class SyncController extends Controller
                     ]
                 ];
             })->flatten(1); // Flatten the array of arrays
+
+            // Add hardcoded brand_name field for New and Used Yachts
+            if (in_array($entityType, ['new_yacht', 'used_yacht'])) {
+                $fields->push([
+                    'key' => 'field_brand_name',
+                    'name' => 'brand_name',
+                    'label' => 'Brand Name',
+                    'type' => 'text',
+                    'required' => false,
+                    'group' => 'General',
+                ]);
+            }
 
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
