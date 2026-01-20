@@ -10,11 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('new_yachts', function (Blueprint $table) {
-            $table->boolean('is_featured')->default(false)->after('state');
-        });
-
-        Schema::table('used_yachts', function (Blueprint $table) {
+        Schema::table('yachts', function (Blueprint $table) {
             $table->boolean('is_featured')->default(false)->after('state');
         });
     }
@@ -24,11 +20,7 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('new_yachts', function (Blueprint $table) {
-            $table->dropColumn('is_featured');
-        });
-
-        Schema::table('used_yachts', function (Blueprint $table) {
+        Schema::table('yachts', function (Blueprint $table) {
             $table->dropColumn('is_featured');
         });
     }
