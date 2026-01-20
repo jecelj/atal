@@ -611,7 +611,10 @@ class NewYachtResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->wrap(false)
-                    ->width('200px')
+                    ->limit(30)
+                    ->tooltip(function ($record) {
+                        return $record->name;
+                    })
                     ->label('Model Name'),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
