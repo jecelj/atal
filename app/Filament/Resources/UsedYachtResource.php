@@ -535,7 +535,7 @@ class UsedYachtResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->wrap(false)
-                    ->limit(30)
+                    ->limit(20)
                     ->tooltip(function ($record) {
                         return $record->name;
                     })
@@ -553,7 +553,8 @@ class UsedYachtResource extends Resource
                     ->label('Price'),
                 Tables\Columns\TextColumn::make('custom_fields.year')
                     ->sortable()
-                    ->label('Year'),
+                    ->label('Year')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('img_opt_status')
                     ->label('Img Opt.')
                     ->boolean()
