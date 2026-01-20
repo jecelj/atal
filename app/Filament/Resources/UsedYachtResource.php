@@ -535,6 +535,7 @@ class UsedYachtResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->wrap(false)
+                    ->width('200px')
                     ->label('Model Name'),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
