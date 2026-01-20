@@ -610,6 +610,7 @@ class NewYachtResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
+                    ->wrap(false)
                     ->label('Model Name'),
                 Tables\Columns\TextColumn::make('brand.name')
                     ->sortable()
