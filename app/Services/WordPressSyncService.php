@@ -541,6 +541,11 @@ class WordPressSyncService
             $fields['brand_name'] = $record->brand->name;
         }
 
+        // Inject Featured Flag
+        if (in_array($entityType, ['used_yacht', 'new_yacht'])) {
+            $fields['is_featured'] = $record->is_featured ? '1' : '0';
+        }
+
         // AUTO-INJECT ACF REFERENCES
         // Since we are forcing 'field_' + key in config, we need to link data to it.
         // We clone the array to iterate safe.
@@ -549,7 +554,7 @@ class WordPressSyncService
             // Skip if already underscore or brand logo (handled separately?)
             if (str_starts_with($k, '_'))
                 continue;
-            if ($k === 'brand_logo_url' || $k === 'brand_name')
+            if ($k === 'brand_logo_url' || $k === 'brand_name' || $k === 'is_featured')
                 continue; // Auto-injected fields, ACF refs added by plugin
 
             // We assume schema key is 'field_' + key
@@ -737,6 +742,17 @@ class WordPressSyncService
                     'conditional_logic' => 0,
                     'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
                     'default_value' => '',
+                ];
+                $fields[] = [
+                    'key' => 'field_is_featured',
+                    'name' => 'is_featured',
+                    'label' => 'Featured',
+                    'type' => 'text',
+                    'required' => 0,
+                    'instructions' => 'Auto-synced from Master (1 = featured, 0 = not featured)',
+                    'conditional_logic' => 0,
+                    'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
+                    'default_value' => '0',
                 ];
             }
 

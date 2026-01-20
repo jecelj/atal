@@ -20,6 +20,7 @@ class Yacht extends Model implements HasMedia
     protected $fillable = [
         'type',
         'state',
+        'is_featured',
         'brand_id',
         'yacht_model_id',
         'location_id',
@@ -38,6 +39,7 @@ class Yacht extends Model implements HasMedia
         'price' => 'decimal:2',
         'year' => 'integer',
         'custom_fields' => 'array',
+        'is_featured' => 'boolean',
         'img_opt_status' => 'boolean',
         'translation_status' => 'boolean',
     ];

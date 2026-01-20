@@ -108,6 +108,10 @@ class UsedYachtResource extends Resource
                         ])
                         ->default('draft')
                         ->required(),
+                    Forms\Components\Toggle::make('is_featured')
+                        ->label('Featured')
+                        ->helperText('Mark this yacht as featured for priority display')
+                        ->default(false),
                 ])->columns(2),
         ];
 
@@ -566,6 +570,10 @@ class UsedYachtResource extends Resource
                 Tables\Columns\ViewColumn::make('sync_status')
                     ->view('filament.columns.sync-status')
                     ->label('Sync Status')
+                    ->alignment('center'),
+                Tables\Columns\ToggleColumn::make('is_featured')
+                    ->label('Featured')
+                    ->sortable()
                     ->alignment('center'),
                 Tables\Columns\ToggleColumn::make('state')
                     ->onColor('success')

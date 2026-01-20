@@ -200,6 +200,7 @@ class SyncController extends Controller
                 'slug' => Str::slug($yacht->brand->name),
             ],
             'brand_name' => $yacht->brand->name, // Non-multilingual text field
+            'is_featured' => $yacht->is_featured, // Featured flag
             'model' => $yacht->yachtModel ? [
                 'id' => $yacht->yachtModel->id,
                 'name' => $yacht->yachtModel->name,
@@ -402,6 +403,14 @@ class SyncController extends Controller
                     'key' => 'field_brand_name',
                     'name' => 'brand_name',
                     'label' => 'Brand Name',
+                    'type' => 'text',
+                    'required' => false,
+                    'group' => 'General',
+                ]);
+                $fields->push([
+                    'key' => 'field_is_featured',
+                    'name' => 'is_featured',
+                    'label' => 'Featured',
                     'type' => 'text',
                     'required' => false,
                     'group' => 'General',
