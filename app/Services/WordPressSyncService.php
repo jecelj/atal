@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\SyncSite;
 use App\Models\SyncStatus;
+use App\Models\CharterYacht;
 use App\Models\NewYacht;
 use App\Models\UsedYacht;
 use App\Models\News;
@@ -18,7 +19,7 @@ class WordPressSyncService
     /**
      * Master Sync Method
      */
-    public function syncSite(SyncSite $site, bool $force = false): array
+    public function syncSite(SyncSite $site, bool $force = false, ?string $specificType = null): array
     {
         Log::info("Starting sync for site: {$site->name} (Force: " . ($force ? 'YES' : 'NO') . ")");
         $totalSynced = 0;
@@ -28,23 +29,38 @@ class WordPressSyncService
         $this->syncConfig($site, $errors);
 
         // 1. Process Deletions (Cleanup)
-        $this->processDeletions($site, $errors);
+        // Skip deletions if syncing specific type to avoid accidental cleanup based on partial sync
+        if (!$specificType) {
+            $this->processDeletions($site, $errors);
+        }
 
         // 2. Process Updates
-        $totalSynced += $this->processUpdates($site, NewYacht::class, 'new_yacht', $errors, $force);
-        $totalSynced += $this->processUpdates($site, UsedYacht::class, 'used_yacht', $errors, $force);
-        $totalSynced += $this->processUpdates($site, News::class, 'news', $errors, $force);
+        if (!$specificType || $specificType === 'new_yacht') {
+            $totalSynced += $this->processUpdates($site, NewYacht::class, 'new_yacht', $errors, $force);
+        }
+        if (!$specificType || $specificType === 'used_yacht') {
+            $totalSynced += $this->processUpdates($site, UsedYacht::class, 'used_yacht', $errors, $force);
+        }
+        if (!$specificType || $specificType === 'charter_yacht') {
+            $totalSynced += $this->processUpdates($site, CharterYacht::class, 'charter_yacht', $errors, $force);
+        }
+        if (!$specificType || $specificType === 'news') {
+            $totalSynced += $this->processUpdates($site, News::class, 'news', $errors, $force);
+        }
 
         // 3. Update Site Status
-        $site->update([
-            'last_synced_at' => now(),
-            'last_sync_result' => [
-                'success' => empty($errors),
-                'imported' => $totalSynced,
-                'errors' => $errors,
-                'timestamp' => now()->toIso8601String(),
-            ],
-        ]);
+        // Only update full site sync status if full sync
+        if (!$specificType) {
+            $site->update([
+                'last_synced_at' => now(),
+                'last_sync_result' => [
+                    'success' => empty($errors),
+                    'imported' => $totalSynced,
+                    'errors' => $errors,
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+        }
 
         return [
             'success' => empty($errors),
@@ -194,7 +210,7 @@ class WordPressSyncService
     protected function isFilteredOut($record, SyncSite $site): bool
     {
         // 1. BRAND & MODEL CHECKS (Yachts Only)
-        if ($record instanceof NewYacht || $record instanceof UsedYacht) {
+        if ($record instanceof NewYacht || $record instanceof UsedYacht || $record instanceof CharterYacht) {
             // Check Published State
             if ($record->state !== 'published') {
                 return true;
@@ -221,6 +237,10 @@ class WordPressSyncService
                 return false;
             }
 
+            // CharterYacht doesn't likely use yacht_model_id (check model), 
+            // but implementation of UsedYacht logic suggests it might.
+            // Wait, CharterYacht extends Yacht. Yacht has yacht_model_id.
+            // If CharterYacht uses the same relationship, this is fine.
             if (in_array($record->yacht_model_id, $allowedModels)) {
                 return false;
             }
@@ -305,7 +325,7 @@ class WordPressSyncService
             // Custom Fields for News
             $payload['custom_fields'] = $this->extractCustomFields($record, 'news', $defaultLang);
 
-        } elseif ($type === 'new_yacht' || $type === 'used_yacht') {
+        } elseif ($type === 'new_yacht' || $type === 'used_yacht' || $type === 'charter_yacht') {
             $payload['title'] = $getTrans('name'); // WP Post Title
             $payload['name'] = $getTrans('name');
             $payload['featured_image'] = $record->getFirstMediaUrl('featured_image'); // Collection name from Yacht.php
@@ -532,17 +552,17 @@ class WordPressSyncService
         }
 
         // Inject Brand Logo URL (Denormalization for Frontend/Yootheme)
-        if (in_array($entityType, ['used_yacht', 'new_yacht']) && $record->brand && $record->brand->logo) {
+        if (in_array($entityType, ['used_yacht', 'new_yacht', 'charter_yacht']) && $record->brand && $record->brand->logo) {
             $fields['brand_logo_url'] = \Illuminate\Support\Facades\Storage::disk('public')->url($record->brand->logo);
         }
 
         // Inject Brand Name (Denormalization - plain text without taxonomy link)
-        if (in_array($entityType, ['used_yacht', 'new_yacht']) && $record->brand) {
+        if (in_array($entityType, ['used_yacht', 'new_yacht', 'charter_yacht']) && $record->brand) {
             $fields['brand_name'] = $record->brand->name;
         }
 
         // Inject Featured Flag
-        if (in_array($entityType, ['used_yacht', 'new_yacht'])) {
+        if (in_array($entityType, ['used_yacht', 'new_yacht', 'charter_yacht'])) {
             $fields['is_featured'] = $record->is_featured ? '1' : '0';
         }
 
@@ -569,9 +589,6 @@ class WordPressSyncService
         // Parse the stored URL to get the base (scheme + host)
         $parsed = parse_url($site->url);
         $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
-        // If there is a path that is NOT part of wp-json (e.g. subdir install), we might need it.
-        // But usually users put the full API url. 
-        // Safer approach: Regex replace the old endpoint or just take the root if it contains wp-json
 
         if (str_contains($site->url, '/wp-json/')) {
             $baseUrl = substr($site->url, 0, strpos($site->url, '/wp-json/'));
@@ -597,11 +614,13 @@ class WordPressSyncService
         }
     }
 
+
     protected function getModelClass($type)
     {
         return match ($type) {
             'new_yacht' => NewYacht::class,
             'used_yacht' => UsedYacht::class,
+            'charter_yacht' => CharterYacht::class,
             'news' => News::class,
             default => null
         };
@@ -620,7 +639,7 @@ class WordPressSyncService
     {
         $fieldGroups = [];
 
-        foreach (['new_yacht', 'used_yacht', 'news'] as $entityType) {
+        foreach (['new_yacht', 'used_yacht', 'charter_yacht', 'news'] as $entityType) {
             $configs = FormFieldConfiguration::where('entity_type', $entityType)
                 ->orderBy('order')
                 ->get();
@@ -720,7 +739,7 @@ class WordPressSyncService
                 ->toArray();
 
             // Inject Brand Logo Field Definition (Denormalization)
-            if (in_array($entityType, ['new_yacht', 'used_yacht'])) {
+            if (in_array($entityType, ['new_yacht', 'used_yacht', 'charter_yacht'])) {
                 $fields[] = [
                     'key' => 'field_brand_logo_url',
                     'name' => 'brand_logo_url',
@@ -759,6 +778,7 @@ class WordPressSyncService
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
                 'used_yacht' => 'used_yachts',
+                'charter_yacht' => 'charter_yachts',
                 'news' => 'news',
                 default => 'post',
             };

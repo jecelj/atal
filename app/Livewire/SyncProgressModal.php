@@ -13,10 +13,12 @@ class SyncProgressModal extends Component
     public $completed = false;
     public $results = [];
     public $total = 0;
+    public ?string $type = null;
 
-    public function mount(string $sessionKey)
+    public function mount(string $sessionKey, ?string $type = null)
     {
         $this->sessionKey = $sessionKey;
+        $this->type = $type;
     }
 
     public function startSync()
@@ -28,7 +30,7 @@ class SyncProgressModal extends Component
         // Dispatch the job synchronously
         // Since this is called via wire:init, it runs in a separate request after the modal opens.
         // The user sees the spinner/progress while this runs.
-        \App\Jobs\SyncSitesJob::dispatchSync(null, $this->sessionKey);
+        \App\Jobs\SyncSitesJob::dispatchSync(null, $this->sessionKey, false, $this->type);
 
         // After job finishes, update one last time
         $this->updateProgress();

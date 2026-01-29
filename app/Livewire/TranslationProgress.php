@@ -160,6 +160,10 @@ class TranslationProgress extends Component
             return FormFieldConfiguration::forNews()->where('is_multilingual', true)->get();
         }
 
+        if ($record->type === 'charter') {
+            return FormFieldConfiguration::forCharterYachts()->where('is_multilingual', true)->get();
+        }
+
         return $record->type === 'new'
             ? FormFieldConfiguration::forNewYachts()->where('is_multilingual', true)->get()
             : FormFieldConfiguration::forUsedYachts()->where('is_multilingual', true)->get();

@@ -42,6 +42,11 @@ class FormFieldConfiguration extends Model
         return $query->where('entity_type', 'used_yacht');
     }
 
+    public function scopeForCharterYachts($query)
+    {
+        return $query->where('entity_type', 'charter_yacht');
+    }
+
     public function scopeForNews($query)
     {
         return $query->where('entity_type', 'news');

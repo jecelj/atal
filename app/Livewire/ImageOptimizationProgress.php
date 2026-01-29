@@ -71,6 +71,8 @@ class ImageOptimizationProgress extends Component
             return News::find($this->recordId);
         } elseif ($this->type === 'used_yacht') {
             return \App\Models\UsedYacht::find($this->recordId);
+        } elseif ($this->type === 'charter_yacht') {
+            return \App\Models\CharterYacht::find($this->recordId);
         }
         return \App\Models\NewYacht::find($this->recordId);
     }
