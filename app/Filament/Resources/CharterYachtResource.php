@@ -37,6 +37,18 @@ class CharterYachtResource extends Resource
                         ->required()
                         ->searchable()
                         ->preload(),
+                    Forms\Components\Select::make('charter_location_id')
+                        ->relationship('charterLocation', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->createOptionForm([
+                            Forms\Components\TextInput::make('name')
+                                ->required()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn(Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
+                            Forms\Components\TextInput::make('slug')
+                                ->required(),
+                        ]),
 
                     // Translatable Name
                     Forms\Components\Tabs::make('Name')

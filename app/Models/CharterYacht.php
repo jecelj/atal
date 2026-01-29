@@ -18,4 +18,8 @@ class CharterYacht extends Yacht
             $model->type = 'charter';
         });
     }
+    public function charterLocation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(CharterLocation::class);
+    }
 }
