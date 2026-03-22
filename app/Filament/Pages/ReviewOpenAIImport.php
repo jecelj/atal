@@ -201,7 +201,8 @@ class ReviewOpenAIImport extends Page implements HasForms
                                     foreach ($languages as $language) {
                                         $tabs[] = Forms\Components\Tabs\Tab::make($language->name)
                                             ->schema([
-                                                \FilamentTiptapEditor\TiptapEditor::make("custom_fields.sub_title.{$language->code}")
+                                                \AmidEsfahani\FilamentTinyEditor\TinyEditor::make("custom_fields.sub_title.{$language->code}")
+                                                    ->profile('default')
                                                     ->label('Sub Title')
                                                     ->columnSpanFull(),
                                             ]);
@@ -216,9 +217,9 @@ class ReviewOpenAIImport extends Page implements HasForms
                                     foreach ($languages as $language) {
                                         $tabs[] = Forms\Components\Tabs\Tab::make($language->name)
                                             ->schema([
-                                                \FilamentTiptapEditor\TiptapEditor::make("custom_fields.full_description.{$language->code}")
+                                                \AmidEsfahani\FilamentTinyEditor\TinyEditor::make("custom_fields.full_description.{$language->code}")
+                                                    ->profile('default')
                                                     ->label('Full Description')
-                                                    ->output(\FilamentTiptapEditor\Enums\TiptapOutput::Html)
                                                     ->columnSpanFull(),
                                             ]);
                                     }
@@ -232,9 +233,9 @@ class ReviewOpenAIImport extends Page implements HasForms
                                     foreach ($languages as $language) {
                                         $tabs[] = Forms\Components\Tabs\Tab::make($language->name)
                                             ->schema([
-                                                \FilamentTiptapEditor\TiptapEditor::make("custom_fields.specifications.{$language->code}")
+                                                \AmidEsfahani\FilamentTinyEditor\TinyEditor::make("custom_fields.specifications.{$language->code}")
+                                                    ->profile('default')
                                                     ->label('Specifications')
-                                                    ->output(\FilamentTiptapEditor\Enums\TiptapOutput::Html)
                                                     ->columnSpanFull(),
                                             ]);
                                     }

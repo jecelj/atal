@@ -12,8 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use FilamentTiptapEditor\TiptapEditor;
-use FilamentTiptapEditor\Enums\TiptapOutput;
+use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 
 class NewsResource extends Resource
 {
@@ -177,8 +176,8 @@ class NewsResource extends Resource
             'text' => Forms\Components\TextInput::make($fieldKey),
             'textarea' => Forms\Components\Textarea::make($fieldKey)
                 ->rows(4),
-            'richtext' => TiptapEditor::make($fieldKey)
-                ->output(TiptapOutput::Html)
+            'richtext' => TinyEditor::make($fieldKey)
+                ->profile('default')
                 ->columnSpanFull(),
             'number' => Forms\Components\TextInput::make($fieldKey)
                 ->numeric(),
@@ -313,18 +312,7 @@ class NewsResource extends Resource
                                 return;
                             }
 
-                            if (is_array($sourceText)) {
-                                try {
-                                    $sourceText = tiptap_converter()->asHTML($sourceText);
-                                } catch (\Exception $e) {
-                                    \Filament\Notifications\Notification::make()
-                                        ->warning()
-                                        ->title('Content format not supported')
-                                        ->body('Could not convert editor content to HTML. Please save first.')
-                                        ->send();
-                                    return;
-                                }
-                            }
+                            // TinyMCE saves as HTML string directly natively, no tiptap array conversion needed
 
                             try {
                                 $translationService = app(\App\Services\TranslationService::class);

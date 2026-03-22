@@ -213,30 +213,9 @@ class NewYachtResource extends Resource
             'text' => Forms\Components\TextInput::make($fieldKey),
             'textarea' => Forms\Components\Textarea::make($fieldKey)
                 ->rows(4),
-            'richtext' => \FilamentTiptapEditor\TiptapEditor::make($fieldKey)
-                ->output(\FilamentTiptapEditor\Enums\TiptapOutput::Html)
-                ->tools([
-                    'heading',
-                    'bullet-list',
-                    'ordered-list',
-                    'checked-list',
-                    'blockquote',
-                    'hr',
-                    'bold',
-                    'italic',
-                    'strike',
-                    'underline',
-                    'superscript',
-                    'subscript',
-                    'link',
-                    'media',
-                    'table',
-                    'grid-builder',
-                    'details',
-                    'code',
-                    'code-block',
-                    'source',
-                ]),
+            'richtext' => \AmidEsfahani\FilamentTinyEditor\TinyEditor::make($fieldKey)
+                ->profile('default')
+                ->columnSpanFull(),
             'number' => Forms\Components\TextInput::make($fieldKey)
                 ->numeric(),
             'date' => Forms\Components\DatePicker::make($fieldKey),
@@ -431,10 +410,7 @@ class NewYachtResource extends Resource
                         ->action(function (Forms\Set $set, Forms\Get $get, $state) use ($translationConfig) {
                             $sourceText = $get($translationConfig['sourceField']);
 
-                            // Handle Tiptap JSON output
-                            if (is_array($sourceText)) {
-                                $sourceText = tiptap_converter()->asHTML($sourceText);
-                            }
+                            // TinyMCE natively saves HTML
 
                             if (empty($sourceText)) {
                                 \Filament\Notifications\Notification::make()
@@ -550,10 +526,7 @@ class NewYachtResource extends Resource
                         ->action(function (Forms\Set $set, Forms\Get $get, $state) use ($translationConfig) {
                             $sourceText = $get($translationConfig['sourceField']);
 
-                            // Handle Tiptap JSON output
-                            if (is_array($sourceText)) {
-                                $sourceText = tiptap_converter()->asHTML($sourceText);
-                            }
+                            // TinyMCE natively saves HTML
 
                             if (empty($sourceText)) {
                                 \Filament\Notifications\Notification::make()

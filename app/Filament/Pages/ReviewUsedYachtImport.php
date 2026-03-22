@@ -194,7 +194,8 @@ class ReviewUsedYachtImport extends Page implements HasForms
                         Forms\Components\Textarea::make('custom_fields.short_description')
                             ->label('Short Description')
                             ->rows(3),
-                        \FilamentTiptapEditor\TiptapEditor::make('custom_fields.equipment_and_other_information')
+                        \AmidEsfahani\FilamentTinyEditor\TinyEditor::make('custom_fields.equipment_and_other_information')
+                            ->profile('default')
                             ->label('Equipment & Information')
                             ->columnSpanFull(),
                     ]),
