@@ -203,7 +203,7 @@ class TranslationService
                             ],
                             [
                                 'role' => 'user',
-                                'content' => json_encode($data, JSON_UNESCAPED_UNICODE),
+                                'content' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                             ],
                         ],
                         'response_format' => ['type' => 'json_object'],
