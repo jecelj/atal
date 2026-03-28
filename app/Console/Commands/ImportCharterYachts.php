@@ -160,6 +160,8 @@ class ImportCharterYachts extends Command
             'engine_fuel' => '',
             'low_season_price' => $fields['low_season_price'] ?? null,
             'high_season_price' => $fields['high_season_price'] ?? null,
+            'description' => $description, // Saved to dynamic custom_fields
+            'Description' => $description, // Just in case it's capitalized
             
             // extra data stored just in case
             'beam' => $fields['beam'] ?? null,
@@ -178,13 +180,7 @@ class ImportCharterYachts extends Command
             'en' => $title,
             'sl' => $title
         ];
-        if (isset($fields['model'])) {
-            // If we use yacht_model_id we'd map it here, but since the form maps to model input directly...
-            // Let's store model string in custom_fields or name
-        }
-        $yacht->brand_id = $brandId;
         $yacht->charter_location_id = $locationId;
-        $yacht->description = $description;
         $yacht->state = 'published';
         $yacht->price = $fields['low_season_price'] ?? null;
         $yacht->custom_fields = $customFields;
@@ -206,14 +202,20 @@ class ImportCharterYachts extends Command
         if (!empty($charter['images']) && is_array($charter['images'])) {
             foreach ($charter['images'] as $imgObj) {
                 if (isset($imgObj['image'])) {
+                    // Added gallery and Gallery to match potential dynamic field keys
                     $this->addMediaIfNotExists($yacht, $imgObj['image'], 'gallery_exterior', false);
+                    $this->addMediaIfNotExists($yacht, $imgObj['image'], 'gallery', false);
+                    $this->addMediaIfNotExists($yacht, $imgObj['image'], 'Gallery', false);
                 }
             }
         }
 
         // 3. PDF Brochure
         if (!empty($fields['brochure_file'])) {
+            // Added brochure and Brochure to match potential dynamic field keys
             $this->addMediaIfNotExists($yacht, $fields['brochure_file'], 'pdf_brochure', true);
+            $this->addMediaIfNotExists($yacht, $fields['brochure_file'], 'brochure', true);
+            $this->addMediaIfNotExists($yacht, $fields['brochure_file'], 'Brochure', true);
         }
 
         // 4. Sample Menu -> PDF Presentation
