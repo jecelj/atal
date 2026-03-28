@@ -40,6 +40,7 @@ class ImportCharterYachts extends Command
         $page = 1;
         $totalPages = 1;
         $totalImported = 0;
+        $limit = (int) $this->option('limit');
 
         do {
             $this->info("Fetching page {$page}...");
