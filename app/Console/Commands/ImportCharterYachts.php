@@ -180,6 +180,7 @@ class ImportCharterYachts extends Command
             'en' => $title,
             'sl' => $title
         ];
+        $yacht->brand_id = $brandId;
         $yacht->charter_location_id = $locationId;
         $yacht->state = 'published';
         $yacht->price = $fields['low_season_price'] ?? null;
