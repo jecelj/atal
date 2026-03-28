@@ -41,6 +41,7 @@ class ImportCharterYachts extends Command
         $totalPages = 1;
         $totalImported = 0;
         $limit = (int) $this->option('limit');
+        $syncedSlugs = [];
 
         do {
             $this->info("Fetching page {$page}...");
@@ -118,6 +119,9 @@ class ImportCharterYachts extends Command
         }
     }
 
+    /**
+     * @return string|null
+     */
     protected function importCharter(array $charter)
     {
         $fields = $charter['fields'] ?? [];
