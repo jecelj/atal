@@ -17,7 +17,7 @@ class ImportCharterYachts extends Command
      *
      * @var string
      */
-    protected $signature = 'import:charter-yachts';
+    protected $signature = 'import:charter-yachts {--limit=0 : Number of yachts to import (0 for all)}';
 
     /**
      * The console command description.
@@ -201,7 +201,8 @@ class ImportCharterYachts extends Command
 
         // 2. Collection Images (Gallery)
         if (!empty($charter['images']) && is_array($charter['images'])) {
-            foreach ($charter['images'] as $imgObj) {
+            $imagesReversed = array_reverse($charter['images']); // Reverse to show the first image at the top
+            foreach ($imagesReversed as $imgObj) {
                 if (isset($imgObj['image'])) {
                     // Added gallery and Gallery to match potential dynamic field keys
                     $this->addMediaIfNotExists($yacht, $imgObj['image'], 'gallery_exterior', false);
