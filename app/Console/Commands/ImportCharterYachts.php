@@ -225,6 +225,17 @@ class ImportCharterYachts extends Command
         if (!empty($fields['sample_menu_file'])) {
             $this->addMediaIfNotExists($yacht, $fields['sample_menu_file'], 'pdf_presentation', true);
         }
+
+        // 5. Optimize Images
+        try {
+            $this->info("Optimizing images for: {$title}...");
+            $optimizationService = app(\App\Services\ImageOptimizationService::class);
+            $stats = $optimizationService->processYachtImages($yacht);
+            $this->info("Optimization finished -> Processed: {$stats['processed']}, Converted (WebP): {$stats['converted']}");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Image optimization failed for {$title}: " . $e->getMessage());
+            $this->error("Image optimization failed: " . $e->getMessage());
+        }
     }
 
     protected function addMediaIfNotExists(CharterYacht $yacht, $url, $collectionName, $isSingle = false)
