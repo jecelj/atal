@@ -14,6 +14,19 @@ class ListCharterYachts extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+            Actions\Action::make('syncWithYachtsCroatia')
+                ->label('Sync with Yachts Croatia')
+                ->icon('heroicon-o-cloud-arrow-down')
+                ->color('info')
+                ->requiresConfirmation()
+                ->action(function () {
+                    \Illuminate\Support\Facades\Artisan::call('import:charter-yachts');
+                    \Filament\Notifications\Notification::make()
+                        ->success()
+                        ->title('Sync Completed')
+                        ->body('Charter yachts have been imported successfully.')
+                        ->send();
+                }),
             Actions\Action::make('checkStatus')
                 ->label('Check Status')
                 ->icon('heroicon-o-check-circle')
