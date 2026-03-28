@@ -95,8 +95,9 @@ class ImportCharterYachts extends Command
     protected function importCharter(array $charter)
     {
         $fields = $charter['fields'] ?? [];
+        $title = $fields['title'] ?? 'Unknown Yacht';
         
-        $this->info("Processing: {$charter['name']}");
+        $this->info("Processing: {$title}");
 
         // 1. Resolve Brand
         $brandId = null;
@@ -123,9 +124,9 @@ class ImportCharterYachts extends Command
             $locationId = $location->id;
         }
 
-        // 3. Assemble Description
+        // Assemble Description
         $descriptionStr = '';
-        if (!empty($charter['content'])) $descriptionStr .= $charter['content'] . "<br><br>";
+        // Note: the API does not provide a root 'content' field
         if (!empty($fields['full_intro'])) $descriptionStr .= "<strong>Intro</strong><br>" . $fields['full_intro'] . "<br><br>";
         if (!empty($fields['interior_intro'])) $descriptionStr .= "<strong>Interior</strong><br>" . $fields['interior_intro'] . "<br><br>";
         if (!empty($fields['exterior_intro'])) $descriptionStr .= "<strong>Exterior</strong><br>" . $fields['exterior_intro'];
@@ -150,8 +151,7 @@ class ImportCharterYachts extends Command
 
         // Custom fields map based on user array
         $customFields = [
-            'import_id' => $charter['id'] ?? null,
-            'api_id' => $charter['id'] ?? null,
+            'api_id' => null, // No ID provided by the API
             'year' => $fields['production_year'] ?? null,
             'lenght' => $fields['length'] ?? null, 
             'Cabins' => isset($fields['cabins_number']) ? (string)$fields['cabins_number'] : '',
@@ -171,20 +171,12 @@ class ImportCharterYachts extends Command
             'water_toys_tags' => $fields['water_toys_tags'] ?? null,
         ];
 
-        // Find by API ID first, then fallback to slug
-        $yacht = null;
-        if (!empty($charter['id'])) {
-            $yacht = CharterYacht::where('custom_fields->import_id', $charter['id'])
-                        ->orWhere('custom_fields->api_id', $charter['id'])
-                        ->first();
-        }
-        if (!$yacht) {
-            $yacht = CharterYacht::where('slug', Str::slug($charter['name']))->first() ?: new CharterYacht();
-        }
+        // Find purely by slug since the API provides no unique IDs
+        $yacht = CharterYacht::where('slug', Str::slug($title))->first() ?: new CharterYacht();
         
         // Use property assignment instead of updateOrCreate to bypass fillable limits
-        $yacht->slug = Str::slug($charter['name']);
-        $yacht->name = ['en' => $charter['name']];
+        $yacht->slug = Str::slug($title);
+        $yacht->name = ['en' => $title];
         if (isset($fields['model'])) {
             // If we use yacht_model_id we'd map it here, but since the form maps to model input directly...
             // Let's store model string in custom_fields or name
