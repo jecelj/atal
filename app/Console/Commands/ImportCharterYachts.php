@@ -181,7 +181,6 @@ class ImportCharterYachts extends Command
         $yacht->description = $description;
         $yacht->state = 'published';
         $yacht->price = $fields['low_season_price'] ?? null;
-        $yacht->year = $fields['production_year'] ?? null;
         $yacht->custom_fields = $customFields;
         
         $yacht->save();
