@@ -228,12 +228,14 @@ class ImportCharterYachts extends Command
 
         // 5. Optimize Images
         try {
-            $this->info("Optimizing images for: {$title}...");
+            $yachtNameStr = is_array($yacht->name) ? ($yacht->name['en'] ?? '') : $yacht->name;
+            $this->info("Optimizing images for: {$yachtNameStr}...");
             $optimizationService = app(\App\Services\ImageOptimizationService::class);
             $stats = $optimizationService->processYachtImages($yacht);
             $this->info("Optimization finished -> Processed: {$stats['processed']}, Converted (WebP): {$stats['converted']}");
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Image optimization failed for {$title}: " . $e->getMessage());
+            $yachtNameStr = is_array($yacht->name) ? ($yacht->name['en'] ?? '') : $yacht->name;
+            \Illuminate\Support\Facades\Log::error("Image optimization failed for {$yachtNameStr}: " . $e->getMessage());
             $this->error("Image optimization failed: " . $e->getMessage());
         }
     }
