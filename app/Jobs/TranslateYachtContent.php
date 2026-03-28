@@ -88,9 +88,15 @@ class TranslateYachtContent implements ShouldQueue
 
         // 2. Translate custom fields
         $customFields = $this->yacht->custom_fields ?? [];
-        $configFields = $this->yacht->type === 'new'
-            ? FormFieldConfiguration::forNewYachts()->where('is_multilingual', true)->get()
-            : FormFieldConfiguration::forUsedYachts()->where('is_multilingual', true)->get();
+        
+        $configQuery = FormFieldConfiguration::where('is_multilingual', true);
+        if ($this->yacht->type === 'new') {
+            $configFields = $configQuery->forNewYachts()->get();
+        } elseif ($this->yacht->type === 'charter') {
+            $configFields = $configQuery->forCharterYachts()->get();
+        } else {
+            $configFields = $configQuery->forUsedYachts()->get();
+        }
 
         foreach ($configFields as $config) {
             $fieldKey = $config->field_key;
