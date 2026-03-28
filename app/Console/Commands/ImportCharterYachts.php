@@ -83,7 +83,8 @@ class ImportCharterYachts extends Command
                     
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error("Import Charter Error: " . $e->getMessage());
-                    $this->error("Failed to import {$charter['name']}: " . $e->getMessage());
+                    $errorTitle = $charter['fields']['title'] ?? 'Unknown';
+                    $this->error("Failed to import {$errorTitle}: " . $e->getMessage());
                 }
             }
 
