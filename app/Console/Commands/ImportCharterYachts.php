@@ -73,7 +73,10 @@ class ImportCharterYachts extends Command
 
             foreach ($data['charters'] as $charter) {
                 try {
-                    $this->importCharter($charter);
+                    $slug = $this->importCharter($charter);
+                    if ($slug) {
+                        $syncedSlugs[] = $slug;
+                    }
                     $totalImported++;
                     
                     if ($limit > 0 && $totalImported >= $limit) {
@@ -92,6 +95,27 @@ class ImportCharterYachts extends Command
         } while ($page <= $totalPages);
 
         $this->info("Import completed! Total yachts processed: {$totalImported}");
+        
+        // Only run cleanup if we did a full sync (limit = 0) to avoid deleting yachts when testing
+        if ($limit === 0 && !empty($syncedSlugs)) {
+            $this->info("Cleaning up obsolete yachts removed from API...");
+            
+            $orphanedYachts = \App\Models\CharterYacht::whereJsonContains('custom_fields->source', 'yachts_croatia_api')
+                ->whereNotIn('slug', $syncedSlugs)
+                ->get();
+                
+            $orphanedCount = $orphanedYachts->count();
+            if ($orphanedCount > 0) {
+                foreach ($orphanedYachts as $orphan) {
+                    $orphanName = is_array($orphan->name) ? ($orphan->name['en'] ?? $orphan->slug) : $orphan->slug;
+                    $this->info("Removing obsolete API yacht: {$orphanName}");
+                    $orphan->delete();
+                }
+                $this->info("Cleanup done! Deleted {$orphanedCount} obsolete API yachts.");
+            } else {
+                $this->info("No obsolete API yachts found to clean up.");
+            }
+        }
     }
 
     protected function importCharter(array $charter)
@@ -164,6 +188,7 @@ class ImportCharterYachts extends Command
             'high_season_price' => $fields['high_season_price'] ?? null,
             'description' => $description, // Saved to dynamic custom_fields
             'Description' => $description, // Just in case it's capitalized
+            'source' => 'yachts_croatia_api', // IMPORTANT: Flags that this yacht was imported via API
             
             // extra data stored just in case
             'beam' => $fields['beam'] ?? null,
@@ -239,6 +264,8 @@ class ImportCharterYachts extends Command
             \Illuminate\Support\Facades\Log::error("Image optimization failed for {$yachtNameStr}: " . $e->getMessage());
             $this->error("Image optimization failed: " . $e->getMessage());
         }
+        
+        return $yacht->slug;
     }
 
     protected function addMediaIfNotExists(CharterYacht $yacht, $url, $collectionName, $isSingle = false)
