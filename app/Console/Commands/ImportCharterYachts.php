@@ -142,7 +142,10 @@ class ImportCharterYachts extends Command
             $descriptionStr .= "</ul>";
         }
         
-        $description = !empty($descriptionStr) ? ['en' => $descriptionStr] : null;
+        $description = !empty($descriptionStr) ? [
+            'en' => $descriptionStr,
+            'sl' => $descriptionStr
+        ] : null;
 
         // Custom fields map based on user array
         $customFields = [
@@ -171,7 +174,10 @@ class ImportCharterYachts extends Command
         
         // Use property assignment instead of updateOrCreate to bypass fillable limits
         $yacht->slug = Str::slug($title);
-        $yacht->name = ['en' => $title];
+        $yacht->name = [
+            'en' => $title,
+            'sl' => $title
+        ];
         if (isset($fields['model'])) {
             // If we use yacht_model_id we'd map it here, but since the form maps to model input directly...
             // Let's store model string in custom_fields or name
@@ -228,10 +234,20 @@ class ImportCharterYachts extends Command
                 if ($isSingle) {
                     $yacht->clearMediaCollection($collectionName);
                 }
+                
+                // Sometimes urls lack extensions, force it if missing so Spatie accepts it
+                $filename = basename(parse_url($url, PHP_URL_PATH));
+                if (empty($filename) || !str_contains($filename, '.')) {
+                    $extension = str_contains($collectionName, 'pdf') ? '.pdf' : '.jpg';
+                    $filename = 'media-' . uniqid() . $extension;
+                }
+                
                 $yacht->addMediaFromUrl($url)
+                      ->usingFileName($filename)
                       ->withCustomProperties(['original_url' => $url])
                       ->toMediaCollection($collectionName);
             } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Media download failed for {$url}: " . $e->getMessage());
                 $this->error("Failed to download media: {$url}");
             }
         }
