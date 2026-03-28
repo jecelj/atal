@@ -5,6 +5,7 @@
         $modelType = match (get_class($record)) {
             'App\Models\NewYacht' => 'new_yacht',
             'App\Models\UsedYacht' => 'used_yacht',
+            'App\Models\CharterYacht' => 'charter_yacht',
             'App\Models\News' => 'news',
             default => null
         };
