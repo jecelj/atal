@@ -103,13 +103,13 @@ class ImportCharterYachts extends Command
 
         // 1. Resolve Brand
         $brandId = null;
-        if (!empty($fields['builder'])) {
-            $brand = Brand::firstOrCreate(
-                ['name' => $fields['builder']],
-                ['slug' => Str::slug($fields['builder'])]
-            );
-            $brandId = $brand->id;
-        }
+        $builderName = !empty($fields['builder']) ? $fields['builder'] : 'Custom / Unknown';
+        
+        $brand = Brand::firstOrCreate(
+            ['name' => $builderName],
+            ['slug' => \Illuminate\Support\Str::slug($builderName)]
+        );
+        $brandId = $brand->id;
 
         // 2. Resolve Charter Location
         $locationId = null;
