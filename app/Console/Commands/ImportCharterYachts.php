@@ -109,18 +109,13 @@ class ImportCharterYachts extends Command
             $brandId = $brand->id;
         }
 
-        // 2. Resolve Charter Location (we match first, or create)
+        // 2. Resolve Charter Location
         $locationId = null;
         if (!empty($fields['homeport'])) {
-            $location = CharterLocation::where('name', 'like', "%{$fields['homeport']}%")
-                ->orWhereRaw("JSON_EXTRACT(name, '$.en') = ?", [$fields['homeport']])
-                ->first();
-                
-            if (!$location) {
-                $location = CharterLocation::create([
-                    'name' => ['en' => $fields['homeport']],
-                ]);
-            }
+            $location = CharterLocation::firstOrCreate(
+                ['name' => $fields['homeport']],
+                ['slug' => Str::slug($fields['homeport'])]
+            );
             $locationId = $location->id;
         }
 
