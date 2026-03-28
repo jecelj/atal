@@ -141,7 +141,7 @@ class CharterYachtResource extends Resource
                     ->placeholder('No Info')
                     ->alignment('center'),
                 Tables\Columns\ViewColumn::make('sync_status')
-                    ->view('filament.tables.columns.sync-status')
+                    ->view('filament.columns.sync-status')
                     ->label('Sync Status')
                     ->alignment('center'),
                 Tables\Columns\ToggleColumn::make('is_featured')
@@ -169,14 +169,6 @@ class CharterYachtResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('sync-sites')
-                    ->label('WP Sync')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('info')
-                    ->action(function ($record, \Livewire\Component $livewire) {
-                        $livewire->dispatch('open-sync-modal', type: 'charter_yacht', recordId: $record->id)
-                            ->to(\App\Filament\Widgets\SyncProgressWidget::class);
-                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
