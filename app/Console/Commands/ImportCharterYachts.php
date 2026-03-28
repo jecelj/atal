@@ -74,7 +74,14 @@ class ImportCharterYachts extends Command
                 try {
                     $this->importCharter($charter);
                     $totalImported++;
+                    
+                    // TEMPORARY: Break after 1 for testing
+                    if ($totalImported >= 1) {
+                        $this->info("Test mode enabled: stopping after 1 yacht.");
+                        break 2; // Break both foreach and do-while loops
+                    }
                 } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Import Charter Error: " . $e->getMessage());
                     $this->error("Failed to import {$charter['name']}: " . $e->getMessage());
                 }
             }
