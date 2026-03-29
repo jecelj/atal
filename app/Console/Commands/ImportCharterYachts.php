@@ -172,10 +172,23 @@ class ImportCharterYachts extends Command
             $descriptionStr .= "</ul>";
         }
         
-        $description = !empty($descriptionStr) ? [
-            'en' => $descriptionStr,
-            'sl' => $descriptionStr
-        ] : null;
+        $existingYacht = CharterYacht::where('api_id', $item['id'])->first();
+
+        // Safely merge names
+        $yachtName = $existingYacht ? $existingYacht->getTranslations('name') : [];
+        $yachtName['en'] = $item['name'] ?? 'Unknown Yacht';
+
+        // Safely merge custom_fields description
+        $existingCustom = $existingYacht ? ($existingYacht->custom_fields ?? []) : [];
+        
+        $descArr = $existingCustom['description'] ?? [];
+        if (!is_array($descArr)) {
+            $descArr = ['en' => (string)$descArr];
+        }
+        if (!empty($descriptionStr)) {
+            $descArr['en'] = $descriptionStr;
+            if (empty($descArr['sl'])) $descArr['sl'] = $descriptionStr;
+        }
 
         // Custom fields map based on user array
         $customFields = [
@@ -190,8 +203,8 @@ class ImportCharterYachts extends Command
             'engine_fuel' => '',
             'low_season_price' => $fields['low_season_price'] ?? null,
             'high_season_price' => $fields['high_season_price'] ?? null,
-            'description' => $description, // Saved to dynamic custom_fields
-            'Description' => $description, // Just in case it's capitalized
+            'description' => $descArr, // Saved to dynamic custom_fields
+            'Description' => $descArr, // Just in case it's capitalized
             'source' => 'yachts_croatia_api', // IMPORTANT: Flags that this yacht was imported via API
             
             // extra data stored just in case
