@@ -33,11 +33,12 @@ class CleanCharterTitles extends Command
         $updatedCount = 0;
 
         foreach ($yachts as $yacht) {
-            $enName = $yacht->getTranslation('name', 'en', false);
+            $nameArray = $yacht->getTranslations('name');
+            $enName = $nameArray['en'] ?? null;
             
             // Fallback to whichever array key exists if 'en' is missing
-            if (empty($enName) && is_array($yacht->name) && count($yacht->name) > 0) {
-                $enName = array_values($yacht->name)[0];
+            if (empty($enName) && !empty($nameArray)) {
+                $enName = array_values($nameArray)[0];
             }
 
             if (empty($enName)) {
@@ -46,14 +47,13 @@ class CleanCharterTitles extends Command
             }
 
             // Get existing name array to know which languages exist
-            $existingNameArray = is_array($yacht->name) ? $yacht->name : ['en' => $enName];
             $newNameArray = [];
 
             // Ensure we cover the standard languages from the system
             $locales = ['en', 'sl', 'de', 'it', 'hr', 'cs', 'sk', 'pl', 'es', 'sr'];
             
             // Also include any other obscure languages that might be in this specific row
-            foreach (array_keys($existingNameArray) as $existingLocale) {
+            foreach (array_keys($nameArray) as $existingLocale) {
                 if (!in_array($existingLocale, $locales)) {
                     $locales[] = $existingLocale;
                 }
