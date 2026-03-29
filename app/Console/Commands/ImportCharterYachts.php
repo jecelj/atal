@@ -172,7 +172,7 @@ class ImportCharterYachts extends Command
             $descriptionStr .= "</ul>";
         }
         
-        $existingYacht = CharterYacht::where('api_id', $charter['id'])->first();
+        $existingYacht = CharterYacht::where('slug', Str::slug($title))->first();
 
         // Safely merge names
         $yachtName = $existingYacht ? $existingYacht->getTranslations('name') : [];
