@@ -337,6 +337,7 @@ class WordPressSyncService
                 // Fix: Send location Name as 'location' text field instead of ID
                 $payload['location'] = $record->location?->name;
             } elseif ($type === 'charter_yacht') {
+                $payload['price'] = $record->price;
                 $payload['location'] = $record->charterLocation?->name;
             }
 
