@@ -777,6 +777,21 @@ class WordPressSyncService
                 ];
             }
 
+            // Inject Location Field Definition (Denormalization)
+            if (in_array($entityType, ['used_yacht', 'charter_yacht'])) {
+                $fields[] = [
+                    'key' => 'field_location',
+                    'name' => 'location',
+                    'label' => 'Location',
+                    'type' => 'text',
+                    'required' => 0,
+                    'instructions' => 'Auto-synced Location Name',
+                    'conditional_logic' => 0,
+                    'wrapper' => ['width' => '', 'class' => '', 'id' => ''],
+                    'default_value' => '',
+                ];
+            }
+
             $postType = match ($entityType) {
                 'new_yacht' => 'new_yachts',
                 'used_yacht' => 'used_yachts',
