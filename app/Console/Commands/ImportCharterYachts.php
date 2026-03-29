@@ -218,12 +218,18 @@ class ImportCharterYachts extends Command
         // Find purely by slug since the API provides no unique IDs
         $yacht = CharterYacht::where('slug', Str::slug($title))->first() ?: new CharterYacht();
         
+        // Merge existing custom fields so we don't wipe out other custom modifications
+        if ($yacht->exists && is_array($yacht->custom_fields)) {
+            $customFields = array_merge($yacht->custom_fields, $customFields);
+        }
+
         // Use property assignment instead of updateOrCreate to bypass fillable limits
         $yacht->slug = Str::slug($title);
-        $yacht->name = [
-            'en' => $title,
-            'sl' => $title
-        ];
+
+        $yachtName = $yacht->exists ? $yacht->getTranslations('name') : [];
+        $yachtName['en'] = $title;
+        if (empty($yachtName['sl'])) $yachtName['sl'] = $title;
+        $yacht->name = $yachtName;
         $yacht->brand_id = $brandId;
         $yacht->charter_location_id = $locationId;
         $yacht->state = 'published';
