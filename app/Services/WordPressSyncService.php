@@ -361,10 +361,10 @@ class WordPressSyncService
             $payload['custom_fields'] = $this->extractCustomFields($record, $type, $defaultLang, $supportedLangs);
 
             // Specific fallback for Charter Yachts brochure to ensure it syncs even if FormFieldConfig is missing
-            if ($type === 'charter_yacht' && empty($payload['custom_fields']['brochure'])) {
+            if ($type === 'charter_yacht' && empty($payload['custom_fields']['pdf_brochure'])) {
                 $brochureUrl = $record->getFirstMediaUrl('brochure') ?: $record->getFirstMediaUrl('pdf_brochure');
                 if ($brochureUrl) {
-                    $payload['custom_fields']['brochure'] = $brochureUrl;
+                    $payload['custom_fields']['pdf_brochure'] = $brochureUrl;
                 }
             }
 
