@@ -288,7 +288,7 @@ class ImportCharterYachts extends Command
                 // Sometimes urls lack extensions, force it if missing so Spatie accepts it
                 $filename = basename(parse_url($url, PHP_URL_PATH));
                 if (empty($filename) || !str_contains($filename, '.')) {
-                    $extension = str_contains($collectionName, 'pdf') ? '.pdf' : '.jpg';
+                    $extension = (str_contains(strtolower($collectionName), 'pdf') || str_contains(strtolower($collectionName), 'brochure')) ? '.pdf' : '.jpg';
                     $filename = 'media-' . uniqid() . $extension;
                 }
                 
