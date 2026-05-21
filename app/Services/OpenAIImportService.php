@@ -169,7 +169,7 @@ class OpenAIImportService
 
         // 4. PREPARE INPUTS
         $brand = $context['brand'] ?? '';
-        $model = $context['model'] ?? '';
+        $model = $this->normalizeContextModel($context['model'] ?? '', $url);
 
         // Sanitize strings
         $brand = mb_convert_encoding($brand, 'UTF-8', 'UTF-8');
@@ -180,9 +180,7 @@ class OpenAIImportService
         $jsonLanguages = json_encode($activeLanguages);
 
         // Media Data (exclude raw html)
-        $mediaData = $scrapeResult;
-        unset($mediaData['raw_html_clean']);
-        unset($mediaData['url']);
+        $mediaData = $this->prepareMediaDataForOpenAI($scrapeResult, $url, $brand, $model);
 
         // Fix Encoding for JSON
         array_walk_recursive($mediaData, function (&$v) {
@@ -323,6 +321,13 @@ class OpenAIImportService
         if (isset($decodedExtraction['error']))
             return $decodedExtraction;
 
+        $decodedMedia = $this->applyMediaFallbacks(
+            $decodedMedia,
+            $mediaData['images'] ?? [],
+            $mediaData['pdfs'] ?? [],
+            $mediaData['videos'] ?? []
+        );
+
         // 7. TRANSLATION CALL (Step 3 - Sequential)
         // Only if we have extraction data
         /*
@@ -444,6 +449,173 @@ class OpenAIImportService
         }
 
         return $decoded;
+    }
+
+    protected function prepareMediaDataForOpenAI(array $scrapeResult, string $url, string $brand, string $model): array
+    {
+        $mediaData = $scrapeResult;
+        unset($mediaData['raw_html_clean']);
+        unset($mediaData['url']);
+
+        $originalImages = $mediaData['images'] ?? [];
+        $rankedImages = $this->rankImageUrls($originalImages, $url, $brand, $model);
+        $relevantImages = array_values(array_filter($rankedImages, fn($item) => $item['score'] > 0));
+
+        $mediaData['images_original_count'] = count($originalImages);
+        $mediaData['images_relevant_count'] = count($relevantImages);
+
+        if (!empty($relevantImages)) {
+            $mediaData['images'] = array_slice(array_column($relevantImages, 'url'), 0, 80);
+        } else {
+            $mediaData['images'] = array_slice(array_column($rankedImages, 'url'), 0, 80);
+        }
+
+        return $mediaData;
+    }
+
+    protected function normalizeContextModel(string $model, string $url): string
+    {
+        $model = trim($model);
+
+        if ($model !== '' && !filter_var($model, FILTER_VALIDATE_URL)) {
+            return $model;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?? '';
+        $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+        $lastSegment = end($segments) ?: '';
+        $lastSegment = preg_replace('/\.(html?|php)$/i', '', $lastSegment);
+
+        return trim(ucwords(str_replace('-', ' ', $lastSegment))) ?: $model;
+    }
+
+    protected function rankImageUrls(array $urls, string $pageUrl, string $brand, string $model): array
+    {
+        $tokens = $this->buildMediaRelevanceTokens($pageUrl, $brand, $model);
+        $currentModelTokens = $tokens['current_model_tokens'];
+
+        $ranked = [];
+
+        foreach (array_values(array_unique(array_filter($urls))) as $index => $url) {
+            $lowerUrl = strtolower(rawurldecode($url));
+            $score = 0;
+
+            foreach ($tokens['strong'] as $token) {
+                if ($token !== '' && str_contains($lowerUrl, $token)) {
+                    $score += 100;
+                }
+            }
+
+            foreach ($tokens['medium'] as $token) {
+                if ($token !== '' && str_contains($lowerUrl, $token)) {
+                    $score += 25;
+                }
+            }
+
+            foreach ($tokens['weak'] as $token) {
+                if ($token !== '' && str_contains($lowerUrl, $token)) {
+                    $score += 5;
+                }
+            }
+
+            if ($this->looksLikeOtherModelImage($lowerUrl, $currentModelTokens)) {
+                $score -= 100;
+            }
+
+            $ranked[] = [
+                'url' => $url,
+                'score' => $score,
+                'index' => $index,
+            ];
+        }
+
+        usort($ranked, fn($a, $b) => ($b['score'] <=> $a['score']) ?: ($a['index'] <=> $b['index']));
+
+        return $ranked;
+    }
+
+    protected function buildMediaRelevanceTokens(string $pageUrl, string $brand, string $model): array
+    {
+        $modelSlug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $model), '-'));
+        $modelCompact = strtolower(preg_replace('/[^a-z0-9]+/i', '', $model));
+
+        $path = strtolower(parse_url($pageUrl, PHP_URL_PATH) ?? '');
+        $pathSegments = array_values(array_filter(explode('/', trim($path, '/'))));
+        $lastPathSegment = end($pathSegments) ?: '';
+
+        $strong = array_values(array_unique(array_filter([
+            $modelSlug,
+            $modelCompact,
+            str_replace('-', '', $lastPathSegment),
+            $lastPathSegment,
+        ])));
+
+        $medium = [];
+        foreach (array_merge(explode('-', $modelSlug), explode('-', $lastPathSegment)) as $token) {
+            $token = trim($token);
+            if (strlen($token) >= 3 || preg_match('/^\d{2,}$/', $token)) {
+                $medium[] = $token;
+            }
+        }
+
+        return [
+            'strong' => array_values(array_unique($strong)),
+            'medium' => array_values(array_unique($medium)),
+            'weak' => [],
+            'current_model_tokens' => array_values(array_unique(array_filter([$modelSlug, $modelCompact]))),
+        ];
+    }
+
+    protected function looksLikeOtherModelImage(string $url, array $currentModelTokens): bool
+    {
+        foreach ($currentModelTokens as $token) {
+            if ($token !== '' && str_contains($url, $token)) {
+                return false;
+            }
+        }
+
+        $path = strtolower(parse_url($url, PHP_URL_PATH) ?? $url);
+        $filename = pathinfo($path, PATHINFO_FILENAME);
+
+        return preg_match('/(?:^|[-_])(?:ls|lx)\d{1,3}(?:[-_]|$)/i', $filename) === 1
+            || preg_match('/(?:^|[-_])\d{2,4}(?:sav|surf|obx|bx)(?:[-_]|$)/i', $filename) === 1;
+    }
+
+    protected function applyMediaFallbacks(array $decodedMedia, array $images, array $pdfs, array $videos): array
+    {
+        if (!empty($images)) {
+            if (empty($decodedMedia['cover_image'])) {
+                $decodedMedia['cover_image'] = $images[0];
+            }
+
+            if (empty($decodedMedia['grid_image'])) {
+                $decodedMedia['grid_image'] = $images[0];
+            }
+
+            if (empty($decodedMedia['grid_image_hover']) && isset($images[1])) {
+                $decodedMedia['grid_image_hover'] = $images[1];
+            }
+
+            foreach (['gallery_exterior', 'gallery_interior', 'gallery_cockpit', 'gallery_layout'] as $galleryKey) {
+                if (!isset($decodedMedia[$galleryKey]) || !is_array($decodedMedia[$galleryKey])) {
+                    $decodedMedia[$galleryKey] = [];
+                }
+            }
+
+            if (empty($decodedMedia['gallery_exterior'])) {
+                $decodedMedia['gallery_exterior'] = $images;
+            }
+        }
+
+        if (empty($decodedMedia['pdf_brochure']) && !empty($pdfs)) {
+            $decodedMedia['pdf_brochure'] = $pdfs[0];
+        }
+
+        if (empty($decodedMedia['video_url']) && !empty($videos)) {
+            $decodedMedia['video_url'] = $videos;
+        }
+
+        return $decodedMedia;
     }
 
     /**
