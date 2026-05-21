@@ -126,15 +126,31 @@
                 <!-- Controls -->
                 <div class="p-3 space-y-3 flex-1 flex flex-col justify-between">
 
-                    <!-- Category Selector -->
+                    <!-- Category Buttons -->
                     <div>
                         <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                        <select x-model="images[index].category"
-                            class="w-full text-sm rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:border-primary-500 focus:ring-primary-500 cursor-pointer">
+                        <div class="flex flex-wrap items-center gap-1.5">
                             @foreach($normalizedCategories as $cat)
-                                <option value="{{ $cat['id'] }}">{{ $cat['label'] }}</option>
+                                @if($cat['id'] !== 'trash')
+                                    <button type="button" @click="setImageCategory(index, '{{ $cat['id'] }}')"
+                                        title="{{ $cat['label'] }}"
+                                        class="px-2 py-1 text-xs font-medium rounded border transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
+                                        :class="isCategory(index, '{{ $cat['id'] }}') ? 'text-white' : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600'"
+                                        :style="isCategory(index, '{{ $cat['id'] }}') ? 'background-color: #111827; border-color: #111827;' : ''">
+                                        {{ $cat['label'] }}
+                                    </button>
+                                @endif
                             @endforeach
-                        </select>
+                            <button type="button" @click="setImageCategory(index, 'trash')"
+                                title="Trash"
+                                class="inline-flex h-7 w-7 items-center justify-center rounded border transition-colors"
+                                :class="isCategory(index, 'trash') ? 'text-white' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700'"
+                                :style="isCategory(index, 'trash') ? 'background-color: #dc2626; border-color: #dc2626;' : ''">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4Z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
