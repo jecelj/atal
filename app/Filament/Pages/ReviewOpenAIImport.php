@@ -314,11 +314,12 @@ class ReviewOpenAIImport extends Page implements HasForms
 
                                 $html = '<div style="display: flex; gap: 1rem; flex-wrap: wrap;">';
                                 foreach ($videos as $video) {
-                                    $url = $video['url'] ?? '';
+                                    $url = is_array($video) ? ($video['url'] ?? '') : (string) $video;
                                     if ($url) {
-                                        if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
-                                            $embedUrl = "https://www.youtube.com/embed/" . $matches[1];
-                                            $html .= "<iframe width='300' height='200' src='{$embedUrl}' frameborder='0' allowfullscreen></iframe>";
+                                        $embedUrl = $this->getVideoEmbedUrl($url);
+
+                                        if ($embedUrl) {
+                                            $html .= "<iframe width='300' height='200' src='" . e($embedUrl) . "' frameborder='0' allow='autoplay; fullscreen; picture-in-picture' allowfullscreen></iframe>";
                                         }
                                     }
                                 }
@@ -351,6 +352,23 @@ class ReviewOpenAIImport extends Page implements HasForms
                     ->collapsed(), // Collapsed by default
             ])
             ->statePath('data');
+    }
+
+    protected function getVideoEmbedUrl(string $url): ?string
+    {
+        if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+            return 'https://www.youtube.com/embed/' . $matches[1];
+        }
+
+        if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)/', $url, $matches)) {
+            return 'https://player.vimeo.com/video/' . $matches[1];
+        }
+
+        if (preg_match('/vimeo\.com\/(?:.*\/)?(\d+)(?:$|[?&#])/', $url, $matches)) {
+            return 'https://player.vimeo.com/video/' . $matches[1];
+        }
+
+        return null;
     }
 
     protected function getSingleImageSelectionField($name, $label, $sourceKey)

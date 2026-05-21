@@ -222,7 +222,7 @@ class ReviewUsedYachtImport extends Page implements HasForms
                             ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('custom_fields.video_url')
-                            ->label('Video URL (Youtube)')
+                            ->label('Video URL (YouTube or Vimeo)')
                             ->columnSpanFull()
                             ->live(onBlur: true), // Enable live updates for preview
 
@@ -233,11 +233,13 @@ class ReviewUsedYachtImport extends Page implements HasForms
                                 if (!$url)
                                     return 'No video URL provided';
 
-                                if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
-                                    $embedUrl = "https://www.youtube.com/embed/" . $matches[1];
-                                    return new \Illuminate\Support\HtmlString("<iframe width='100%' height='400' src='{$embedUrl}' frameborder='0' allowfullscreen class='rounded-lg border border-gray-200'></iframe>");
+                                $embedUrl = $this->getVideoEmbedUrl($url);
+
+                                if ($embedUrl) {
+                                    return new \Illuminate\Support\HtmlString("<iframe width='100%' height='400' src='" . e($embedUrl) . "' frameborder='0' allow='autoplay; fullscreen; picture-in-picture' allowfullscreen class='rounded-lg border border-gray-200'></iframe>");
                                 }
-                                return 'Invalid YouTube URL';
+
+                                return 'Invalid YouTube or Vimeo URL';
                             })
                             ->columnSpanFull(),
                     ]),
@@ -256,6 +258,23 @@ class ReviewUsedYachtImport extends Page implements HasForms
                     ->collapsed(),
             ])
             ->statePath('data');
+    }
+
+    protected function getVideoEmbedUrl(string $url): ?string
+    {
+        if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+            return 'https://www.youtube.com/embed/' . $matches[1];
+        }
+
+        if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)/', $url, $matches)) {
+            return 'https://player.vimeo.com/video/' . $matches[1];
+        }
+
+        if (preg_match('/vimeo\.com\/(?:.*\/)?(\d+)(?:$|[?&#])/', $url, $matches)) {
+            return 'https://player.vimeo.com/video/' . $matches[1];
+        }
+
+        return null;
     }
 
     protected function getHeaderActions(): array
