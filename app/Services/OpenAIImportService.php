@@ -28,6 +28,7 @@ class OpenAIImportService
         $apiKey = $settings->openai_secret;
         $browserlessKey = $settings->browserless_api_key;
         $browserlessScript = $settings->browserless_script;
+        $importModel = $settings->ai_import_extraction_model ?: 'gpt-5.4';
 
         // Custom Prompt for Used Yacht
         $systemPrompt = $settings->adventure_boat_prompt;
@@ -77,8 +78,8 @@ class OpenAIImportService
         try {
             $response = Http::withToken($apiKey)
                 ->timeout(240)
-                ->post('https://api.openai.com/v1/chat/completions', [ // Using chat completions for GPT-4o compatibility
-                    'model' => 'gpt-4o', // Or gpt-4-turbo
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $importModel,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
                         ['role' => 'user', 'content' => $userInput]
@@ -154,6 +155,8 @@ class OpenAIImportService
         $apiKey = $settings->openai_secret;
         $browserlessKey = $settings->browserless_api_key;
         $browserlessScript = $settings->browserless_script;
+        $mediaModel = $settings->ai_import_media_model ?: 'gpt-5.4';
+        $extractionModel = $settings->ai_import_extraction_model ?: 'gpt-5.4';
 
         // Prompts
         $mediaPromptSystem = $settings->openai_prompt; // "OpenAI Media Prompt"
@@ -227,14 +230,14 @@ class OpenAIImportService
         $openaiStart = microtime(true);
 
         // 5. PARALLEL OPENAI CALLS (Step 1 & 2)
-        $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInput) {
+        $responses = Http::pool(function ($pool) use ($apiKey, $mediaPromptSystem, $mediaInput, $extractionPromptSystem, $extractionInput, $mediaModel, $extractionModel) {
             return [
-                // ===== MEDIA (gpt-4.1) =====
+                // ===== MEDIA =====
                 $pool->as('media')
                     ->withToken($apiKey)
                     ->timeout(600)
                     ->post('https://api.openai.com/v1/responses', [
-                        'model' => 'gpt-4.1',
+                        'model' => $mediaModel,
                         'input' => [
                             ['role' => 'system', 'content' => $mediaPromptSystem],
                             ['role' => 'user', 'content' => $mediaInput]
@@ -243,12 +246,12 @@ class OpenAIImportService
                         'parallel_tool_calls' => false
                     ]),
 
-                // ===== EXTRACTION (gpt-5.1) =====
+                // ===== EXTRACTION =====
                 $pool->as('extraction')
                     ->withToken($apiKey)
                     ->timeout(240) // priporočilo: ne 600
                     ->post('https://api.openai.com/v1/responses', [
-                        'model' => 'gpt-5.1',
+                        'model' => $extractionModel,
                         'input' => [
                             [
                                 'role' => 'system',
@@ -473,6 +476,7 @@ class OpenAIImportService
         // Fetch Prompt from Settings
         $settings = app(\App\Settings\OpenAiSettings::class);
         $customPrompt = $settings->openai_translation_prompt;
+        $translationModel = $settings->translation_model ?: 'gpt-5.4';
 
         // Construct Final Prompt
         $baseInstruction = !empty($customPrompt)
@@ -485,11 +489,10 @@ class OpenAIImportService
             "INPUT JSON:\n" . json_encode($fieldsToTranslate, JSON_PRETTY_PRINT);
 
         try {
-            // Using gpt-4.1 on Custom Endpoint (v1/responses)
             $response = Http::withToken($apiKey)
                 ->timeout(120)
                 ->post('https://api.openai.com/v1/responses', [
-                    'model' => 'gpt-4.1',
+                    'model' => $translationModel,
                     'input' => [
                         [
                             'role' => 'system',

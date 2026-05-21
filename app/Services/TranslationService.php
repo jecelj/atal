@@ -104,7 +104,7 @@ class TranslationService
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
             ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => $this->settings->openai_model ?? 'gpt-4o-mini-2024-07-18',
+                        'model' => $this->settings->translation_model ?: 'gpt-5.4',
                         'messages' => [
                             [
                                 'role' => 'system',
@@ -195,7 +195,7 @@ class TranslationService
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
             ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => $this->settings->openai_model ?? 'gpt-4o-mini-2024-07-18',
+                        'model' => $this->settings->translation_model ?: 'gpt-5.4',
                         'messages' => [
                             [
                                 'role' => 'system',

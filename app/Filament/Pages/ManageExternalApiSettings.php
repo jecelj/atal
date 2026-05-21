@@ -36,44 +36,6 @@ class ManageExternalApiSettings extends SettingsPage
                             ->revealable()
                             ->required()
                             ->helperText('Your OpenAI API secret key. Get it from https://platform.openai.com/api-keys'),
-                        Forms\Components\Select::make('openai_model')
-                            ->label('OpenAI Model')
-                            ->options([
-                                // O1 Series (Reasoning Models - Best for complex translations)
-                                'o1' => 'O1 (Latest) - Advanced Reasoning',
-                                'o1-2024-12-17' => 'O1 (2024-12-17)',
-                                'o1-mini' => 'O1 Mini - Faster Reasoning',
-                                'o1-mini-2024-09-12' => 'O1 Mini (2024-09-12)',
-
-                                // GPT-4.5 Series (Not yet released, placeholder)
-                                // 'gpt-4.5-turbo' => 'GPT-4.5 Turbo (Latest)',
-
-                                // GPT-4o Series (Recommended for professional translation)
-                                'gpt-4o' => 'GPT-4o (Latest) - Recommended',
-                                'gpt-4o-2024-11-20' => 'GPT-4o (2024-11-20)',
-                                'gpt-4o-2024-08-06' => 'GPT-4o (2024-08-06)',
-                                'gpt-4o-2024-05-13' => 'GPT-4o (2024-05-13)',
-                                'chatgpt-4o-latest' => 'ChatGPT-4o (Latest)',
-
-                                // GPT-4o Mini Series (Cost-effective)
-                                'gpt-4o-mini' => 'GPT-4o Mini (Latest)',
-                                'gpt-4o-mini-2024-07-18' => 'GPT-4o Mini (2024-07-18)',
-
-                                // GPT-4 Turbo Series
-                                'gpt-4-turbo' => 'GPT-4 Turbo (Latest)',
-                                'gpt-4-turbo-2024-04-09' => 'GPT-4 Turbo (2024-04-09)',
-                                'gpt-4-turbo-preview' => 'GPT-4 Turbo Preview',
-
-                                // GPT-4 Classic
-                                'gpt-4' => 'GPT-4',
-                                'gpt-4-0613' => 'GPT-4 (0613)',
-
-                                // GPT-3.5 (Legacy)
-                                'gpt-3.5-turbo' => 'GPT-3.5 Turbo (Legacy)',
-                            ])
-                            ->default('gpt-4o')
-                            ->required()
-                            ->helperText('Select the OpenAI model for translations. O1 series for complex content, GPT-4o for professional quality, GPT-4o Mini for cost-effectiveness.'),
                         Forms\Components\Textarea::make('openai_context')
                             ->label('Translation Context')
                             ->rows(5)
@@ -101,6 +63,50 @@ class ManageExternalApiSettings extends SettingsPage
                             ->rows(15)
                             ->helperText('System prompt for Yootheme/Falang translator. Use "You are a professional translator..."'),
                     ])
+                    ->collapsible(),
+
+                Forms\Components\Section::make('ScrapingBee Configuration')
+                    ->description('Configure ScrapingBee for fallback scraping when Browserless returns incomplete media.')
+                    ->schema([
+                        Forms\Components\Toggle::make('scrapingbee_enabled')
+                            ->label('Enable ScrapingBee')
+                            ->helperText('When enabled, ScrapingBee can be used as a fallback scraper in the AI import flow.'),
+                        Forms\Components\TextInput::make('scrapingbee_api_key')
+                            ->label('ScrapingBee API Key')
+                            ->password()
+                            ->revealable()
+                            ->helperText('API key from scrapingbee.com'),
+                        Forms\Components\Select::make('scrapingbee_strategy')
+                            ->label('Scraping Strategy')
+                            ->options([
+                                'fallback' => 'Fallback when media is incomplete',
+                                'domain_only' => 'Only for listed domains',
+                                'always' => 'Always use ScrapingBee',
+                            ])
+                            ->default('fallback')
+                            ->helperText('Fallback keeps Browserless as the primary scraper and uses ScrapingBee only when needed.'),
+                        Forms\Components\TextInput::make('scrapingbee_domains')
+                            ->label('Domain Allowlist')
+                            ->helperText('Comma-separated domains for domain-only mode, e.g. example.com, yacht-builder.com'),
+                        Forms\Components\Toggle::make('scrapingbee_premium_proxy')
+                            ->label('Use Premium Proxy')
+                            ->helperText('Useful for stricter websites, but it costs more ScrapingBee credits.'),
+                        Forms\Components\TextInput::make('scrapingbee_wait')
+                            ->label('Wait Time')
+                            ->numeric()
+                            ->suffix('ms')
+                            ->default(3000)
+                            ->helperText('Additional wait time for JavaScript-rendered galleries and lazy-loaded images.'),
+                        Forms\Components\TextInput::make('scrapingbee_wait_browser')
+                            ->label('Wait Browser Event')
+                            ->default('networkidle2')
+                            ->helperText('Default browser wait event for rendered pages.'),
+                        Forms\Components\Textarea::make('scrapingbee_js_scenario')
+                            ->label('JavaScript Scenario')
+                            ->rows(8)
+                            ->helperText('Optional ScrapingBee JS scenario JSON for scrolling, clicking galleries, or waiting for selectors.'),
+                    ])
+                    ->columns(2)
                     ->collapsible(),
 
                 Forms\Components\Section::make('Browserless Configuration')
