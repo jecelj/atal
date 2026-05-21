@@ -22,6 +22,7 @@ class OpenAiSettings extends Settings
     public ?string $scrapingbee_api_key;
     public ?string $scrapingbee_strategy;
     public ?string $scrapingbee_domains;
+    public ?bool $scrapingbee_render_js;
     public ?bool $scrapingbee_premium_proxy;
     public ?int $scrapingbee_wait;
     public ?string $scrapingbee_wait_browser;

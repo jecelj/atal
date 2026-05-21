@@ -88,6 +88,10 @@ class ManageExternalApiSettings extends SettingsPage
                         Forms\Components\TextInput::make('scrapingbee_domains')
                             ->label('Domain Allowlist')
                             ->helperText('Comma-separated domains for domain-only mode, e.g. example.com, yacht-builder.com'),
+                        Forms\Components\Toggle::make('scrapingbee_render_js')
+                            ->label('JavaScript Rendering')
+                            ->default(true)
+                            ->helperText('Fetch pages through a real browser. ScrapingBee enables this by default and charges 5 credits.'),
                         Forms\Components\Toggle::make('scrapingbee_premium_proxy')
                             ->label('Use Premium Proxy')
                             ->helperText('Useful for stricter websites, but it costs more ScrapingBee credits.'),
