@@ -18,16 +18,16 @@
             height: auto;
         }
     </style>
-    <div>
+    <form wire:submit="save">
         {{ $this->form }}
 
         <div class="flex gap-3 mt-6">
-            <x-filament::button type="button" wire:click="save" wire:loading.attr="disabled">
+            <x-filament::button type="submit">
                 Import Yacht
             </x-filament::button>
             <x-filament::button color="gray" tag="a" href="{{ route('filament.admin.resources.new-yachts.index') }}">
                 Cancel
             </x-filament::button>
         </div>
-    </div>
+    </form>
 </x-filament-panels::page>
