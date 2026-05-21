@@ -317,17 +317,14 @@ class ReviewOpenAIImport extends Page
                                 if (empty($videos))
                                     return 'No videos found';
 
-                                $html = '<div style="display: flex; gap: 1rem; flex-wrap: wrap;">';
-                                $seenEmbeds = [];
+                                $html = '<div style="display: grid; gap: 0.5rem;">';
+                                $seenUrls = [];
                                 foreach ($videos as $video) {
                                     $url = is_array($video) ? ($video['url'] ?? '') : (string) $video;
-                                    if ($url) {
-                                        $embedUrl = $this->getVideoEmbedUrl($url);
 
-                                        if ($embedUrl && !isset($seenEmbeds[$embedUrl])) {
-                                            $seenEmbeds[$embedUrl] = true;
-                                            $html .= "<iframe width='300' height='200' src='" . e($embedUrl) . "' frameborder='0' allow='autoplay; fullscreen; picture-in-picture' allowfullscreen></iframe>";
-                                        }
+                                    if ($url && !isset($seenUrls[$url])) {
+                                        $seenUrls[$url] = true;
+                                        $html .= "<a href='" . e($url) . "' target='_blank' rel='noopener noreferrer' class='text-primary-600 underline break-all'>" . e($url) . '</a>';
                                     }
                                 }
                                 $html .= '</div>';
@@ -486,6 +483,8 @@ class ReviewOpenAIImport extends Page
 
     public function save()
     {
+        Log::info('Review Save: save action started', ['import_id' => $this->importId]);
+
         $data = $this->form->getState();
 
         // Validation handled by form->getState() basically, but strictly:

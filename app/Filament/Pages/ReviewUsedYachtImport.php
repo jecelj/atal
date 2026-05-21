@@ -229,13 +229,9 @@ class ReviewUsedYachtImport extends Page
                                 if (!$url)
                                     return 'No video URL provided';
 
-                                $embedUrl = $this->getVideoEmbedUrl($url);
-
-                                if ($embedUrl) {
-                                    return new \Illuminate\Support\HtmlString("<iframe width='100%' height='400' src='" . e($embedUrl) . "' frameborder='0' allow='autoplay; fullscreen; picture-in-picture' allowfullscreen class='rounded-lg border border-gray-200'></iframe>");
-                                }
-
-                                return 'Invalid YouTube or Vimeo URL';
+                                return new \Illuminate\Support\HtmlString(
+                                    "<a href='" . e($url) . "' target='_blank' rel='noopener noreferrer' class='text-primary-600 underline break-all'>" . e($url) . '</a>'
+                                );
                             })
                             ->columnSpanFull(),
                     ]),
@@ -297,6 +293,8 @@ class ReviewUsedYachtImport extends Page
 
     public function save()
     {
+        Log::info('Review Save (Used): save action started', ['import_id' => $this->importId]);
+
         $data = $this->form->getState();
         set_time_limit(600);
         \Illuminate\Support\Facades\DB::beginTransaction();
