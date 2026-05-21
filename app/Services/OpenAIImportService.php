@@ -497,40 +497,61 @@ class OpenAIImportService
         $priorityBlocks = $blocks;
         usort($priorityBlocks, fn($a, $b) => ($b['score'] <=> $a['score']) ?: ($a['index'] <=> $b['index']));
 
-        $selected = [];
+        $prioritySelected = [];
         $selectedIndexes = [];
-        $length = 0;
+        $priorityLength = 0;
 
         foreach ($priorityBlocks as $block) {
-            if ($block['score'] <= 0 && count($selected) >= 80) {
+            if ($block['score'] <= 0) {
                 continue;
             }
 
-            $selected[] = $block;
+            $prioritySelected[] = $block;
             $selectedIndexes[$block['index']] = true;
-            $length += mb_strlen($block['text']) + 1;
+            $priorityLength += mb_strlen($block['text']) + 1;
 
-            if ($length >= $limit * 1.2) {
+            if ($priorityLength >= $limit * 0.85) {
                 break;
             }
         }
 
-        foreach ($blocks as $block) {
-            if (isset($selectedIndexes[$block['index']])) {
-                continue;
-            }
+        usort($prioritySelected, fn($a, $b) => $a['index'] <=> $b['index']);
 
-            $selected[] = $block;
-            $length += mb_strlen($block['text']) + 1;
+        $priorityText = implode("\n", array_column($prioritySelected, 'text'));
+        $remaining = $limit - mb_strlen($priorityText) - 80;
+        $contextSelected = [];
+        $contextLength = 0;
 
-            if (count($selected) >= 120 || $length >= $limit * 1.4) {
-                break;
+        if ($remaining > 0) {
+            foreach ($blocks as $block) {
+                if (isset($selectedIndexes[$block['index']])) {
+                    continue;
+                }
+
+                $blockLength = mb_strlen($block['text']) + 1;
+                if ($contextLength + $blockLength > $remaining) {
+                    continue;
+                }
+
+                $contextSelected[] = $block;
+                $contextLength += $blockLength;
+
+                if (count($contextSelected) >= 80 || $contextLength >= $remaining) {
+                    break;
+                }
             }
         }
 
-        usort($selected, fn($a, $b) => $a['index'] <=> $b['index']);
+        $parts = [];
+        if ($priorityText !== '') {
+            $parts[] = "PRIORITY PAGE TEXT\n" . $priorityText;
+        }
 
-        return $this->truncateExtractionText(implode("\n", array_column($selected, 'text')), $limit);
+        if (!empty($contextSelected)) {
+            $parts[] = "ADDITIONAL PAGE CONTEXT\n" . implode("\n", array_column($contextSelected, 'text'));
+        }
+
+        return $this->truncateExtractionText(implode("\n\n", $parts), $limit);
     }
 
     protected function buildExtractionKeywords(string $url, string $brand, string $model): array
