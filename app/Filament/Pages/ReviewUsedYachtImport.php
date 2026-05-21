@@ -3,8 +3,6 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Forms;
 use Filament\Actions\Action;
@@ -14,10 +12,8 @@ use App\Models\Brand;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 
-class ReviewUsedYachtImport extends Page implements HasForms
+class ReviewUsedYachtImport extends Page
 {
-    use InteractsWithForms;
-
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static string $view = 'filament.pages.review-used-yacht-import';

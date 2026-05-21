@@ -3,8 +3,6 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Forms;
 use Filament\Actions\Action;
@@ -16,10 +14,8 @@ use Filament\Notifications\Notification;
 use Filament\Forms\Components\Wizard;
 use Illuminate\Support\Facades\Log;
 
-class ReviewOpenAIImport extends Page implements HasForms
+class ReviewOpenAIImport extends Page
 {
-    use InteractsWithForms;
-
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static string $view = 'filament.pages.review-open-a-i-import';
