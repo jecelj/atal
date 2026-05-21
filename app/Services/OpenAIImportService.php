@@ -26,8 +26,6 @@ class OpenAIImportService
         Log::info('OpenAI Used Yacht Import: Starting import for URL: ' . $url);
         $settings = app(OpenAiSettings::class);
         $apiKey = $settings->openai_secret;
-        $browserlessKey = $settings->browserless_api_key;
-        $browserlessScript = $settings->browserless_script;
         $importModel = $settings->ai_import_extraction_model ?: 'gpt-5.4';
 
         // Custom Prompt for Used Yacht
@@ -35,19 +33,14 @@ class OpenAIImportService
 
         if (!$apiKey)
             return ['error' => 'OpenAI API Key not configured'];
-        if (!$browserlessKey)
-            return ['error' => 'Browserless API Key not configured'];
         if (empty($systemPrompt))
             return ['error' => 'Adventure Boat Prompt not configured in Settings'];
 
-        // 2. CALL BROWSERLESS
-        $browserlessStart = microtime(true);
-        $scrapeResult = $this->callBrowserless($url, $browserlessKey, $browserlessScript);
-        $browserlessDuration = round(microtime(true) - $browserlessStart, 2);
-        Log::info("OpenAI Used Yacht Import: Browserless finished in {$browserlessDuration}s");
+        // 2. SCRAPE PAGE
+        $scrapeResult = $this->scrapePage($url, $settings, 'OpenAI Used Yacht Import');
 
         if (isset($scrapeResult['error'])) {
-            return ['error' => 'Browserless Error: ' . $scrapeResult['error']];
+            return ['error' => $scrapeResult['error']];
         }
 
         // 3. PREPARE INPUTS
@@ -153,8 +146,6 @@ class OpenAIImportService
         Log::info('OpenAI Import: Starting import for URL: ' . $url);
         $settings = app(OpenAiSettings::class);
         $apiKey = $settings->openai_secret;
-        $browserlessKey = $settings->browserless_api_key;
-        $browserlessScript = $settings->browserless_script;
         $mediaModel = $settings->ai_import_media_model ?: 'gpt-5.4';
         $extractionModel = $settings->ai_import_extraction_model ?: 'gpt-5.4';
 
@@ -164,21 +155,16 @@ class OpenAIImportService
 
         if (!$apiKey)
             return ['error' => 'OpenAI API Key not configured'];
-        if (!$browserlessKey)
-            return ['error' => 'Browserless API Key not configured'];
         if (empty($mediaPromptSystem))
             return ['error' => 'OpenAI Media Prompt not configured'];
         if (empty($extractionPromptSystem))
             return ['error' => 'OpenAI Yacht Data Extractor Prompt not configured'];
 
-        // 3. CALL BROWSERLESS
-        $browserlessStart = microtime(true);
-        $scrapeResult = $this->callBrowserless($url, $browserlessKey, $browserlessScript);
-        $browserlessDuration = round(microtime(true) - $browserlessStart, 2);
-        Log::info("OpenAI Import: Browserless finished in {$browserlessDuration}s");
+        // 3. SCRAPE PAGE
+        $scrapeResult = $this->scrapePage($url, $settings, 'OpenAI Import');
 
         if (isset($scrapeResult['error'])) {
-            return ['error' => 'Browserless Error: ' . $scrapeResult['error']];
+            return ['error' => $scrapeResult['error']];
         }
 
         // 4. PREPARE INPUTS
@@ -539,6 +525,173 @@ class OpenAIImportService
      * Remove performWebSearch which is no longer used in linear flow
      */
 
+    protected function scrapePage(string $url, OpenAiSettings $settings, string $logPrefix): array
+    {
+        $scrapingBeeMode = $this->getScrapingBeeMode($settings, $url);
+
+        if ($scrapingBeeMode === 'primary') {
+            $start = microtime(true);
+            $result = $this->callScrapingBee($url, $settings);
+            $duration = round(microtime(true) - $start, 2);
+            Log::info("{$logPrefix}: ScrapingBee finished in {$duration}s", [
+                'images' => count($result['images'] ?? []),
+                'html_length' => strlen($result['raw_html_clean'] ?? ''),
+            ]);
+
+            return isset($result['error'])
+                ? ['error' => 'ScrapingBee Error: ' . $result['error']]
+                : $result;
+        }
+
+        if (!$settings->browserless_api_key) {
+            return ['error' => 'Browserless API Key not configured'];
+        }
+
+        $start = microtime(true);
+        $browserlessResult = $this->callBrowserless($url, $settings->browserless_api_key, $settings->browserless_script);
+        $duration = round(microtime(true) - $start, 2);
+        Log::info("{$logPrefix}: Browserless finished in {$duration}s", [
+            'images' => count($browserlessResult['images'] ?? []),
+            'html_length' => strlen($browserlessResult['raw_html_clean'] ?? ''),
+        ]);
+
+        if (isset($browserlessResult['error'])) {
+            return ['error' => 'Browserless Error: ' . $browserlessResult['error']];
+        }
+
+        if ($scrapingBeeMode === 'fallback' && $this->needsScrapingBeeFallback($browserlessResult)) {
+            $start = microtime(true);
+            $scrapingBeeResult = $this->callScrapingBee($url, $settings);
+            $duration = round(microtime(true) - $start, 2);
+            Log::info("{$logPrefix}: ScrapingBee fallback finished in {$duration}s", [
+                'images' => count($scrapingBeeResult['images'] ?? []),
+                'html_length' => strlen($scrapingBeeResult['raw_html_clean'] ?? ''),
+            ]);
+
+            if (!isset($scrapingBeeResult['error'])) {
+                return $this->mergeScrapeResults($browserlessResult, $scrapingBeeResult);
+            }
+
+            Log::warning("{$logPrefix}: ScrapingBee fallback failed", ['error' => $scrapingBeeResult['error']]);
+        }
+
+        return $browserlessResult;
+    }
+
+    protected function getScrapingBeeMode(OpenAiSettings $settings, string $url): string
+    {
+        if (!$settings->scrapingbee_enabled) {
+            return 'disabled';
+        }
+
+        $strategy = $settings->scrapingbee_strategy ?: 'fallback';
+
+        if ($strategy === 'always') {
+            return 'primary';
+        }
+
+        if ($strategy === 'domain_only') {
+            return $this->matchesScrapingBeeDomain($url, $settings->scrapingbee_domains ?? '')
+                ? 'primary'
+                : 'disabled';
+        }
+
+        return 'fallback';
+    }
+
+    protected function matchesScrapingBeeDomain(string $url, string $domains): bool
+    {
+        $host = strtolower(parse_url($url, PHP_URL_HOST) ?? '');
+        $host = preg_replace('/^www\./', '', $host);
+
+        if ($host === '') {
+            return false;
+        }
+
+        foreach (explode(',', $domains) as $domain) {
+            $domain = strtolower(trim($domain));
+            $domain = preg_replace('/^www\./', '', $domain);
+
+            if ($domain !== '' && ($host === $domain || str_ends_with($host, '.' . $domain))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function needsScrapingBeeFallback(array $result): bool
+    {
+        $html = trim($result['raw_html_clean'] ?? '');
+        $imageCount = count($result['images'] ?? []);
+
+        return $html === '' || $imageCount < 3;
+    }
+
+    protected function mergeScrapeResults(array $primary, array $secondary): array
+    {
+        $merged = array_merge($primary, $secondary);
+
+        foreach (['images', 'pdfs', 'videos'] as $key) {
+            $merged[$key] = array_values(array_unique(array_merge(
+                $primary[$key] ?? [],
+                $secondary[$key] ?? []
+            )));
+        }
+
+        if (empty($primary['raw_html_clean']) && !empty($secondary['raw_html_clean'])) {
+            $merged['raw_html_clean'] = $secondary['raw_html_clean'];
+        }
+
+        $merged['scraper_sources'] = array_values(array_unique(array_filter([
+            $primary['scraper_source'] ?? null,
+            $secondary['scraper_source'] ?? null,
+        ])));
+
+        return $merged;
+    }
+
+    protected function callScrapingBee(string $url, OpenAiSettings $settings): array
+    {
+        if (!$settings->scrapingbee_api_key) {
+            return ['error' => 'ScrapingBee API Key not configured'];
+        }
+
+        $params = [
+            'api_key' => $settings->scrapingbee_api_key,
+            'url' => $url,
+            'render_js' => $settings->scrapingbee_render_js === false ? 'false' : 'true',
+            'premium_proxy' => $settings->scrapingbee_premium_proxy ? 'true' : 'false',
+        ];
+
+        if (!empty($settings->scrapingbee_wait)) {
+            $params['wait'] = (int) $settings->scrapingbee_wait;
+        }
+
+        if (!empty($settings->scrapingbee_wait_browser)) {
+            $params['wait_browser'] = $settings->scrapingbee_wait_browser;
+        }
+
+        if (!empty(trim($settings->scrapingbee_js_scenario ?? ''))) {
+            $params['js_scenario'] = $settings->scrapingbee_js_scenario;
+        }
+
+        $response = Http::timeout(300)->get('https://app.scrapingbee.com/api/v1', $params);
+
+        if ($response->failed()) {
+            Log::error('ScrapingBee Error: ' . $response->body());
+            return ['error' => 'Status ' . $response->status() . ' - ' . $response->body()];
+        }
+
+        $html = $response->body();
+
+        if (trim($html) === '') {
+            return ['error' => 'Empty HTML response'];
+        }
+
+        return $this->buildScrapeResultFromHtml($url, $html, 'scrapingbee');
+    }
+
     /**
      * Call Browserless Function Endpoint
      */
@@ -634,6 +787,183 @@ class OpenAIImportService
         $data['url'] ??= $url;
 
         return $data;
+    }
+
+    protected function buildScrapeResultFromHtml(string $url, string $html, string $source): array
+    {
+        return [
+            'scraper_source' => $source,
+            'page_type' => 'scraped_page',
+            'url' => $url,
+            'raw_html_clean' => $html,
+            'images' => $this->extractMediaUrls($html, $url, 'image'),
+            'pdfs' => $this->extractMediaUrls($html, $url, 'pdf'),
+            'videos' => $this->extractMediaUrls($html, $url, 'video'),
+        ];
+    }
+
+    protected function extractMediaUrls(string $html, string $baseUrl, string $type): array
+    {
+        $urls = [];
+
+        $addUrl = function ($value) use (&$urls, $baseUrl, $type) {
+            if (!is_string($value) || trim($value) === '') {
+                return;
+            }
+
+            foreach ($this->splitPossibleUrlList($value) as $candidate) {
+                $absoluteUrl = $this->absoluteMediaUrl($candidate, $baseUrl);
+
+                if ($absoluteUrl && $this->isWantedMediaUrl($absoluteUrl, $type)) {
+                    $urls[] = $absoluteUrl;
+                }
+            }
+        };
+
+        libxml_use_internal_errors(true);
+
+        $dom = new \DOMDocument();
+        $loaded = $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+
+        if ($loaded) {
+            foreach (['img', 'source', 'a', 'video', 'iframe', 'meta', 'link'] as $tagName) {
+                foreach ($dom->getElementsByTagName($tagName) as $node) {
+                    foreach ([
+                        'src',
+                        'href',
+                        'content',
+                        'srcset',
+                        'data-src',
+                        'data-srcset',
+                        'data-lazy-src',
+                        'data-lazy-srcset',
+                        'data-original',
+                        'data-full',
+                        'data-image',
+                        'data-bg',
+                    ] as $attribute) {
+                        if ($node->hasAttribute($attribute)) {
+                            $addUrl($node->getAttribute($attribute));
+                        }
+                    }
+                }
+            }
+
+            foreach ($dom->getElementsByTagName('*') as $node) {
+                if ($node->hasAttribute('style')) {
+                    $this->extractCssUrls($node->getAttribute('style'), $addUrl);
+                }
+            }
+        }
+
+        libxml_clear_errors();
+
+        $this->extractCssUrls($html, $addUrl);
+
+        preg_match_all('~https?:\\/\\/[^"\'\s<>\\\\]+~i', $html, $matches);
+        foreach ($matches[0] ?? [] as $match) {
+            $addUrl($match);
+        }
+
+        return array_values(array_unique($urls));
+    }
+
+    protected function splitPossibleUrlList(string $value): array
+    {
+        $value = html_entity_decode(trim($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if ($value === '') {
+            return [];
+        }
+
+        $parts = [];
+
+        foreach (explode(',', $value) as $chunk) {
+            $chunk = trim($chunk);
+
+            if ($chunk === '') {
+                continue;
+            }
+
+            $parts[] = preg_split('/\s+/', $chunk)[0] ?? $chunk;
+        }
+
+        return $parts;
+    }
+
+    protected function extractCssUrls(string $value, callable $addUrl): void
+    {
+        preg_match_all('/url\((["\']?)(.*?)\1\)/i', $value, $matches);
+
+        foreach ($matches[2] ?? [] as $url) {
+            $addUrl($url);
+        }
+    }
+
+    protected function absoluteMediaUrl(string $candidate, string $baseUrl): ?string
+    {
+        $candidate = trim($candidate, " \t\n\r\0\x0B\"'");
+
+        if ($candidate === '' || str_starts_with($candidate, 'data:') || str_starts_with($candidate, 'blob:')) {
+            return null;
+        }
+
+        if (str_starts_with($candidate, '//')) {
+            return 'https:' . $candidate;
+        }
+
+        if (preg_match('/^https?:\/\//i', $candidate)) {
+            return $candidate;
+        }
+
+        $parts = parse_url($baseUrl);
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = $parts['host'] ?? null;
+
+        if (!$host) {
+            return null;
+        }
+
+        if (str_starts_with($candidate, '/')) {
+            return "{$scheme}://{$host}{$candidate}";
+        }
+
+        $path = $parts['path'] ?? '/';
+        $directory = rtrim(str_replace('\\', '/', dirname($path)), '/');
+
+        return "{$scheme}://{$host}{$directory}/{$candidate}";
+    }
+
+    protected function isWantedMediaUrl(string $url, string $type): bool
+    {
+        $path = strtolower(parse_url($url, PHP_URL_PATH) ?? '');
+        $urlLower = strtolower($url);
+
+        if ($type === 'image' && $this->isLikelyDecorativeImage($urlLower)) {
+            return false;
+        }
+
+        return match ($type) {
+            'image' => preg_match('/\.(jpe?g|png|webp|avif|gif)(?:$|\?)/i', $url) === 1
+                || str_contains($path, '/cdn-cgi/image/'),
+            'pdf' => preg_match('/\.pdf(?:$|\?)/i', $url) === 1,
+            'video' => preg_match('/\.(mp4|mov|m4v|webm)(?:$|\?)/i', $url) === 1
+                || str_contains($urlLower, 'youtube.com/')
+                || str_contains($urlLower, 'youtu.be/')
+                || str_contains($urlLower, 'vimeo.com/'),
+            default => false,
+        };
+    }
+
+    protected function isLikelyDecorativeImage(string $url): bool
+    {
+        foreach (['favicon', 'logo', 'icon', 'sprite', 'placeholder', 'browser-bar', 'apple-touch-icon'] as $needle) {
+            if (str_contains($url, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
