@@ -18,7 +18,7 @@
             height: auto;
         }
     </style>
-    <form wire:submit.prevent="save">
+    <div>
         {{ $this->form }}
 
         <div class="flex gap-3 mt-6">
@@ -29,5 +29,5 @@
                 Cancel
             </x-filament::button>
         </div>
-    </form>
+    </div>
 </x-filament-panels::page>

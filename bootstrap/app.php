@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,5 +20,17 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (MethodNotAllowedHttpException $exception, Request $request) {
+            Log::warning('405 Method Not Allowed', [
+                'method' => $request->method(),
+                'url' => $request->fullUrl(),
+                'path' => $request->path(),
+                'route' => $request->route()?->getName(),
+                'referer' => $request->headers->get('referer'),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+                'allowed_methods' => $exception->getHeaders()['Allow'] ?? null,
+            ]);
+
+            return null;
+        });
     })->create();
