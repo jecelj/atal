@@ -125,7 +125,7 @@ class ManageExternalApiSettings extends SettingsPage
                             ->label('Scrape Script (Node.js)')
                             ->rows(15)
                             ->helperText('Javascript code for Browserless /function endpoint. Receives { page, context }.')
-                            ->default("export default async function({ page }) {\n  await page.goto(context.url);\n  const content = await page.content();\n  return { content };\n};"),
+                            ->default("export default async function({ page, context }) {\n  await page.goto(context.url, { waitUntil: 'networkidle0' });\n  const raw_html_clean = await page.content();\n  return { raw_html_clean };\n};"),
                     ])
                     ->collapsible(),
             ]);

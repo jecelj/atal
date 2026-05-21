@@ -596,8 +596,42 @@ class OpenAIImportService
 
         $data = $response->json();
 
+        if (!is_array($data)) {
+            Log::error('Browserless Error: Invalid JSON response', ['body' => substr($response->body(), 0, 500)]);
+            return ['error' => 'Invalid JSON response from Browserless'];
+        }
+
+        $data = $this->normalizeBrowserlessResult($data, $url);
+
         // Log keys returned
         Log::info('Browserless Response Keys: ', array_keys($data));
+
+        return $data;
+    }
+
+    protected function normalizeBrowserlessResult(array $data, string $url): array
+    {
+        $html = $data['raw_html_clean']
+            ?? $data['raw_html']
+            ?? $data['html']
+            ?? $data['content']
+            ?? data_get($data, 'data.raw_html_clean')
+            ?? data_get($data, 'data.raw_html')
+            ?? data_get($data, 'data.html')
+            ?? data_get($data, 'data.content')
+            ?? null;
+
+        if (is_string($html) && trim($html) !== '') {
+            $data['raw_html_clean'] = $html;
+
+            foreach (['raw_html', 'html', 'content'] as $duplicateKey) {
+                if (($data[$duplicateKey] ?? null) === $html) {
+                    unset($data[$duplicateKey]);
+                }
+            }
+        }
+
+        $data['url'] ??= $url;
 
         return $data;
     }
