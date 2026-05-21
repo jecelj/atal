@@ -9,6 +9,9 @@ use App\Settings\OpenAiSettings;
 
 class OpenAIImportService
 {
+    private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
+    private const EXTRACTION_TEXT_LIMIT = 60000;
+
     /**
      * Fetch USED yacht data using specialized single-prompt approach (Adventure Boat).
      */
@@ -26,7 +29,7 @@ class OpenAIImportService
         Log::info('OpenAI Used Yacht Import: Starting import for URL: ' . $url);
         $settings = app(OpenAiSettings::class);
         $apiKey = $settings->openai_secret;
-        $importModel = $settings->ai_import_extraction_model ?: 'gpt-5.4';
+        $importModel = $settings->ai_import_extraction_model ?: self::DEFAULT_LOW_COST_MODEL;
 
         // Custom Prompt for Used Yacht
         $systemPrompt = $settings->adventure_boat_prompt;
@@ -59,10 +62,18 @@ class OpenAIImportService
         // Clean HTML
         $rawHtml = $scrapeResult['raw_html_clean'] ?? '';
         $rawHtml = mb_convert_encoding($rawHtml, 'UTF-8', 'UTF-8');
+        $pageText = $this->prepareExtractionText($rawHtml, $url, '', '', self::EXTRACTION_TEXT_LIMIT);
 
         // Construct User Input
-        $userInput = "raw_html = \"\"\"" . $rawHtml . "\"\"\"\n\n" .
+        $userInput = "source_format = compacted_text_from_rendered_html\n" .
+            "raw_html = \"\"\"" . $pageText . "\"\"\"\n\n" .
             "media = " . $jsonMedia;
+
+        Log::info('OpenAI Used Yacht Import: Extraction HTML compacted', [
+            'raw_html_chars' => strlen($rawHtml),
+            'compact_chars' => strlen($pageText),
+            'limit' => self::EXTRACTION_TEXT_LIMIT,
+        ]);
 
         Log::info('OpenAI Used Yacht Import: Calling OpenAI...');
         $openaiStart = microtime(true);
@@ -146,8 +157,8 @@ class OpenAIImportService
         Log::info('OpenAI Import: Starting import for URL: ' . $url);
         $settings = app(OpenAiSettings::class);
         $apiKey = $settings->openai_secret;
-        $mediaModel = $settings->ai_import_media_model ?: 'gpt-5.4';
-        $extractionModel = $settings->ai_import_extraction_model ?: 'gpt-5.4';
+        $mediaModel = $settings->ai_import_media_model ?: self::DEFAULT_LOW_COST_MODEL;
+        $extractionModel = $settings->ai_import_extraction_model ?: self::DEFAULT_LOW_COST_MODEL;
 
         // Prompts
         $mediaPromptSystem = $settings->openai_prompt; // "OpenAI Media Prompt"
@@ -194,6 +205,7 @@ class OpenAIImportService
         // HTML
         $rawHtml = $scrapeResult['raw_html_clean'] ?? '';
         $rawHtml = mb_convert_encoding($rawHtml, 'UTF-8', 'UTF-8'); // Sanitize HTML for Extraction Call
+        $pageText = $this->prepareExtractionText($rawHtml, $url, $brand, $model, self::EXTRACTION_TEXT_LIMIT);
 
         // Prepare Prompts inputs
         // MEDIA INPUT: BRAND, MODEL, MEDIA
@@ -206,7 +218,14 @@ class OpenAIImportService
         $extractionInput = "BRAND = " . $brand . "\n" .
             "MODEL = " . $model . "\n" .
             "URL = " . $url . "\n" .
-            "RAW_HTML = \"\"\"" . $rawHtml . "\"\"\"";
+            "SOURCE_FORMAT = compacted_text_from_rendered_html\n" .
+            "RAW_HTML = \"\"\"" . $pageText . "\"\"\"";
+
+        Log::info('OpenAI Import: Extraction HTML compacted', [
+            'raw_html_chars' => strlen($rawHtml),
+            'compact_chars' => strlen($pageText),
+            'limit' => self::EXTRACTION_TEXT_LIMIT,
+        ]);
 
         Log::info('OpenAI Import: Starting Parallel Requests (Media & Extraction)...');
         Log::info("OpenAI Import: Payload Sizes - Media: " . strlen($mediaInput) . " chars, Extraction: " . strlen($extractionInput) . " chars");
@@ -250,10 +269,6 @@ class OpenAIImportService
                                 ]
                             ]
                         ],
-                        'tools' => [
-                            ['type' => 'web_search']
-                        ],
-                        'tool_choice' => 'auto'
                     ])
             ];
         });
@@ -374,6 +389,265 @@ class OpenAIImportService
         // I will refactor processApiResponse to take array and normalize it.
 
         return $this->normalizeData($finalData);
+    }
+
+    protected function prepareExtractionText(string $html, string $url, string $brand, string $model, int $limit): string
+    {
+        $html = trim($html);
+
+        if ($html === '') {
+            return '';
+        }
+
+        $dom = new \DOMDocument();
+        $previousUseErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadHTML(
+            '<?xml encoding="UTF-8">' . $html,
+            LIBXML_NOWARNING | LIBXML_NOERROR | LIBXML_NONET | LIBXML_COMPACT
+        );
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousUseErrors);
+
+        if (!$loaded) {
+            return $this->truncateExtractionText($this->cleanExtractionText(strip_tags($html)), $limit);
+        }
+
+        foreach (['script', 'style', 'noscript', 'svg', 'canvas', 'template', 'header', 'footer', 'nav', 'form', 'button', 'iframe'] as $tagName) {
+            while (($nodes = $dom->getElementsByTagName($tagName))->length > 0) {
+                $node = $nodes->item(0);
+                $node?->parentNode?->removeChild($node);
+            }
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $keywords = $this->buildExtractionKeywords($url, $brand, $model);
+        $blocks = [];
+        $seen = [];
+        $index = 0;
+
+        $addBlock = function (string $text, string $type = 'body') use (&$blocks, &$seen, &$index, $keywords) {
+            $text = $this->cleanExtractionText($text);
+
+            if ($text === '' || mb_strlen($text) < 3) {
+                return;
+            }
+
+            $lower = mb_strtolower($text);
+            if (str_contains($lower, 'cookie') && mb_strlen($text) < 220) {
+                return;
+            }
+
+            $dedupeKey = mb_strtolower(preg_replace('/\s+/', ' ', $text));
+            if (isset($seen[$dedupeKey])) {
+                return;
+            }
+
+            $seen[$dedupeKey] = true;
+
+            $blocks[] = [
+                'text' => $text,
+                'type' => $type,
+                'index' => $index++,
+                'score' => $this->scoreExtractionText($text, $type, $keywords, $index),
+            ];
+        };
+
+        $title = $this->nodeListFirstText($xpath->query('//title'));
+        if ($title !== '') {
+            $addBlock('Page title: ' . $title, 'title');
+        }
+
+        foreach ($xpath->query('//meta[@name="description" or @property="og:description"]') as $node) {
+            if ($node instanceof \DOMElement) {
+                $content = $node->getAttribute('content');
+                if ($content !== '') {
+                    $addBlock('Meta description: ' . $content, 'meta');
+                }
+            }
+        }
+
+        foreach ($xpath->query('//h1 | //h2 | //h3 | //h4 | //h5 | //h6 | //p | //li | //dt | //dd | //figcaption | //caption') as $node) {
+            if ($node instanceof \DOMElement) {
+                $addBlock($node->textContent ?? '', strtolower($node->tagName));
+            }
+        }
+
+        foreach ($xpath->query('//tr') as $row) {
+            if (!$row instanceof \DOMElement) {
+                continue;
+            }
+
+            $cells = [];
+            foreach ($xpath->query('./th | ./td', $row) as $cell) {
+                $cellText = $this->cleanExtractionText($cell->textContent ?? '');
+                if ($cellText !== '') {
+                    $cells[] = $cellText;
+                }
+            }
+
+            if (count($cells) >= 2) {
+                $addBlock('Table row: ' . implode(' | ', $cells), 'table');
+            }
+        }
+
+        if (empty($blocks)) {
+            return $this->truncateExtractionText($this->cleanExtractionText(strip_tags($html)), $limit);
+        }
+
+        $priorityBlocks = $blocks;
+        usort($priorityBlocks, fn($a, $b) => ($b['score'] <=> $a['score']) ?: ($a['index'] <=> $b['index']));
+
+        $selected = [];
+        $selectedIndexes = [];
+        $length = 0;
+
+        foreach ($priorityBlocks as $block) {
+            if ($block['score'] <= 0 && count($selected) >= 80) {
+                continue;
+            }
+
+            $selected[] = $block;
+            $selectedIndexes[$block['index']] = true;
+            $length += mb_strlen($block['text']) + 1;
+
+            if ($length >= $limit * 1.2) {
+                break;
+            }
+        }
+
+        foreach ($blocks as $block) {
+            if (isset($selectedIndexes[$block['index']])) {
+                continue;
+            }
+
+            $selected[] = $block;
+            $length += mb_strlen($block['text']) + 1;
+
+            if (count($selected) >= 120 || $length >= $limit * 1.4) {
+                break;
+            }
+        }
+
+        usort($selected, fn($a, $b) => $a['index'] <=> $b['index']);
+
+        return $this->truncateExtractionText(implode("\n", array_column($selected, 'text')), $limit);
+    }
+
+    protected function buildExtractionKeywords(string $url, string $brand, string $model): array
+    {
+        $tokens = $this->buildMediaRelevanceTokens($url, $brand, $model);
+        $modelTokens = array_merge($tokens['strong'], $tokens['medium']);
+
+        $brandTokens = preg_split('/[^a-z0-9]+/i', strtolower($brand)) ?: [];
+        $modelWords = preg_split('/[^a-z0-9]+/i', strtolower($model)) ?: [];
+
+        return [
+            'context' => array_values(array_unique(array_filter(array_merge($modelTokens, $brandTokens, $modelWords), fn($token) => strlen($token) >= 2))),
+            'specs' => [
+                'spec',
+                'specification',
+                'technical',
+                'dimension',
+                'length',
+                'beam',
+                'draft',
+                'draught',
+                'displacement',
+                'weight',
+                'fuel',
+                'water',
+                'capacity',
+                'engine',
+                'power',
+                'hp',
+                'kw',
+                'cabin',
+                'bath',
+                'head',
+                'berth',
+                'layout',
+                'feature',
+                'standard',
+                'optional',
+                'performance',
+                'deadrise',
+                'hull',
+            ],
+        ];
+    }
+
+    protected function scoreExtractionText(string $text, string $type, array $keywords, int $index): int
+    {
+        $lower = mb_strtolower($text);
+        $score = match ($type) {
+            'title' => 500,
+            'meta' => 350,
+            'h1' => 420,
+            'h2' => 360,
+            'h3' => 280,
+            'h4', 'h5', 'h6' => 180,
+            'table' => 240,
+            'dt', 'dd' => 160,
+            'li' => 80,
+            default => 20,
+        };
+
+        foreach ($keywords['context'] as $keyword) {
+            if ($keyword !== '' && str_contains($lower, $keyword)) {
+                $score += 110;
+            }
+        }
+
+        foreach ($keywords['specs'] as $keyword) {
+            if (str_contains($lower, $keyword)) {
+                $score += 70;
+            }
+        }
+
+        if ($index < 80) {
+            $score += max(0, 80 - $index);
+        }
+
+        if (mb_strlen($text) > 1500) {
+            $score -= 80;
+        }
+
+        return $score;
+    }
+
+    protected function nodeListFirstText($nodes): string
+    {
+        if (!$nodes instanceof \DOMNodeList || $nodes->length === 0) {
+            return '';
+        }
+
+        return $this->cleanExtractionText($nodes->item(0)?->textContent ?? '');
+    }
+
+    protected function cleanExtractionText(string $text): string
+    {
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        return trim($text);
+    }
+
+    protected function truncateExtractionText(string $text, int $limit): string
+    {
+        $text = trim($text);
+
+        if (mb_strlen($text) <= $limit) {
+            return $text;
+        }
+
+        $truncated = mb_substr($text, 0, $limit);
+        $lastBreak = mb_strrpos($truncated, "\n");
+
+        if ($lastBreak !== false && $lastBreak > $limit * 0.75) {
+            $truncated = mb_substr($truncated, 0, $lastBreak);
+        }
+
+        return rtrim($truncated) . "\n...[truncated]";
     }
 
     protected function decodeOpenAIContent($content)
@@ -626,7 +900,7 @@ class OpenAIImportService
         // Fetch Prompt from Settings
         $settings = app(\App\Settings\OpenAiSettings::class);
         $customPrompt = $settings->openai_translation_prompt;
-        $translationModel = $settings->translation_model ?: 'gpt-5.4';
+        $translationModel = $settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
 
         // Construct Final Prompt
         $baseInstruction = !empty($customPrompt)

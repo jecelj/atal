@@ -5,10 +5,10 @@ use Spatie\LaravelSettings\Migrations\SettingsMigration;
 return new class extends SettingsMigration {
     public function up(): void
     {
-        $this->migrator->add('openai.translation_model', 'gpt-5.4');
-        $this->migrator->add('openai.ai_import_media_model', 'gpt-5.4');
-        $this->migrator->add('openai.ai_import_extraction_model', 'gpt-5.4');
-        $this->migrator->add('openai.ai_import_retry_model', 'gpt-5.5');
+        $this->migrator->add('openai.translation_model', 'gpt-4o-mini-2024-07-18');
+        $this->migrator->add('openai.ai_import_media_model', 'gpt-4o-mini-2024-07-18');
+        $this->migrator->add('openai.ai_import_extraction_model', 'gpt-4o-mini-2024-07-18');
+        $this->migrator->add('openai.ai_import_retry_model', 'gpt-4o-mini-2024-07-18');
 
         $this->migrator->add('openai.scrapingbee_enabled', false);
         $this->migrator->add('openai.scrapingbee_api_key', '');

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class TranslationService
 {
+    private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
+
     protected OpenAiSettings $settings;
 
     public function __construct(OpenAiSettings $settings)
@@ -104,7 +106,7 @@ class TranslationService
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
             ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => $this->settings->translation_model ?: 'gpt-5.4',
+                        'model' => $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL,
                         'messages' => [
                             [
                                 'role' => 'system',
@@ -195,7 +197,7 @@ class TranslationService
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
             ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => $this->settings->translation_model ?: 'gpt-5.4',
+                        'model' => $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL,
                         'messages' => [
                             [
                                 'role' => 'system',
