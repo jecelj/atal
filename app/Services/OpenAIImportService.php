@@ -416,18 +416,8 @@ class OpenAIImportService
             unset($decoded['gallery_interrior']);
         }
 
-        // Normalize Videos
         if (isset($decoded['video_url'])) {
-            $videos = [];
-            $rawVideos = is_array($decoded['video_url']) ? $decoded['video_url'] : [$decoded['video_url']];
-            foreach ($rawVideos as $v) {
-                if (is_string($v) && !empty($v)) {
-                    $videos[] = ['url' => $v];
-                } elseif (is_array($v) && isset($v['url'])) {
-                    $videos[] = $v;
-                }
-            }
-            $decoded['video_url'] = $videos;
+            $decoded['video_url'] = $this->normalizeVideoUrlList($decoded['video_url']);
         }
 
         // Normalize Length
@@ -610,6 +600,8 @@ class OpenAIImportService
         if (empty($decodedMedia['pdf_brochure']) && !empty($pdfs)) {
             $decodedMedia['pdf_brochure'] = $pdfs[0];
         }
+
+        $videos = $this->normalizeVideoUrlList($videos);
 
         if (empty($decodedMedia['video_url']) && !empty($videos)) {
             $decodedMedia['video_url'] = $videos;
@@ -987,6 +979,14 @@ class OpenAIImportService
                 $absoluteUrl = $this->absoluteMediaUrl($candidate, $baseUrl);
 
                 if ($absoluteUrl && $this->isWantedMediaUrl($absoluteUrl, $type)) {
+                    if ($type === 'video') {
+                        $absoluteUrl = $this->canonicalVideoUrl($absoluteUrl);
+
+                        if (!$absoluteUrl) {
+                            continue;
+                        }
+                    }
+
                     $urls[] = $absoluteUrl;
                 }
             }
@@ -1119,12 +1119,93 @@ class OpenAIImportService
             'image' => preg_match('/\.(jpe?g|png|webp|avif|gif)(?:$|\?)/i', $url) === 1
                 || str_contains($path, '/cdn-cgi/image/'),
             'pdf' => preg_match('/\.pdf(?:$|\?)/i', $url) === 1,
-            'video' => preg_match('/\.(mp4|mov|m4v|webm)(?:$|\?)/i', $url) === 1
-                || str_contains($urlLower, 'youtube.com/')
-                || str_contains($urlLower, 'youtu.be/')
-                || str_contains($urlLower, 'vimeo.com/'),
+            'video' => $this->canonicalVideoUrl($url) !== null,
             default => false,
         };
+    }
+
+    public function normalizeVideoUrlList($rawVideos): array
+    {
+        $videos = [];
+        $seen = [];
+        $rawVideos = is_array($rawVideos) ? $rawVideos : [$rawVideos];
+
+        foreach ($rawVideos as $video) {
+            $item = is_array($video) ? $video : ['url' => $video];
+            $canonicalUrl = $this->canonicalVideoUrl((string) ($item['url'] ?? ''));
+
+            if (!$canonicalUrl) {
+                continue;
+            }
+
+            $key = strtolower($canonicalUrl);
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $item['url'] = $canonicalUrl;
+            $videos[] = $item;
+        }
+
+        return $videos;
+    }
+
+    protected function canonicalVideoUrl(string $url): ?string
+    {
+        $url = trim(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'), " \t\n\r\0\x0B\"'");
+
+        if ($url === '' || str_starts_with($url, 'data:') || str_starts_with($url, 'blob:')) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+        $host = strtolower($parts['host'] ?? '');
+        $path = $parts['path'] ?? '';
+        $query = $parts['query'] ?? '';
+
+        if (!$host) {
+            return null;
+        }
+
+        if (preg_match('/\.(mp4|mov|m4v|webm)$/i', $path)) {
+            $scheme = $parts['scheme'] ?? 'https';
+            $normalized = "{$scheme}://{$host}{$path}";
+
+            return $query ? "{$normalized}?{$query}" : $normalized;
+        }
+
+        if ($host === 'youtu.be' && preg_match('~^/([^/?#]{11})~', $path, $matches)) {
+            return 'https://www.youtube.com/watch?v=' . $matches[1];
+        }
+
+        if ($host === 'youtube.com' || $host === 'www.youtube.com' || $host === 'm.youtube.com') {
+            parse_str($query, $queryParams);
+
+            if (!empty($queryParams['v']) && preg_match('/^[A-Za-z0-9_-]{11}$/', $queryParams['v'])) {
+                return 'https://www.youtube.com/watch?v=' . $queryParams['v'];
+            }
+
+            if (preg_match('~/(?:embed|shorts)/([A-Za-z0-9_-]{11})~', $path, $matches)) {
+                return 'https://www.youtube.com/watch?v=' . $matches[1];
+            }
+        }
+
+        if ($host === 'player.vimeo.com') {
+            if (preg_match('~^/video/(\d+)~', $path, $matches)) {
+                return 'https://vimeo.com/' . $matches[1];
+            }
+
+            return null;
+        }
+
+        if ($host === 'vimeo.com' || $host === 'www.vimeo.com') {
+            if (preg_match('~/(?:.*?/)?(\d+)(?:$|/)~', $path, $matches)) {
+                return 'https://vimeo.com/' . $matches[1];
+            }
+        }
+
+        return null;
     }
 
     protected function isLikelyDecorativeImage(string $url): bool
@@ -1197,18 +1278,8 @@ class OpenAIImportService
                 unset($decoded['gallery_interrior']);
             }
 
-            // Normalize Videos for Repeater: ['url1', 'url2'] -> [['url' => 'url1'], ['url' => 'url2']]
             if (isset($decoded['video_url'])) {
-                $videos = [];
-                $rawVideos = is_array($decoded['video_url']) ? $decoded['video_url'] : [$decoded['video_url']];
-                foreach ($rawVideos as $v) {
-                    if (is_string($v) && !empty($v)) {
-                        $videos[] = ['url' => $v];
-                    } elseif (is_array($v) && isset($v['url'])) {
-                        $videos[] = $v;
-                    }
-                }
-                $decoded['video_url'] = $videos;
+                $decoded['video_url'] = $this->normalizeVideoUrlList($decoded['video_url']);
             }
 
             // Normalize Length (ensure numeric)

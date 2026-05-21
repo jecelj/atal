@@ -266,11 +266,15 @@ class ReviewUsedYachtImport extends Page implements HasForms
             return 'https://www.youtube.com/embed/' . $matches[1];
         }
 
-        if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)/', $url, $matches)) {
+        $parts = parse_url($url);
+        $host = strtolower($parts['host'] ?? '');
+        $path = $parts['path'] ?? '';
+
+        if ($host === 'player.vimeo.com' && preg_match('~^/video/(\d+)~', $path, $matches)) {
             return 'https://player.vimeo.com/video/' . $matches[1];
         }
 
-        if (preg_match('/vimeo\.com\/(?:.*\/)?(\d+)(?:$|[?&#])/', $url, $matches)) {
+        if (($host === 'vimeo.com' || $host === 'www.vimeo.com') && preg_match('~/(?:.*?/)?(\d+)(?:$|/)~', $path, $matches)) {
             return 'https://player.vimeo.com/video/' . $matches[1];
         }
 

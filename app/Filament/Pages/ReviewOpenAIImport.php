@@ -11,6 +11,7 @@ use Filament\Actions\Action;
 use Illuminate\Support\Facades\Cache;
 use App\Models\NewYacht;
 use App\Models\Brand;
+use App\Services\OpenAIImportService;
 use Filament\Notifications\Notification;
 use Filament\Forms\Components\Wizard;
 use Illuminate\Support\Facades\Log;
@@ -146,6 +147,14 @@ class ReviewOpenAIImport extends Page implements HasForms
 
         if (!data_get($cachedData, 'custom_fields.grid_image_hover_url'))
             data_set($cachedData, 'custom_fields.grid_image_hover_url', []); // Force array
+
+        if (data_get($cachedData, 'custom_fields.video_url') !== null) {
+            data_set(
+                $cachedData,
+                'custom_fields.video_url',
+                app(OpenAIImportService::class)->normalizeVideoUrlList(data_get($cachedData, 'custom_fields.video_url'))
+            );
+        }
 
         Log::info('Review Page: Prepared all_images', [
             'count' => count($allImages),
@@ -313,12 +322,14 @@ class ReviewOpenAIImport extends Page implements HasForms
                                     return 'No videos found';
 
                                 $html = '<div style="display: flex; gap: 1rem; flex-wrap: wrap;">';
+                                $seenEmbeds = [];
                                 foreach ($videos as $video) {
                                     $url = is_array($video) ? ($video['url'] ?? '') : (string) $video;
                                     if ($url) {
                                         $embedUrl = $this->getVideoEmbedUrl($url);
 
-                                        if ($embedUrl) {
+                                        if ($embedUrl && !isset($seenEmbeds[$embedUrl])) {
+                                            $seenEmbeds[$embedUrl] = true;
                                             $html .= "<iframe width='300' height='200' src='" . e($embedUrl) . "' frameborder='0' allow='autoplay; fullscreen; picture-in-picture' allowfullscreen></iframe>";
                                         }
                                     }
@@ -360,11 +371,15 @@ class ReviewOpenAIImport extends Page implements HasForms
             return 'https://www.youtube.com/embed/' . $matches[1];
         }
 
-        if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)/', $url, $matches)) {
+        $parts = parse_url($url);
+        $host = strtolower($parts['host'] ?? '');
+        $path = $parts['path'] ?? '';
+
+        if ($host === 'player.vimeo.com' && preg_match('~^/video/(\d+)~', $path, $matches)) {
             return 'https://player.vimeo.com/video/' . $matches[1];
         }
 
-        if (preg_match('/vimeo\.com\/(?:.*\/)?(\d+)(?:$|[?&#])/', $url, $matches)) {
+        if (($host === 'vimeo.com' || $host === 'www.vimeo.com') && preg_match('~/(?:.*?/)?(\d+)(?:$|/)~', $path, $matches)) {
             return 'https://player.vimeo.com/video/' . $matches[1];
         }
 
