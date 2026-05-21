@@ -120,6 +120,11 @@ class ReviewUsedYachtImport extends Page
             }
         }
 
+        foreach (['_debug_prompt', '_debug_response'] as $debugKey) {
+            data_forget($cachedData, $debugKey);
+            data_forget($cachedData, "custom_fields.{$debugKey}");
+        }
+
         // Initialize form with cached data
         $this->form->fill($cachedData);
     }
@@ -238,18 +243,38 @@ class ReviewUsedYachtImport extends Page
 
                 Forms\Components\Section::make('Debug API Info')
                     ->schema([
-                        Forms\Components\Textarea::make('custom_fields._debug_prompt')
+                        Forms\Components\Placeholder::make('debug_prompt')
                             ->label('OpenAI Prompt')
-                            ->rows(5)
-                            ->readonly(),
-                        Forms\Components\Textarea::make('custom_fields._debug_response')
+                            ->content(fn() => $this->debugPreviewHtml('_debug_prompt')),
+                        Forms\Components\Placeholder::make('debug_response')
                             ->label('OpenAI Response')
-                            ->rows(10)
-                            ->readonly(),
+                            ->content(fn() => $this->debugPreviewHtml('_debug_response')),
                     ])
                     ->collapsed(),
             ])
             ->statePath('data');
+    }
+
+    protected function debugPreviewHtml(string $key): \Illuminate\Support\HtmlString
+    {
+        $cachedData = Cache::get('openai_import_used_' . $this->importId, []);
+        $value = (string) (data_get($cachedData, "custom_fields.{$key}") ?? data_get($cachedData, $key) ?? '');
+
+        if ($value === '') {
+            return new \Illuminate\Support\HtmlString('<span class="text-gray-500">No debug data available.</span>');
+        }
+
+        $limit = 12000;
+        $suffix = mb_strlen($value) > $limit
+            ? "\n\n... truncated for review page performance ..."
+            : '';
+        $value = mb_substr($value, 0, $limit) . $suffix;
+
+        return new \Illuminate\Support\HtmlString(
+            '<pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs text-gray-700 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700">'
+            . e($value)
+            . '</pre>'
+        );
     }
 
     protected function getVideoEmbedUrl(string $url): ?string
@@ -326,6 +351,9 @@ class ReviewUsedYachtImport extends Page
 
             // 4. Custom Fields Cleaning
             $customFields = $data['custom_fields'] ?? [];
+            $cachedImportData = Cache::get('openai_import_used_' . $this->importId, []);
+            $customFields['_debug_prompt'] = data_get($cachedImportData, 'custom_fields._debug_prompt') ?? data_get($cachedImportData, '_debug_prompt');
+            $customFields['_debug_response'] = data_get($cachedImportData, 'custom_fields._debug_response') ?? data_get($cachedImportData, '_debug_response');
 
             // Wrap Text Fields in Multilingual Array (Default Language Only)
             $defaultLang = \App\Models\Language::where('is_default', true)->value('code') ?? 'en';

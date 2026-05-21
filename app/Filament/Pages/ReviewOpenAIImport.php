@@ -152,6 +152,11 @@ class ReviewOpenAIImport extends Page
             );
         }
 
+        foreach (['_debug_prompt', '_debug_response'] as $debugKey) {
+            data_forget($cachedData, $debugKey);
+            data_forget($cachedData, "custom_fields.{$debugKey}");
+        }
+
         Log::info('Review Page: Prepared all_images', [
             'count' => count($allImages),
             'sample' => array_slice($allImages, 0, 5), // Log first 5 to check categories
@@ -344,18 +349,38 @@ class ReviewOpenAIImport extends Page
                 Forms\Components\Section::make('Debug API Info')
                     ->description('Raw Prompt and Response from OpenAI for debugging purposes.')
                     ->schema([
-                        Forms\Components\Textarea::make('custom_fields._debug_prompt')
+                        Forms\Components\Placeholder::make('debug_prompt')
                             ->label('OpenAI Prompt (Input)')
-                            ->rows(10)
-                            ->readonly(),
-                        Forms\Components\Textarea::make('custom_fields._debug_response')
+                            ->content(fn() => $this->debugPreviewHtml('_debug_prompt')),
+                        Forms\Components\Placeholder::make('debug_response')
                             ->label('OpenAI Response (Output)')
-                            ->rows(20)
-                            ->readonly(),
+                            ->content(fn() => $this->debugPreviewHtml('_debug_response')),
                     ])
                     ->collapsed(), // Collapsed by default
             ])
             ->statePath('data');
+    }
+
+    protected function debugPreviewHtml(string $key): \Illuminate\Support\HtmlString
+    {
+        $cachedData = Cache::get('openai_import_' . $this->importId, []);
+        $value = (string) (data_get($cachedData, "custom_fields.{$key}") ?? data_get($cachedData, $key) ?? '');
+
+        if ($value === '') {
+            return new \Illuminate\Support\HtmlString('<span class="text-gray-500">No debug data available.</span>');
+        }
+
+        $limit = 12000;
+        $suffix = mb_strlen($value) > $limit
+            ? "\n\n... truncated for review page performance ..."
+            : '';
+        $value = mb_substr($value, 0, $limit) . $suffix;
+
+        return new \Illuminate\Support\HtmlString(
+            '<pre class="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs text-gray-700 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700">'
+            . e($value)
+            . '</pre>'
+        );
     }
 
     protected function getVideoEmbedUrl(string $url): ?string
@@ -533,6 +558,9 @@ class ReviewOpenAIImport extends Page
             $customFields['sub_titile'] = $customFields['sub_title'] ?? null; // Fix 'Sub Titile' typo
             $customFields['gallery_interrior_urls'] = $customFields['gallery_interior_urls'] ?? []; // Typo legacy in Yacht.php
             $customFields['gallery_exterrior_urls'] = $customFields['gallery_exterior_urls'] ?? []; // Typo legacy in Yacht.php
+            $cachedImportData = Cache::get('openai_import_' . $this->importId, []);
+            $customFields['_debug_prompt'] = data_get($cachedImportData, 'custom_fields._debug_prompt') ?? data_get($cachedImportData, '_debug_prompt');
+            $customFields['_debug_response'] = data_get($cachedImportData, 'custom_fields._debug_response') ?? data_get($cachedImportData, '_debug_response');
 
             // Media Process preparation
             $allImages = $customFields['all_images'] ?? [];
