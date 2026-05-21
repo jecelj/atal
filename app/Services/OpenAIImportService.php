@@ -715,6 +715,12 @@ class OpenAIImportService
             $decoded['video_url'] = $this->normalizeVideoUrlList($decoded['video_url']);
         }
 
+        foreach (['cover_image', 'grid_image', 'grid_image_hover', 'gallery_exterior', 'gallery_interior', 'gallery_cockpit', 'gallery_layout'] as $imageField) {
+            if (isset($decoded[$imageField]) && is_array($decoded[$imageField])) {
+                $decoded[$imageField] = $this->deduplicateImageVariants($decoded[$imageField]);
+            }
+        }
+
         // Normalize Length
         if (isset($decoded['length'])) {
             $val = str_replace(',', '.', $decoded['length']);
@@ -743,10 +749,12 @@ class OpenAIImportService
         unset($mediaData['url']);
 
         $originalImages = $mediaData['images'] ?? [];
-        $rankedImages = $this->rankImageUrls($originalImages, $url, $brand, $model);
+        $dedupedImages = $this->deduplicateImageVariants($originalImages);
+        $rankedImages = $this->rankImageUrls($dedupedImages, $url, $brand, $model);
         $relevantImages = array_values(array_filter($rankedImages, fn($item) => $item['score'] > 0));
 
         $mediaData['images_original_count'] = count($originalImages);
+        $mediaData['images_variant_deduped_count'] = count($dedupedImages);
         $mediaData['images_relevant_count'] = count($relevantImages);
 
         if (!empty($relevantImages)) {
@@ -756,6 +764,69 @@ class OpenAIImportService
         }
 
         return $mediaData;
+    }
+
+    protected function deduplicateImageVariants(array $urls): array
+    {
+        $groups = [];
+
+        foreach (array_values(array_unique(array_filter($urls))) as $index => $url) {
+            if (!is_string($url) || trim($url) === '') {
+                continue;
+            }
+
+            $key = $this->imageVariantKey($url);
+            $quality = $this->imageVariantQualityScore($url);
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'url' => $url,
+                    'quality' => $quality,
+                    'index' => $index,
+                ];
+                continue;
+            }
+
+            if ($quality > $groups[$key]['quality']) {
+                $groups[$key]['url'] = $url;
+                $groups[$key]['quality'] = $quality;
+            }
+        }
+
+        uasort($groups, fn($a, $b) => $a['index'] <=> $b['index']);
+
+        return array_values(array_column($groups, 'url'));
+    }
+
+    protected function imageVariantKey(string $url): string
+    {
+        $parts = parse_url($url);
+        $host = strtolower($parts['host'] ?? '');
+        $path = rawurldecode($parts['path'] ?? $url);
+        $directory = strtolower(trim(str_replace('\\', '/', dirname($path)), '.'));
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $filename = strtolower(pathinfo($path, PATHINFO_FILENAME));
+
+        $filename = preg_replace('/-\d{2,5}x\d{2,5}$/', '', $filename) ?? $filename;
+        $filename = preg_replace('/-scaled$/', '', $filename) ?? $filename;
+
+        return $host . '|' . $directory . '|' . $filename . '.' . $extension;
+    }
+
+    protected function imageVariantQualityScore(string $url): int
+    {
+        $path = rawurldecode(parse_url($url, PHP_URL_PATH) ?? $url);
+        $filename = strtolower(pathinfo($path, PATHINFO_FILENAME));
+
+        if (preg_match('/-(\d{2,5})x(\d{2,5})$/', $filename, $matches)) {
+            return (int) $matches[1] * (int) $matches[2];
+        }
+
+        if (preg_match('/-scaled$/', $filename)) {
+            return 900000000;
+        }
+
+        return 1000000000;
     }
 
     protected function normalizeContextModel(string $model, string $url): string
