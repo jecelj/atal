@@ -216,6 +216,18 @@ class WordPressSyncService
                 return true;
             }
 
+            if ($record instanceof UsedYacht) {
+                return !$site->sync_used_yachts;
+            }
+
+            if ($record instanceof CharterYacht) {
+                return !$site->sync_charter_yachts;
+            }
+
+            if (!$site->sync_new_yachts) {
+                return true;
+            }
+
             if ($site->sync_all_brands) {
                 return false;
             }
@@ -237,10 +249,6 @@ class WordPressSyncService
                 return false;
             }
 
-            // CharterYacht doesn't likely use yacht_model_id (check model), 
-            // but implementation of UsedYacht logic suggests it might.
-            // Wait, CharterYacht extends Yacht. Yacht has yacht_model_id.
-            // If CharterYacht uses the same relationship, this is fine.
             if (in_array($record->yacht_model_id, $allowedModels)) {
                 return false;
             }

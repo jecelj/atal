@@ -36,9 +36,14 @@
                             <li><strong>Default Language:</strong> {{ $site->default_language }}</li>
                             <li><strong>Supported Languages:</strong> {{ implode(', ', $site->supported_languages ?? []) }}
                             </li>
-                            <li><strong>Sync All Brands:</strong> {{ $site->sync_all_brands ? 'Yes' : 'No' }}</li>
-                            @if(!$site->sync_all_brands)
-                                <li><strong>Restricted Brands:</strong> {{ count($site->brand_restrictions ?? []) }} rules</li>
+                            <li><strong>Sync New Yachts:</strong> {{ $site->sync_new_yachts ? 'Yes' : 'No' }}</li>
+                            <li><strong>Sync Used Yachts:</strong> {{ $site->sync_used_yachts ? 'Yes' : 'No' }}</li>
+                            <li><strong>Sync Charter Yachts:</strong> {{ $site->sync_charter_yachts ? 'Yes' : 'No' }}</li>
+                            @if($site->sync_new_yachts)
+                                <li><strong>Sync All New Yacht Brands:</strong> {{ $site->sync_all_brands ? 'Yes' : 'No' }}</li>
+                            @endif
+                            @if($site->sync_new_yachts && !$site->sync_all_brands)
+                                <li><strong>New Yacht Brand Rules:</strong> {{ count($site->brand_restrictions ?? []) }} rules</li>
                             @endif
                         </ul>
 

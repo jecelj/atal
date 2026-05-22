@@ -70,16 +70,37 @@ class SyncSiteResource extends Resource
                             ->helperText('Select all languages that this site supports.'),
                     ]),
 
-                Forms\Components\Section::make('Brand & Model Filtering')
-                    ->description('Configure which Yachts are synced to this site.')
+                Forms\Components\Section::make('Content Sync')
+                    ->description('Configure which content is synced to this site.')
+                    ->schema([
+                        Forms\Components\Toggle::make('sync_new_yachts')
+                            ->label('Sync New Yachts')
+                            ->default(true)
+                            ->live()
+                            ->helperText('New yachts can be limited by brand/model below.'),
+
+                        Forms\Components\Toggle::make('sync_used_yachts')
+                            ->label('Sync Used Yachts')
+                            ->default(true)
+                            ->helperText('Used yachts are synced as all published records.'),
+
+                        Forms\Components\Toggle::make('sync_charter_yachts')
+                            ->label('Sync Charter Yachts')
+                            ->default(true)
+                            ->helperText('Charter yachts are synced as all published records.'),
+                    ])->columns(3),
+
+                Forms\Components\Section::make('New Yacht Brand & Model Filtering')
+                    ->description('Optional filtering for new yachts only. Used and charter yachts are not filtered by brand.')
+                    ->visible(fn(Forms\Get $get) => (bool) $get('sync_new_yachts'))
                     ->schema([
                         Forms\Components\Toggle::make('sync_all_brands')
-                            ->label('Sync All Brands & Models')
+                            ->label('Sync All New Yacht Brands & Models')
                             ->default(true)
                             ->live(),
 
                         Forms\Components\Repeater::make('brand_restrictions')
-                            ->label('Brand Restrictions')
+                            ->label('New Yacht Brand Restrictions')
                             ->visible(fn(Forms\Get $get) => !$get('sync_all_brands'))
                             ->schema([
                                 Forms\Components\Select::make('brand_id')
