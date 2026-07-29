@@ -21,6 +21,7 @@ class SyncSite extends Model
         'order',
         'last_synced_at',
         'last_sync_result',
+        'last_config_hash',
     ];
 
     protected $casts = [

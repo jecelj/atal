@@ -21,6 +21,14 @@ class WordPressSyncService
      */
     public function syncSite(SyncSite $site, bool $force = false, ?string $specificType = null): array
     {
+        return app(QueuedWordPressSyncService::class)->queueSite($site, $force, $specificType);
+    }
+
+    /**
+     * Kept temporarily for the legacy v1 endpoint and manual recovery only.
+     */
+    protected function syncSiteLegacy(SyncSite $site, bool $force = false, ?string $specificType = null): array
+    {
         Log::info("Starting sync for site: {$site->name} (Force: " . ($force ? 'YES' : 'NO') . ")");
         $totalSynced = 0;
         $errors = [];
@@ -207,7 +215,7 @@ class WordPressSyncService
         return $syncedCount;
     }
 
-    protected function isFilteredOut($record, SyncSite $site): bool
+    public function isFilteredOut($record, SyncSite $site): bool
     {
         // 1. BRAND & MODEL CHECKS (Yachts Only)
         if ($record instanceof NewYacht || $record instanceof UsedYacht || $record instanceof CharterYacht) {
@@ -271,7 +279,7 @@ class WordPressSyncService
         return false;
     }
 
-    protected function preparePayload($record, SyncSite $site, string $type): array
+    public function preparePayload($record, SyncSite $site, string $type): array
     {
         $payload = [
             'id' => $record->id, // Master ID
@@ -603,7 +611,7 @@ class WordPressSyncService
         return $fields;
     }
 
-    protected function pushToWordPress(SyncSite $site, string $action, array $items): bool
+    public function pushToWordPress(SyncSite $site, string $action, array $items): bool
     {
         // Parse the stored URL to get the base (scheme + host)
         $parsed = parse_url($site->url);
@@ -654,7 +662,7 @@ class WordPressSyncService
         }
     }
 
-    protected function prepareConfigPayload(?SyncSite $site = null): array
+    public function prepareConfigPayload(?SyncSite $site = null): array
     {
         $fieldGroups = [];
 
@@ -893,7 +901,7 @@ class WordPressSyncService
         return $fieldGroups;
     }
 
-    protected function mapInputTypeToACF($filamentType)
+    public function mapInputTypeToACF($filamentType)
     {
         return match ($filamentType) {
             'text' => 'text',

@@ -54,8 +54,8 @@ class SynchronizationCenter extends Page
                     \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey);
 
                     \Filament\Notifications\Notification::make()
-                        ->title('Sync Completed')
-                        ->body('Synchronization for all sites finished successfully.')
+                        ->title('Sync queued')
+                        ->body('Items will be sent in the background, one media file at a time.')
                         ->success()
                         ->send();
                 }),
@@ -72,8 +72,8 @@ class SynchronizationCenter extends Page
                     \App\Jobs\SyncSitesJob::dispatchSync(null, $sessionKey, true);
 
                     \Filament\Notifications\Notification::make()
-                        ->title('Force Sync Completed')
-                        ->body('Force synchronization for all sites finished successfully.')
+                        ->title('Force sync queued')
+                        ->body('Items will be reconciled in the background.')
                         ->success()
                         ->send();
                 }),
@@ -116,16 +116,14 @@ class SynchronizationCenter extends Page
         if (!$site)
             return;
 
-        // Dispatch Job specifically for this site (FORCE sync, SYNCHRONOUSLY)
+        // This only determines changed records; transfers run through wordpress-sync.
         $sessionKey = 'sync_site_' . $siteId . '_' . uniqid();
 
-        // Use dispatchSync to avoid Queue Worker issues (stale code, not running, etc.)
-        // Force is FALSE by default to respect "Pending/Dirty" logic (Differential Sync)
         \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, false);
 
         \Filament\Notifications\Notification::make()
-            ->title("Sync Completed for {$site->name}")
-            ->body('Synchronization finished successfully.')
+            ->title("Sync queued for {$site->name}")
+            ->body('Changed records will be processed in the background.')
             ->success()
             ->send();
     }
@@ -141,8 +139,8 @@ class SynchronizationCenter extends Page
         \App\Jobs\SyncSitesJob::dispatchSync($siteId, $sessionKey, true);
 
         \Filament\Notifications\Notification::make()
-            ->title("Force Sync Completed for {$site->name}")
-            ->body('Force synchronization finished successfully.')
+            ->title("Force sync queued for {$site->name}")
+            ->body('All eligible records will be reconciled in the background.')
             ->success()
             ->send();
     }

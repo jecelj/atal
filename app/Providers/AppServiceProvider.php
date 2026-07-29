@@ -34,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         // Register Sync Observers
         \App\Models\NewYacht::observe(\App\Observers\SyncObserver::class);
         \App\Models\UsedYacht::observe(\App\Observers\SyncObserver::class);
+        \App\Models\CharterYacht::observe(\App\Observers\SyncObserver::class);
         \App\Models\News::observe(\App\Observers\SyncObserver::class);
     }
 }
