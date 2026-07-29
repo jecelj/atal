@@ -9,6 +9,18 @@ use Illuminate\Support\Facades\Log;
 class TranslationService
 {
     private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
+    private const LANGUAGE_NAMES = [
+        'en' => 'English',
+        'sl' => 'Slovenian',
+        'de' => 'German',
+        'hr' => 'Croatian',
+        'sk' => 'Slovak',
+        'cs' => 'Czech',
+        'pl' => 'Polish',
+        'it' => 'Italian',
+        'es' => 'Spanish',
+        'sr' => 'Serbian',
+    ];
     private const MODEL_PRICES = [
         'gpt-4o-mini' => ['input' => 0.15, 'cached_input' => 0.075, 'output' => 0.60],
         'gpt-5.6-luna' => ['input' => 1.00, 'cached_input' => 0.10, 'output' => 6.00],
@@ -21,6 +33,28 @@ class TranslationService
     public function __construct(OpenAiSettings $settings)
     {
         $this->settings = $settings;
+    }
+
+    protected function languageName(string $languageCode): string
+    {
+        $normalizedCode = strtolower(trim($languageCode));
+
+        return self::LANGUAGE_NAMES[$normalizedCode] ?? $normalizedCode;
+    }
+
+    protected function translationDirectionInstruction(string $sourceLanguage, string $targetLanguage): string
+    {
+        $sourceLanguage = strtolower(trim($sourceLanguage));
+        $targetLanguage = strtolower(trim($targetLanguage));
+        $sourceLanguageName = $this->languageName($sourceLanguage);
+        $targetLanguageName = $this->languageName($targetLanguage);
+
+        return <<<INSTRUCTION
+CRITICAL TRANSLATION DIRECTION:
+- Translate only from {$sourceLanguageName} ({$sourceLanguage}) into {$targetLanguageName} ({$targetLanguage}).
+- Return text in {$targetLanguageName} only. Never return any other language.
+- Slovenian is allowed only when the target language code is sl.
+INSTRUCTION;
     }
 
     protected function withGpt56Reasoning(array $payload, string $model): array
@@ -158,6 +192,10 @@ class TranslationService
                 $systemPrompt .= "\n\nAdditional context: {$context}";
             }
 
+            $directionInstruction = $this->translationDirectionInstruction($sourceLanguage, $targetLanguage);
+            $systemPrompt .= "\n\n{$directionInstruction}";
+            $targetLanguageName = $this->languageName($targetLanguage);
+
             $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
             $payload = [
                 'model' => $model,
@@ -168,7 +206,7 @@ class TranslationService
                     ],
                     [
                         'role' => 'user',
-                        'content' => "Translate the following text from {$sourceLanguage} to {$targetLanguage}:\n\n{$text}",
+                        'content' => "Translate the following text into {$targetLanguageName} ({$targetLanguage}) only. Do not return Slovenian or any other language unless {$targetLanguage} is sl.\n\n{$text}",
                     ],
                 ],
                 'temperature' => 0.3,
@@ -251,7 +289,10 @@ class TranslationService
             $systemPrompt = $this->settings->openai_context ?:
                 'You are a professional translator. Translate the values in the JSON object accurately while maintaining the tone and context.';
 
-            $systemPrompt .= "\n\nYou must return valid JSON. keys must remain unchanged. Text should be translated from {$sourceLanguage} to {$targetLanguage}. Do not translate specific brand names or technical terms that should remain in English.";
+            $directionInstruction = $this->translationDirectionInstruction($sourceLanguage, $targetLanguage);
+            $targetLanguageName = $this->languageName($targetLanguage);
+            $systemPrompt .= "\n\n{$directionInstruction}";
+            $systemPrompt .= "\n\nYou must return valid JSON. Keys must remain unchanged. Translate string values into {$targetLanguageName} only. Do not translate specific brand names or technical terms that should remain in English.";
 
             $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
             $payload = [
@@ -263,7 +304,7 @@ class TranslationService
                     ],
                     [
                         'role' => 'user',
-                        'content' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'content' => "Translate this JSON's string values into {$targetLanguageName} ({$targetLanguage}) only:\n\n" . json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                     ],
                 ],
                 'response_format' => ['type' => 'json_object'],
