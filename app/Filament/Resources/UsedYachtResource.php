@@ -148,11 +148,8 @@ class UsedYachtResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->label('Location'),
-                Tables\Columns\TextInputColumn::make('custom_fields.price')
-                    ->type('number')
-                    ->inputMode('numeric')
-                    ->step(1)
-                    ->rules(['nullable', 'integer', 'min:0'])
+                Tables\Columns\ViewColumn::make('custom_fields.price')
+                    ->view('filament.columns.editable-price')
                     ->sortable()
                     ->label('Price'),
                 Tables\Columns\TextColumn::make('custom_fields.year')

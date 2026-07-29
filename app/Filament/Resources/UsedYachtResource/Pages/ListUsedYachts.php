@@ -3,14 +3,35 @@
 namespace App\Filament\Resources\UsedYachtResource\Pages;
 
 use App\Filament\Resources\UsedYachtResource;
+use App\Models\UsedYacht;
 use App\Settings\ApiSettings;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator;
 
 class ListUsedYachts extends ListRecords
 {
     protected static string $resource = UsedYachtResource::class;
+
+    public function savePrice(int $recordId, mixed $price): array
+    {
+        $validator = Validator::make(
+            ['price' => $price],
+            ['price' => ['nullable', 'integer', 'min:0']],
+        );
+
+        if ($validator->fails()) {
+            return ['error' => $validator->errors()->first('price')];
+        }
+
+        $record = UsedYacht::findOrFail($recordId);
+        $customFields = $record->custom_fields ?? [];
+        $customFields['price'] = filled($price) ? (int) $price : null;
+        $record->update(['custom_fields' => $customFields]);
+
+        return ['price' => $customFields['price']];
+    }
 
     protected function getHeaderActions(): array
     {
