@@ -42,8 +42,13 @@ class ImageOptimizationService
             $baseName = class_basename($model) . "-{$model->id}";
         }
 
-        // Group media by collection to handle indexing
-        $collections = $model->getMedia('*')->groupBy('collection_name');
+        // Preserve the user-defined order even though each media item is saved while optimizing.
+        $allMedia = $model->getMedia('*')->sortBy('order_column')->values();
+        $originalMediaOrder = $allMedia
+            ->filter(fn (Media $media) => $media->order_column !== null)
+            ->mapWithKeys(fn (Media $media) => [$media->id => $media->order_column])
+            ->all();
+        $collections = $allMedia->groupBy('collection_name');
 
         Log::info("ImageOptimizationService: Starting optimization for model " . class_basename($model) . " ID {$model->id}");
 
@@ -383,9 +388,33 @@ class ImageOptimizationService
             }
         }
 
+        $this->restoreMediaOrder($originalMediaOrder);
+
         Log::info("ImageOptimizationService: Optimization complete for model " . class_basename($model) . " ID {$model->id}", $stats);
 
         return $stats;
+    }
+
+    protected function restoreMediaOrder(array $originalMediaOrder): void
+    {
+        $restored = 0;
+
+        foreach ($originalMediaOrder as $mediaId => $orderColumn) {
+            $restored += Media::query()
+                ->whereKey($mediaId)
+                ->where(function ($query) use ($orderColumn) {
+                    $query
+                        ->whereNull('order_column')
+                        ->orWhere('order_column', '!=', $orderColumn);
+                })
+                ->update(['order_column' => $orderColumn]);
+        }
+
+        if ($restored > 0) {
+            Log::warning('ImageOptimizationService: Restored media order after optimization', [
+                'media_count' => $restored,
+            ]);
+        }
     }
 
     protected function loadImage(string $path, string $mimeType)
