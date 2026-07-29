@@ -150,6 +150,7 @@ class UsedYachtResource extends Resource
                     ->label('Location'),
                 Tables\Columns\ViewColumn::make('custom_fields.price')
                     ->view('filament.columns.editable-price')
+                    ->disabledClick()
                     ->sortable()
                     ->label('Price'),
                 Tables\Columns\TextColumn::make('custom_fields.year')
