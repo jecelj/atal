@@ -23,6 +23,16 @@ class ManageExternalApiSettings extends SettingsPage
 
     protected static ?int $navigationSort = 5;
 
+    protected static function modelOptions(): array
+    {
+        return [
+            'gpt-5.6-luna' => 'GPT-5.6 Luna - high-volume and cost-sensitive work',
+            'gpt-5.6-terra' => 'GPT-5.6 Terra - balanced extraction quality and cost',
+            'gpt-5.6-sol' => 'GPT-5.6 Sol - highest quality and highest cost',
+            'gpt-4o-mini-2024-07-18' => 'GPT-4o mini - legacy low-cost fallback',
+        ];
+    }
+
     public function form(Form $form): Form
     {
         return $form
@@ -63,6 +73,29 @@ class ManageExternalApiSettings extends SettingsPage
                             ->rows(15)
                             ->helperText('System prompt for Yootheme/Falang translator. Use "You are a professional translator..."'),
                     ])
+                    ->collapsible(),
+
+                Forms\Components\Section::make('OpenAI Models')
+                    ->description('Luna is intended for translations and media. Terra is reserved for data extraction. GPT-5.6 requests use no reasoning by default to control token usage.')
+                    ->schema([
+                        Forms\Components\Select::make('translation_model')
+                            ->label('Translation Model')
+                            ->options(static::modelOptions())
+                            ->required(),
+                        Forms\Components\Select::make('ai_import_media_model')
+                            ->label('Media Import Model')
+                            ->options(static::modelOptions())
+                            ->required(),
+                        Forms\Components\Select::make('ai_import_extraction_model')
+                            ->label('Data Extraction Model')
+                            ->options(static::modelOptions())
+                            ->required(),
+                        Forms\Components\Select::make('ai_import_retry_model')
+                            ->label('Import Retry Model')
+                            ->options(static::modelOptions())
+                            ->required(),
+                    ])
+                    ->columns(2)
                     ->collapsible(),
 
                 Forms\Components\Section::make('ScrapingBee Configuration')

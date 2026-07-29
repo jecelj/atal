@@ -9,12 +9,68 @@ use Illuminate\Support\Facades\Log;
 class TranslationService
 {
     private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
+    private const MODEL_PRICES = [
+        'gpt-4o-mini' => ['input' => 0.15, 'cached_input' => 0.075, 'output' => 0.60],
+        'gpt-5.6-luna' => ['input' => 1.00, 'cached_input' => 0.10, 'output' => 6.00],
+        'gpt-5.6-terra' => ['input' => 2.50, 'cached_input' => 0.25, 'output' => 15.00],
+        'gpt-5.6-sol' => ['input' => 5.00, 'cached_input' => 0.50, 'output' => 30.00],
+    ];
 
     protected OpenAiSettings $settings;
 
     public function __construct(OpenAiSettings $settings)
     {
         $this->settings = $settings;
+    }
+
+    protected function withGpt56Reasoning(array $payload, string $model): array
+    {
+        if (str_starts_with($model, 'gpt-5.6')) {
+            $payload['reasoning_effort'] = 'none';
+        }
+
+        return $payload;
+    }
+
+    protected function logOpenAiUsage(string $operation, string $model, array $body): void
+    {
+        $usage = $body['usage'] ?? null;
+
+        if (!is_array($usage)) {
+            return;
+        }
+
+        $inputTokens = (int) ($usage['prompt_tokens'] ?? $usage['input_tokens'] ?? 0);
+        $outputTokens = (int) ($usage['completion_tokens'] ?? $usage['output_tokens'] ?? 0);
+        $cachedInputTokens = (int) (
+            data_get($usage, 'prompt_tokens_details.cached_tokens')
+            ?? data_get($usage, 'input_tokens_details.cached_tokens')
+            ?? 0
+        );
+
+        $context = [
+            'operation' => $operation,
+            'model' => $model,
+            'input_tokens' => $inputTokens,
+            'cached_input_tokens' => $cachedInputTokens,
+            'output_tokens' => $outputTokens,
+        ];
+
+        foreach (self::MODEL_PRICES as $prefix => $prices) {
+            if (!str_starts_with($model, $prefix)) {
+                continue;
+            }
+
+            $uncachedInputTokens = max(0, $inputTokens - $cachedInputTokens);
+            $context['estimated_cost_usd'] = round(
+                (($uncachedInputTokens * $prices['input']) + ($cachedInputTokens * $prices['cached_input']) + ($outputTokens * $prices['output'])) / 1_000_000,
+                6,
+            );
+
+            break;
+        }
+
+        Log::info('OpenAI usage', $context);
     }
 
     /**
@@ -102,26 +158,30 @@ class TranslationService
                 $systemPrompt .= "\n\nAdditional context: {$context}";
             }
 
+            $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
+            $payload = [
+                'model' => $model,
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => $systemPrompt,
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => "Translate the following text from {$sourceLanguage} to {$targetLanguage}:\n\n{$text}",
+                    ],
+                ],
+                'temperature' => 0.3,
+            ];
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
-            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL,
-                        'messages' => [
-                            [
-                                'role' => 'system',
-                                'content' => $systemPrompt,
-                            ],
-                            [
-                                'role' => 'user',
-                                'content' => "Translate the following text from {$sourceLanguage} to {$targetLanguage}:\n\n{$text}",
-                            ],
-                        ],
-                        'temperature' => 0.3,
-                    ]);
+            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning($payload, $model));
 
             if ($response->successful()) {
                 $data = $response->json();
+                $this->logOpenAiUsage('translation', $model, $data);
                 return $data['choices'][0]['message']['content'] ?? null;
             }
 
@@ -193,27 +253,32 @@ class TranslationService
 
             $systemPrompt .= "\n\nYou must return valid JSON. keys must remain unchanged. Text should be translated from {$sourceLanguage} to {$targetLanguage}. Do not translate specific brand names or technical terms that should remain in English.";
 
+            $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
+            $payload = [
+                'model' => $model,
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => $systemPrompt,
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    ],
+                ],
+                'response_format' => ['type' => 'json_object'],
+                'temperature' => 0.3,
+            ];
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
-            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
-                        'model' => $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL,
-                        'messages' => [
-                            [
-                                'role' => 'system',
-                                'content' => $systemPrompt,
-                            ],
-                            [
-                                'role' => 'user',
-                                'content' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                            ],
-                        ],
-                        'response_format' => ['type' => 'json_object'],
-                        'temperature' => 0.3,
-                    ]);
+            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning($payload, $model));
 
             if ($response->successful()) {
-                $content = $response->json()['choices'][0]['message']['content'] ?? null;
+                $responseData = $response->json();
+                $this->logOpenAiUsage('structured_translation', $model, $responseData);
+                $content = $responseData['choices'][0]['message']['content'] ?? null;
                 if ($content) {
                     return json_decode($content, true);
                 }

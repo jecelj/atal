@@ -11,6 +11,12 @@ class OpenAIImportService
 {
     private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
     private const EXTRACTION_TEXT_LIMIT = 60000;
+    private const MODEL_PRICES = [
+        'gpt-4o-mini' => ['input' => 0.15, 'cached_input' => 0.075, 'output' => 0.60],
+        'gpt-5.6-luna' => ['input' => 1.00, 'cached_input' => 0.10, 'output' => 6.00],
+        'gpt-5.6-terra' => ['input' => 2.50, 'cached_input' => 0.25, 'output' => 15.00],
+        'gpt-5.6-sol' => ['input' => 5.00, 'cached_input' => 0.50, 'output' => 30.00],
+    ];
 
     /**
      * Fetch USED yacht data using specialized single-prompt approach (Adventure Boat).
@@ -82,14 +88,14 @@ class OpenAIImportService
         try {
             $response = Http::withToken($apiKey)
                 ->timeout(240)
-                ->post('https://api.openai.com/v1/chat/completions', [
+                ->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning([
                     'model' => $importModel,
                     'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
                         ['role' => 'user', 'content' => $userInput]
                     ],
                     'temperature' => 0.1,
-                ]);
+                ], $importModel, false));
 
             if ($response->failed()) {
                 Log::error('OpenAI Call Failed: ' . $response->body());
@@ -97,6 +103,7 @@ class OpenAIImportService
             }
 
             $body = $response->json();
+            $this->logOpenAiUsage('used_yacht_import', $importModel, $body);
             $content = $body['choices'][0]['message']['content'] ?? null;
 
             if (!$content) {
@@ -239,7 +246,7 @@ class OpenAIImportService
                 $pool->as('media')
                     ->withToken($apiKey)
                     ->timeout(600)
-                    ->post('https://api.openai.com/v1/responses', [
+                    ->post('https://api.openai.com/v1/responses', $this->withGpt56Reasoning([
                         'model' => $mediaModel,
                         'input' => [
                             ['role' => 'system', 'content' => $mediaPromptSystem],
@@ -247,13 +254,13 @@ class OpenAIImportService
                         ],
                         'temperature' => 0.1,
                         'parallel_tool_calls' => false
-                    ]),
+                    ], $mediaModel)),
 
                 // ===== EXTRACTION =====
                 $pool->as('extraction')
                     ->withToken($apiKey)
                     ->timeout(240) // priporočilo: ne 600
-                    ->post('https://api.openai.com/v1/responses', [
+                    ->post('https://api.openai.com/v1/responses', $this->withGpt56Reasoning([
                         'model' => $extractionModel,
                         'input' => [
                             [
@@ -269,7 +276,7 @@ class OpenAIImportService
                                 ]
                             ]
                         ],
-                    ])
+                    ], $extractionModel))
             ];
         });
 
@@ -288,6 +295,8 @@ class OpenAIImportService
 
         $mediaBody = $responses['media']->json();
         $extractionBody = $responses['extraction']->json();
+        $this->logOpenAiUsage('import_media', $mediaModel, $mediaBody);
+        $this->logOpenAiUsage('import_extraction', $extractionModel, $extractionBody);
 
         // Helper to parse Custom/Standard response
         $getOpenAIContent = function ($body) {
@@ -671,6 +680,58 @@ class OpenAIImportService
         return rtrim($truncated) . "\n...[truncated]";
     }
 
+    protected function withGpt56Reasoning(array $payload, string $model, bool $isResponsesRequest = true): array
+    {
+        if (str_starts_with($model, 'gpt-5.6')) {
+            $payload[$isResponsesRequest ? 'reasoning' : 'reasoning_effort'] = $isResponsesRequest
+                ? ['effort' => 'none']
+                : 'none';
+        }
+
+        return $payload;
+    }
+
+    protected function logOpenAiUsage(string $operation, string $model, array $body): void
+    {
+        $usage = $body['usage'] ?? null;
+
+        if (!is_array($usage)) {
+            return;
+        }
+
+        $inputTokens = (int) ($usage['input_tokens'] ?? $usage['prompt_tokens'] ?? 0);
+        $outputTokens = (int) ($usage['output_tokens'] ?? $usage['completion_tokens'] ?? 0);
+        $cachedInputTokens = (int) (
+            data_get($usage, 'input_tokens_details.cached_tokens')
+            ?? data_get($usage, 'prompt_tokens_details.cached_tokens')
+            ?? 0
+        );
+
+        $context = [
+            'operation' => $operation,
+            'model' => $model,
+            'input_tokens' => $inputTokens,
+            'cached_input_tokens' => $cachedInputTokens,
+            'output_tokens' => $outputTokens,
+        ];
+
+        foreach (self::MODEL_PRICES as $prefix => $prices) {
+            if (!str_starts_with($model, $prefix)) {
+                continue;
+            }
+
+            $uncachedInputTokens = max(0, $inputTokens - $cachedInputTokens);
+            $context['estimated_cost_usd'] = round(
+                (($uncachedInputTokens * $prices['input']) + ($cachedInputTokens * $prices['cached_input']) + ($outputTokens * $prices['output'])) / 1_000_000,
+                6,
+            );
+
+            break;
+        }
+
+        Log::info('OpenAI usage', $context);
+    }
+
     protected function decodeOpenAIContent($content)
     {
         // Clean Markdown
@@ -1007,7 +1068,7 @@ class OpenAIImportService
         try {
             $response = Http::withToken($apiKey)
                 ->timeout(120)
-                ->post('https://api.openai.com/v1/responses', [
+                ->post('https://api.openai.com/v1/responses', $this->withGpt56Reasoning([
                     'model' => $translationModel,
                     'input' => [
                         [
@@ -1021,7 +1082,7 @@ class OpenAIImportService
                     ],
                     'temperature' => 0.1,
                     'parallel_tool_calls' => false
-                ]);
+                ], $translationModel));
 
             if ($response->failed()) {
                 Log::error('Translation Call Failed: ' . $response->body());
@@ -1030,6 +1091,7 @@ class OpenAIImportService
 
             // Handle Custom Endpoint Response Structure
             $body = $response->json();
+            $this->logOpenAiUsage('import_translation', $translationModel, $body);
             $content = null;
 
             if (isset($body['choices'][0]['message']['content'])) {
