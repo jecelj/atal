@@ -41,6 +41,7 @@ class TranslationProgress extends Component
         $languages = Language::all();
         $defaultLanguage = $languages->where('is_default', true)->first();
         $targetLanguages = $languages->where('id', '!=', $defaultLanguage->id);
+        $translationService = app(TranslationService::class);
 
         if (!$defaultLanguage) {
             $this->addLog('Error: No default language found', 'error');
@@ -66,7 +67,7 @@ class TranslationProgress extends Component
 
                 $sourceContent = $this->getTranslation($record, $field, $defaultLanguage->code);
                 if (!empty($sourceContent)) {
-                    $batchData['standard:' . $field] = $sourceContent;
+                    $batchData['standard:' . $field] = $translationService->prepareHtmlForTranslation($sourceContent);
                 }
             }
 
@@ -89,7 +90,7 @@ class TranslationProgress extends Component
                 $sourceContent = $customFields[$fieldKey][$defaultLanguage->code] ?? null;
                 if (!empty($sourceContent)) {
                     // Flatten structure for translation service: custom:field_key
-                    $batchData['custom:' . $fieldKey] = $sourceContent;
+                    $batchData['custom:' . $fieldKey] = $translationService->prepareHtmlForTranslation($sourceContent);
                 }
             }
 

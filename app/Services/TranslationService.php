@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class TranslationService
 {
+    private const TRANSLATION_TIMEOUT_SECONDS = 55;
     private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
     private const LANGUAGE_NAMES = [
         'en' => 'English',
@@ -127,12 +128,45 @@ INSTRUCTION;
             return null;
         }
 
+        $text = $this->prepareHtmlForTranslation($text);
+
         // If text is very long (> 4000 chars), split it
         if (strlen($text) > 4000) {
             return $this->translateLargeText($text, $targetLanguage, $sourceLanguage, $context);
         }
 
         return $this->performTranslation($text, $targetLanguage, $sourceLanguage, $context);
+    }
+
+    /**
+     * Normalizes clipboard HTML before it is sent to the model. The translated
+     * value remains HTML, but Word classes, empty nodes and spacing artefacts do
+     * not consume context or make the model reconstruct irrelevant markup.
+     */
+    public function prepareHtmlForTranslation(string $value): string
+    {
+        if (!str_contains($value, '<') && !str_contains($value, '&nbsp;')) {
+            return trim(preg_replace('/[\t ]+/u', ' ', $value) ?? $value);
+        }
+
+        $value = preg_replace('#<(script|style|iframe|object|embed)[^>]*>.*?</\1>#is', '', $value) ?? $value;
+        $value = preg_replace('/<!--.*?-->/s', '', $value) ?? $value;
+        $value = preg_replace('/<\s*div\b[^>]*>/i', '<p>', $value) ?? $value;
+        $value = preg_replace('/<\s*\/\s*div\s*>/i', '</p>', $value) ?? $value;
+        $value = strip_tags($value, '<p><br><ul><ol><li><strong><em><u><b><i><h2><h3><h4>');
+        $value = preg_replace_callback(
+            '#<(/?)(p|br|ul|ol|li|strong|em|u|b|i|h[2-4])\b[^>]*>#i',
+            fn (array $match) => '<' . $match[1] . strtolower($match[2]) . '>',
+            $value,
+        ) ?? $value;
+
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = str_replace("\xc2\xa0", ' ', $value);
+        $value = preg_replace('/[\t ]+/u', ' ', $value) ?? $value;
+        $value = preg_replace("/\n{3,}/", "\n\n", $value) ?? $value;
+        $value = preg_replace('#<p>\s*</p>#i', '', $value) ?? $value;
+
+        return trim($value);
     }
 
     protected function translateLargeText(
@@ -215,7 +249,8 @@ INSTRUCTION;
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
-            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning($payload, $model));
+            ])->connectTimeout(10)->timeout(self::TRANSLATION_TIMEOUT_SECONDS)
+                ->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning($payload, $model));
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -286,13 +321,17 @@ INSTRUCTION;
         }
 
         try {
+            $data = collect($data)
+                ->map(fn ($value) => is_string($value) ? $this->prepareHtmlForTranslation($value) : $value)
+                ->all();
+
             $systemPrompt = $this->settings->openai_context ?:
                 'You are a professional translator. Translate the values in the JSON object accurately while maintaining the tone and context.';
 
             $directionInstruction = $this->translationDirectionInstruction($sourceLanguage, $targetLanguage);
             $targetLanguageName = $this->languageName($targetLanguage);
             $systemPrompt .= "\n\n{$directionInstruction}";
-            $systemPrompt .= "\n\nYou must return valid JSON. Keys must remain unchanged. Translate string values into {$targetLanguageName} only. Do not translate specific brand names or technical terms that should remain in English.";
+            $systemPrompt .= "\n\nYou must return valid JSON. Keys must remain unchanged. Translate string values into {$targetLanguageName} only. Do not translate specific brand names or technical terms that should remain in English. If a value contains HTML, preserve its tags exactly and translate only the human-readable text.";
 
             $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
             $payload = [
@@ -311,10 +350,18 @@ INSTRUCTION;
                 'temperature' => 0.3,
             ];
 
+            Log::info('OpenAI structured translation request', [
+                'model' => $model,
+                'target' => $targetLanguage,
+                'input_bytes' => strlen(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+                'field_count' => count($data),
+            ]);
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->settings->openai_secret,
                 'Content-Type' => 'application/json',
-            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning($payload, $model));
+            ])->connectTimeout(10)->timeout(self::TRANSLATION_TIMEOUT_SECONDS)
+                ->post('https://api.openai.com/v1/chat/completions', $this->withGpt56Reasoning($payload, $model));
 
             if ($response->successful()) {
                 $responseData = $response->json();
