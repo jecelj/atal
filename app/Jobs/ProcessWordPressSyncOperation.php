@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
 {
@@ -21,9 +22,11 @@ class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
     public int $timeout = 120;
     public array $backoff = [30, 120, 300, 900];
     public int $uniqueFor = 7200;
+    public bool $mediaOnly = false;
 
-    public function __construct(public readonly int $operationId, public readonly bool $mediaOnly = false)
+    public function __construct(public readonly int $operationId, bool $mediaOnly = false)
     {
+        $this->mediaOnly = $mediaOnly;
     }
 
     public function uniqueId(): string
@@ -71,14 +74,29 @@ class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
             }
         }
 
+        $mediaWarnings = [];
+
         for ($index = $operation->media_cursor; $index < count($media); $index++) {
             foreach ($media[$index]['urls'] as $url) {
-                $this->request($site, 'media', [
-                    'source_id' => $operation->source_id,
-                    'field' => $media[$index]['key'],
-                    'field_type' => $media[$index]['fieldType'],
-                    'source_url' => $url,
-                ], $operation->id . ':media:' . $index . ':' . md5($url));
+                if ($media[$index]['fieldType'] === 'file' && $this->sourceIsUnavailable($url)) {
+                    $mediaWarnings[] = $this->skippedMediaWarning($operation, $url);
+                    continue;
+                }
+
+                try {
+                    $this->request($site, 'media', [
+                        'source_id' => $operation->source_id,
+                        'field' => $media[$index]['key'],
+                        'field_type' => $media[$index]['fieldType'],
+                        'source_url' => $url,
+                    ], $operation->id . ':media:' . $index . ':' . md5($url));
+                } catch (\RuntimeException $exception) {
+                    if (!$this->sourceIsUnavailable($url)) {
+                        throw $exception;
+                    }
+
+                    $mediaWarnings[] = $this->skippedMediaWarning($operation, $url);
+                }
             }
             $operation->update(['media_cursor' => $index + 1]);
         }
@@ -100,7 +118,10 @@ class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
             'error_message' => null,
         ]);
 
-        $operation->update(['state' => 'completed', 'last_error' => null]);
+        $operation->update([
+            'state' => 'completed',
+            'last_error' => $mediaWarnings ? implode("\n", $mediaWarnings) : null,
+        ]);
     }
 
     public function failed(\Throwable $exception): void
@@ -133,5 +154,31 @@ class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
         if (!$response->successful() || !$response->json('success')) {
             throw new \RuntimeException("WordPress sync {$path} failed: {$response->status()} {$response->body()}");
         }
+    }
+
+    private function sourceIsUnavailable(string $url): bool
+    {
+        try {
+            return in_array(
+                Http::connectTimeout(5)->timeout(15)->head($url)->status(),
+                [404, 410],
+                true,
+            );
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function skippedMediaWarning(WordPressSyncOutbox $operation, string $url): string
+    {
+        $warning = "Skipped unavailable media: {$url}";
+
+        Log::warning('WordPress sync skipped unavailable media', [
+            'operation_id' => $operation->id,
+            'source_id' => $operation->source_id,
+            'url' => $url,
+        ]);
+
+        return $warning;
     }
 }
