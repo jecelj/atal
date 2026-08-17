@@ -186,6 +186,14 @@ class QueuedWordPressSyncService
             'model_type' => $type,
             'model_id' => $modelId,
         ]);
+
+        if ($operation->exists
+            && $operation->action === $action
+            && $operation->content_hash === $hash
+            && in_array($operation->state, ['pending', 'media'], true)) {
+            return;
+        }
+
         $operation->fill([
             'source_id' => $sourceId,
             'action' => $action,

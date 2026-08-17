@@ -6,22 +6,29 @@ use App\Models\SyncStatus;
 use App\Models\WordPressSyncOutbox;
 use App\Services\QueuedWordPressSyncService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 
-class ProcessWordPressSyncOperation implements ShouldQueue
+class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 5;
     public int $timeout = 120;
     public array $backoff = [30, 120, 300, 900];
+    public int $uniqueFor = 7200;
 
-    public function __construct(public readonly int $operationId)
+    public function __construct(public readonly int $operationId, public readonly bool $mediaOnly = false)
     {
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->operationId . ':' . ($this->mediaOnly ? 'media' : 'metadata');
     }
 
     public function handle(QueuedWordPressSyncService $sync): void
@@ -37,6 +44,9 @@ class ProcessWordPressSyncOperation implements ShouldQueue
         }
 
         if ($operation->action === 'delete') {
+            if ($this->mediaOnly) {
+                return;
+            }
             $this->request($site, 'items', [
                 'action' => 'delete',
                 'item' => ['id' => $operation->model_id, 'type' => $operation->model_type, 'source_id' => $operation->source_id],
@@ -51,8 +61,15 @@ class ProcessWordPressSyncOperation implements ShouldQueue
         }
 
         [$payload, $media] = $sync->splitPayloadMedia($operation->payload ?? [], $operation->model_type);
-        $this->request($site, 'items', ['action' => 'upsert', 'item' => $payload], $operation->id . ':metadata');
-        $operation->update(['state' => 'media']);
+        if (!$this->mediaOnly) {
+            $this->request($site, 'items', ['action' => 'upsert', 'item' => $payload], $operation->id . ':metadata');
+            $operation->update(['state' => 'media']);
+
+            if ($media) {
+                self::dispatch($operation->id, true)->onQueue('wordpress-media')->afterCommit();
+                return;
+            }
+        }
 
         for ($index = $operation->media_cursor; $index < count($media); $index++) {
             foreach ($media[$index]['urls'] as $url) {
