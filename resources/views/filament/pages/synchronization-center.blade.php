@@ -13,6 +13,9 @@
                             {{-- Sync Status Badge --}}
                             @if($site->is_active)
                                 <x-filament::badge color="{{ $site->ui_status_color }}">
+                                    @if($site->ui_status === 'processing')
+                                        <x-filament::icon icon="heroicon-o-arrow-path" class="mr-1 h-3.5 w-3.5 animate-spin" />
+                                    @endif
                                     {{ $site->ui_status_label }}
                                 </x-filament::badge>
                             @endif

@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\WordPressSyncOutbox;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\DB;
 use Filament\Pages\Page;
 
@@ -15,11 +16,20 @@ class SynchronizationCenter extends Page
 
     protected static string $view = 'filament.pages.synchronization-center';
 
+    protected static ?int $activeSyncOperationCount = null;
+
+    public static function getNavigationIcon(): string|Htmlable|null
+    {
+        return view('filament.icons.sync-status', [
+            'isProcessing' => static::hasActiveSyncOperations(),
+        ]);
+    }
+
     public static function getNavigationItems(): array
     {
-        // Check if there are any pending items
-        $hasPending = \App\Models\SyncStatus::where('status', 'pending')->exists();
-        $color = $hasPending ? 'warning' : 'success';
+        $color = static::hasActiveSyncOperations()
+            ? 'info'
+            : (\App\Models\SyncStatus::where('status', 'pending')->exists() ? 'warning' : 'success');
 
         return [
             \Filament\Navigation\NavigationItem::make(static::getNavigationLabel())
@@ -28,18 +38,39 @@ class SynchronizationCenter extends Page
                 ->isActiveWhen(fn() => request()->routeIs(static::getRouteName()))
                 ->sort(static::getNavigationSort())
                 ->badge(static::getNavigationBadge(), color: static::getNavigationBadgeColor())
+                ->badgeTooltip(static::hasActiveSyncOperations() ? 'WordPress synchronization in progress' : null)
                 ->url(static::getNavigationUrl()),
         ];
     }
 
     public static function getNavigationBadge(): ?string
     {
+        if ($activeOperations = static::activeSyncOperationCount()) {
+            return number_format($activeOperations);
+        }
+
         return \App\Models\SyncStatus::where('status', 'pending')->count() > 0 ? 'Needs Sync' : 'Synced';
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
+        if (static::hasActiveSyncOperations()) {
+            return 'info';
+        }
+
         return \App\Models\SyncStatus::where('status', 'pending')->exists() ? 'warning' : 'success';
+    }
+
+    private static function hasActiveSyncOperations(): bool
+    {
+        return static::activeSyncOperationCount() > 0;
+    }
+
+    private static function activeSyncOperationCount(): int
+    {
+        return static::$activeSyncOperationCount ??= WordPressSyncOutbox::query()
+            ->whereIn('state', ['pending', 'media'])
+            ->count();
     }
 
     public function getHeaderActions(): array
