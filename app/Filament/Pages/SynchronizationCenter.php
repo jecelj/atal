@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\WordPressSyncOutbox;
+use Illuminate\Support\Facades\DB;
 use Filament\Pages\Page;
 
 class SynchronizationCenter extends Page
@@ -83,15 +85,36 @@ class SynchronizationCenter extends Page
     public function getViewData(): array
     {
         $sites = \App\Models\SyncSite::with('syncStatuses')->orderBy('order')->get();
+        $outboxCounts = WordPressSyncOutbox::query()
+            ->select('sync_site_id', 'state', DB::raw('count(*) as total'))
+            ->groupBy('sync_site_id', 'state')
+            ->get()
+            ->groupBy('sync_site_id');
 
         foreach ($sites as $site) {
             $pending = $site->syncStatuses->where('status', 'pending')->count();
             $failed = $site->syncStatuses->where('status', 'failed')->count();
+            $states = $outboxCounts->get($site->id, collect())->pluck('total', 'state');
 
-            if ($failed > 0) {
+            $site->sync_progress = [
+                'pending' => (int) ($states->get('pending') ?? 0),
+                'media' => (int) ($states->get('media') ?? 0),
+                'completed' => (int) ($states->get('completed') ?? 0),
+                'failed' => (int) ($states->get('failed') ?? 0),
+            ];
+
+            if ($site->sync_progress['failed'] > 0 || $failed > 0) {
                 $site->ui_status = 'error';
                 $site->ui_status_label = 'Error';
                 $site->ui_status_color = 'danger';
+            } elseif ($site->sync_progress['pending'] > 0) {
+                $site->ui_status = 'processing';
+                $site->ui_status_label = 'Sending data';
+                $site->ui_status_color = 'warning';
+            } elseif ($site->sync_progress['media'] > 0) {
+                $site->ui_status = 'processing';
+                $site->ui_status_label = 'Syncing media';
+                $site->ui_status_color = 'info';
             } elseif ($pending > 0) {
                 $site->ui_status = 'warning';
                 $site->ui_status_label = 'Needs Sync';

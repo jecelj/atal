@@ -1,4 +1,4 @@
-<x-filament-panels::page>
+<x-filament-panels::page wire:poll.5s>
     <div class="space-y-6">
         @foreach($sites as $site)
             <x-filament::section collapsible collapsed="{{ !$site->is_active }}">
@@ -30,6 +30,34 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                        <h3 class="font-bold mb-2">Queue Progress</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-6">
+                            <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Sending data</p>
+                                <p class="text-2xl font-semibold text-warning-600 dark:text-warning-400">
+                                    {{ number_format($site->sync_progress['pending']) }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Syncing media</p>
+                                <p class="text-2xl font-semibold text-info-600 dark:text-info-400">
+                                    {{ number_format($site->sync_progress['media']) }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Completed</p>
+                                <p class="text-2xl font-semibold text-success-600 dark:text-success-400">
+                                    {{ number_format($site->sync_progress['completed']) }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Failed</p>
+                                <p class="text-2xl font-semibold {{ $site->sync_progress['failed'] ? 'text-danger-600 dark:text-danger-400' : 'text-gray-500 dark:text-gray-400' }}">
+                                    {{ number_format($site->sync_progress['failed']) }}
+                                </p>
+                            </div>
+                        </div>
+
                         <h3 class="font-bold mb-2">Configuration</h3>
                         <ul class="text-sm space-y-1 text-gray-600 dark:text-gray-400">
                             <li><strong>URL:</strong> {{ $site->url }}</li>
