@@ -95,7 +95,8 @@
             @if ($isUsedYacht)
                 <button
                     type="button"
-                    wire:click="toggleSyncSite({{ $record->getKey() }}, {{ $site->getKey() }})"
+                    wire:click.stop="toggleSyncSite({{ $record->getKey() }}, {{ $site->getKey() }})"
+                    x-on:click.stop
                     wire:loading.attr="disabled"
                     wire:loading.class="opacity-50"
                     wire:target="toggleSyncSite({{ $record->getKey() }}, {{ $site->getKey() }})"
