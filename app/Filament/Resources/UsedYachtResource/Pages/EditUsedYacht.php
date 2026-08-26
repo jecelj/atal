@@ -10,6 +10,14 @@ class EditUsedYacht extends EditRecord
 {
     protected static string $resource = UsedYachtResource::class;
 
+    protected function afterSave(): void
+    {
+        // Re-evaluate every site after the checkbox relationship has been synced.
+        // This queues an upsert for newly selected sites and a delete for removed ones.
+        app(\App\Services\QueuedWordPressSyncService::class)
+            ->queueModelForActiveSites($this->getRecord());
+    }
+
     protected function getHeaderActions(): array
     {
         return [

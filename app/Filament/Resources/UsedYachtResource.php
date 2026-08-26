@@ -115,6 +115,17 @@ class UsedYachtResource extends Resource
                         ->helperText('Mark this yacht as featured for priority display')
                         ->default(false),
                 ])->columns(2),
+
+            Forms\Components\Section::make('WordPress Sync')
+                ->description('Choose exactly which WordPress sites should publish this used yacht.')
+                ->schema([
+                    Forms\Components\CheckboxList::make('syncSites')
+                        ->relationship('syncSites', 'name')
+                        ->label('Sync to Sites')
+                        ->helperText('Only the selected sites receive this yacht. Removing a site also removes the yacht there on the next sync.')
+                        ->columns(3)
+                        ->gridDirection('row'),
+                ]),
         ];
 
         // Add dynamic custom fields grouped by sections
@@ -148,6 +159,11 @@ class UsedYachtResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->label('Location'),
+                Tables\Columns\TextColumn::make('syncSites.name')
+                    ->label('Sync to')
+                    ->badge()
+                    ->separator(', ')
+                    ->toggleable(),
                 Tables\Columns\ViewColumn::make('custom_fields.price')
                     ->view('filament.columns.editable-price')
                     ->disabledClick()

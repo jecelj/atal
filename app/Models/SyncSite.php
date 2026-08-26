@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class SyncSite extends Model
 {
@@ -48,5 +49,11 @@ class SyncSite extends Model
     public function syncStatuses()
     {
         return $this->hasMany(\App\Models\SyncStatus::class);
+    }
+
+    public function usedYachts(): BelongsToMany
+    {
+        return $this->belongsToMany(UsedYacht::class, 'used_yacht_sync_site')
+            ->withTimestamps();
     }
 }

@@ -7,7 +7,7 @@
             </x-slot>
 
             <x-slot name="description">
-                Sync all published used yachts to all active WordPress sites.
+                Sync published used yachts only to the WordPress sites selected on each yacht.
             </x-slot>
 
             <div class="flex gap-4">
@@ -24,7 +24,7 @@
             </x-slot>
 
             <x-slot name="description">
-                Sync all published used yachts to a specific WordPress site.
+                Sync the used yachts assigned to a specific WordPress site.
             </x-slot>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

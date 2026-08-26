@@ -82,7 +82,7 @@ class SyncSiteResource extends Resource
                         Forms\Components\Toggle::make('sync_used_yachts')
                             ->label('Sync Used Yachts')
                             ->default(true)
-                            ->helperText('Used yachts are synced as all published records.'),
+                            ->helperText('Only published used yachts individually assigned to this site are synced.'),
 
                         Forms\Components\Toggle::make('sync_charter_yachts')
                             ->label('Sync Charter Yachts')

@@ -33,6 +33,8 @@ class UsedYachtSyncController extends Controller
         // Then, sync yachts
         $yachts = UsedYacht::with(['brand', 'yachtModel', 'media'])
             ->where('state', 'published')
+            ->whereHas('syncSites', fn ($query) => $query->whereKey($site->getKey()))
+            ->when(!$site->sync_used_yachts, fn ($query) => $query->whereRaw('1 = 0'))
             ->get();
 
         $yachtData = $yachts->map(function ($yacht) {
@@ -205,6 +207,13 @@ class UsedYachtSyncController extends Controller
     {
         $site = SyncSite::findOrFail($siteId);
         $yacht = UsedYacht::with(['brand', 'yachtModel', 'media'])->findOrFail($yachtId);
+
+        if (!$site->sync_used_yachts || !$yacht->syncSites()->whereKey($site->getKey())->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This yacht is not assigned to the selected sync site.',
+            ], 422);
+        }
 
         // First, sync field configuration
         $configResult = $this->syncFieldConfiguration($site);

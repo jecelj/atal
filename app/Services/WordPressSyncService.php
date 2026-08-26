@@ -225,7 +225,19 @@ class WordPressSyncService
             }
 
             if ($record instanceof UsedYacht) {
-                return !$site->sync_used_yachts;
+                if (!$site->sync_used_yachts) {
+                    return true;
+                }
+
+                // Used yachts are opt-in per WordPress site. Use an already loaded
+                // relationship when available so full-site syncs avoid extra queries.
+                if ($record->relationLoaded('syncSites')) {
+                    return !$record->syncSites->contains(
+                        fn (SyncSite $assignedSite): bool => $assignedSite->getKey() === $site->getKey()
+                    );
+                }
+
+                return !$record->syncSites()->whereKey($site->getKey())->exists();
             }
 
             if ($record instanceof CharterYacht) {
