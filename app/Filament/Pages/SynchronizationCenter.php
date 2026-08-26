@@ -110,6 +110,30 @@ class SynchronizationCenter extends Page
                         ->success()
                         ->send();
                 }),
+            \Filament\Actions\Action::make('clear_queue')
+                ->label('Clear Queue')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Clear the sync queue?')
+                ->modalDescription('Pending, media, and failed sync operations will be cancelled. Completed history is kept. A sync request already being sent may still finish, but future edits can queue a fresh sync.')
+                ->modalSubmitActionLabel('Clear Queue')
+                ->action(function (): void {
+                    $cleared = WordPressSyncOutbox::query()
+                        ->whereIn('state', ['pending', 'media', 'failed'])
+                        ->update([
+                            'state' => 'cancelled',
+                            'last_error' => 'Cancelled manually from Synchronization Center.',
+                        ]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title($cleared ? 'Sync queue cleared' : 'Sync queue is already empty')
+                        ->body($cleared
+                            ? "Cancelled {$cleared} sync operation(s). New edits can now queue fresh syncs."
+                            : 'There were no pending, media, or failed sync operations to clear.')
+                        ->success()
+                        ->send();
+                }),
         ];
     }
 

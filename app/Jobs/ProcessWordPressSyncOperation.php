@@ -37,7 +37,7 @@ class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
     public function handle(QueuedWordPressSyncService $sync): void
     {
         $operation = WordPressSyncOutbox::with('site')->find($this->operationId);
-        if (!$operation || $operation->state === 'completed') {
+        if (!$operation || !in_array($operation->state, ['pending', 'media'], true)) {
             return;
         }
 
@@ -127,7 +127,7 @@ class ProcessWordPressSyncOperation implements ShouldQueue, ShouldBeUnique
     public function failed(\Throwable $exception): void
     {
         $operation = WordPressSyncOutbox::find($this->operationId);
-        if (!$operation) {
+        if (!$operation || $operation->state === 'cancelled') {
             return;
         }
 
