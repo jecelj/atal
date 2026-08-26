@@ -189,6 +189,7 @@ class UsedYachtResource extends Resource
                 Tables\Columns\ViewColumn::make('sync_status')
                     ->view('filament.columns.sync-status')
                     ->label('Sync')
+                    ->disabledClick()
                     ->alignment('center'),
                 Tables\Columns\ToggleColumn::make('is_featured')
                     ->label('Featured')
