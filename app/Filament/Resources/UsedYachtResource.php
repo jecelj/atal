@@ -159,11 +159,6 @@ class UsedYachtResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->label('Location'),
-                Tables\Columns\TextColumn::make('syncSites.name')
-                    ->label('Sync to')
-                    ->badge()
-                    ->separator(', ')
-                    ->toggleable(),
                 Tables\Columns\ViewColumn::make('custom_fields.price')
                     ->view('filament.columns.editable-price')
                     ->disabledClick()
@@ -193,7 +188,7 @@ class UsedYachtResource extends Resource
                     ->alignment('center'),
                 Tables\Columns\ViewColumn::make('sync_status')
                     ->view('filament.columns.sync-status')
-                    ->label('Sync Status')
+                    ->label('Sync')
                     ->alignment('center'),
                 Tables\Columns\ToggleColumn::make('is_featured')
                     ->label('Featured')
