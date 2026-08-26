@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Translatable\HasTranslations;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -57,6 +58,19 @@ class Yacht extends Model implements HasMedia
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    /**
+     * Always load media in the saved gallery order.
+     *
+     * The ID is a deterministic tie-breaker for legacy media that share an
+     * order value, so reopening a record cannot randomly shuffle thumbnails.
+     */
+    public function media(): MorphMany
+    {
+        return $this->morphMany($this->getMediaModel(), 'model')
+            ->orderBy('order_column')
+            ->orderBy('id');
     }
 
     /**

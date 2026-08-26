@@ -281,13 +281,12 @@ class NewYachtResource extends Resource
 
                         return "{$filename}.{$extension}";
                     }),
-            'gallery' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
+            'gallery' => \App\Forms\Components\OrderedGalleryUpload::make($fieldKey)
                 ->collection($config->field_key)
                 ->image()
                 ->imageEditor()
                 ->downloadable()
                 ->multiple()
-                ->reorderable()
                 ->maxSize(20480)
                 ->maxFiles(50)
                 ->imagePreviewHeight('150')

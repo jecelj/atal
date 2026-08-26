@@ -142,12 +142,11 @@ trait HasDynamicResourceFields
 
                         return "{$filename}.{$extension}";
                     }),
-            'gallery' => \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make($fieldKey)
+            'gallery' => \App\Forms\Components\OrderedGalleryUpload::make($fieldKey)
                 ->collection($config->field_key)
                 ->image()
                 ->imageEditor()
                 ->multiple()
-                ->reorderable()
                 ->downloadable()
                 ->maxSize(20480)
                 ->maxFiles(50)
