@@ -1,9 +1,10 @@
 @php
     $record = $getRecord();
     $isUsedYacht = $record instanceof \App\Models\UsedYacht;
-    $sites = $isUsedYacht
-        ? $record->syncSites()->where('is_active', true)->orderBy('order')->get()
-        : \App\Models\SyncSite::where('is_active', true)->orderBy('order')->get();
+    $sites = \App\Models\SyncSite::where('is_active', true)->orderBy('order')->get();
+    $assignedSiteIds = $isUsedYacht
+        ? $record->syncSites()->pluck('sync_sites.id')->map(fn ($id) => (string) $id)->all()
+        : [];
 
     $modelType = match (get_class($record)) {
         'App\Models\NewYacht' => 'new_yacht',
@@ -32,23 +33,21 @@
 @endphp
 
 <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-    @if ($isUsedYacht && $sites->isEmpty())
-        <span class="inline-flex items-center gap-1 text-sm text-gray-400" title="No sites selected for sync">
-            <x-filament::icon icon="heroicon-o-x-mark" class="h-5 w-5" />
-            <span>No sites</span>
-        </span>
-    @endif
-
     @if($modelType)
         @foreach($sites as $site)
             @php
                 $status = $statuses->get($site->id);
                 $syncState = $status?->status ?? 'pending';
+                $isAssigned = in_array((string) $site->getKey(), $assignedSiteIds, true);
 
                 if ($isUsedYacht) {
-                    // Used yachts show each selected target together with a simple result:
-                    // gray cross before sync, green tick after a successful sync.
-                    if ($isPublished && $syncState === 'synced') {
+                    // All active targets remain visible. A gray cross means that the
+                    // target is disabled or waiting for its first sync.
+                    if (!$isAssigned) {
+                        $colorStyle = 'color: rgb(var(--gray-400));';
+                        $icon = 'heroicon-o-x-mark';
+                        $tooltip = "{$site->name}: Sync disabled — click to enable";
+                    } elseif ($isPublished && $syncState === 'synced') {
                         $colorStyle = 'color: rgb(var(--success-500));';
                         $icon = 'heroicon-o-check-circle';
                         $tooltip = "{$site->name}: Synced " . ($status?->last_synced_at ? $status->last_synced_at->diffForHumans() : '');
@@ -93,12 +92,25 @@
                 }
             @endphp
 
-            <span class="inline-flex items-center gap-1 text-sm" title="{{ $tooltip }}">
-                <x-filament::icon :icon="$icon" class="h-5 w-5 shrink-0" style="{{ $colorStyle }}" />
-                @if ($isUsedYacht)
+            @if ($isUsedYacht)
+                <button
+                    type="button"
+                    wire:click="toggleSyncSite({{ $record->getKey() }}, {{ $site->getKey() }})"
+                    wire:loading.attr="disabled"
+                    wire:loading.class="opacity-50"
+                    wire:target="toggleSyncSite({{ $record->getKey() }}, {{ $site->getKey() }})"
+                    class="inline-flex items-center gap-1 rounded px-1 py-0.5 text-sm transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-wait"
+                    title="{{ $tooltip }}"
+                    aria-label="{{ $isAssigned ? "Disable sync to {$site->name}" : "Enable sync to {$site->name}" }}"
+                >
+                    <x-filament::icon :icon="$icon" class="h-5 w-5 shrink-0" style="{{ $colorStyle }}" />
                     <span class="whitespace-nowrap">{{ $site->name }}</span>
-                @endif
-            </span>
+                </button>
+            @else
+                <span class="inline-flex items-center gap-1 text-sm" title="{{ $tooltip }}">
+                    <x-filament::icon :icon="$icon" class="h-5 w-5 shrink-0" style="{{ $colorStyle }}" />
+                </span>
+            @endif
         @endforeach
     @endif
 </div>

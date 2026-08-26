@@ -3,9 +3,12 @@
 namespace App\Filament\Resources\UsedYachtResource\Pages;
 
 use App\Filament\Resources\UsedYachtResource;
+use App\Models\SyncSite;
 use App\Models\UsedYacht;
+use App\Services\QueuedWordPressSyncService;
 use App\Settings\ApiSettings;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
@@ -13,6 +16,31 @@ use Illuminate\Support\Facades\Validator;
 class ListUsedYachts extends ListRecords
 {
     protected static string $resource = UsedYachtResource::class;
+
+    public function toggleSyncSite(int $recordId, int $siteId): void
+    {
+        $record = UsedYacht::findOrFail($recordId);
+        $site = SyncSite::active()->findOrFail($siteId);
+        $isAssigned = $record->syncSites()->whereKey($site->getKey())->exists();
+
+        if ($isAssigned) {
+            $record->syncSites()->detach($site);
+        } else {
+            $record->syncSites()->attach($site);
+        }
+
+        // Re-evaluate every active site. This queues an upsert when enabled and
+        // a delete when disabled, so the target WordPress site stays in sync.
+        app(QueuedWordPressSyncService::class)->queueModelForActiveSites($record);
+
+        Notification::make()
+            ->success()
+            ->title($isAssigned ? "Sync disabled for {$site->name}" : "Sync enabled for {$site->name}")
+            ->body($isAssigned
+                ? 'Removal from WordPress was queued.'
+                : 'Sync to WordPress was queued.')
+            ->send();
+    }
 
     public function savePrice(int $recordId, mixed $price): array
     {
