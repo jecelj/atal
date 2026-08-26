@@ -19,6 +19,9 @@ class OrderedGalleryUpload extends SpatieMediaLibraryFileUpload
             ->appendFiles()
             ->maxParallelUploads(1)
             ->reorderable()
+            ->extraAlpineAttributes([
+                'x-on:refresh-gallery-page.window' => 'window.location.reload()',
+            ])
             ->helperText('The displayed order is saved. Drag images to fine-tune it; Reverse order saves the gallery and refreshes this page.')
             ->hintAction(
                 Action::make('reverseOrder')
@@ -37,7 +40,7 @@ class OrderedGalleryUpload extends SpatieMediaLibraryFileUpload
                         // is rebuilt from the newly persisted media order.
                         if (method_exists($livewire, 'saveFormComponentOnly')) {
                             $livewire->saveFormComponentOnly($component);
-                            $livewire->redirect(url()->current(), navigate: false);
+                            $livewire->dispatch('refresh-gallery-page');
                         }
                     }),
             );
