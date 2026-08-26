@@ -1,0 +1,1 @@
+@livewire('sync-navigation-status')

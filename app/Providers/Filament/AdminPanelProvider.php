@@ -84,6 +84,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::body.end',
                 fn() => view('filament.hooks.custom-styles')
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn() => view('filament.hooks.sync-navigation-status')
             );
     }
 }
