@@ -57,9 +57,9 @@
                         $tooltip = "{$site->name}: Failed - " . \Illuminate\Support\Str::limit($status->error_message ?? 'Unknown error', 50);
                     } else {
                         $colorStyle = 'color: rgb(var(--gray-400));';
-                        $icon = 'heroicon-o-x-mark';
+                        $icon = 'heroicon-o-check-circle';
                         $tooltip = $isPublished
-                            ? "{$site->name}: Not synced yet"
+                            ? "{$site->name}: Sync enabled, waiting to finish"
                             : "{$site->name}: Not published";
                     }
                 } elseif (!$isPublished) {

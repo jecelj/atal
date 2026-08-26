@@ -29,9 +29,9 @@ class ListUsedYachts extends ListRecords
             $record->syncSites()->attach($site);
         }
 
-        // Re-evaluate every active site. This queues an upsert when enabled and
-        // a delete when disabled, so the target WordPress site stays in sync.
-        app(QueuedWordPressSyncService::class)->queueModelForActiveSites($record);
+        // Queue only the target that changed. This avoids unnecessarily setting
+        // the other selected sites back to a pending state.
+        app(QueuedWordPressSyncService::class)->queueModelForSite($record, $site);
 
         Notification::make()
             ->success()

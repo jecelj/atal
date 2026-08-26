@@ -88,22 +88,28 @@ class QueuedWordPressSyncService
 
     public function queueModelForActiveSites(Model $record, bool $deleted = false): void
     {
+        foreach (SyncSite::active()->cursor() as $site) {
+            $this->queueModelForSite($record, $site, $deleted);
+        }
+    }
+
+    public function queueModelForSite(Model $record, SyncSite $site, bool $deleted = false): void
+    {
         $type = $this->typeFor($record);
-        if (!$type) {
+        if (!$type || !$site->is_active) {
             return;
         }
 
-        foreach (SyncSite::active()->cursor() as $site) {
-            if ($deleted || $this->legacy->isFilteredOut($record, $site)) {
-                if ($deleted || $this->hasStatus($site, $type, $record->id)) {
-                    $this->queueDelete($site, $type, $record->id);
-                }
-                continue;
+        if ($deleted || $this->legacy->isFilteredOut($record, $site)) {
+            if ($deleted || $this->hasStatus($site, $type, $record->id)) {
+                $this->queueDelete($site, $type, $record->id);
             }
 
-            $payload = $this->legacy->preparePayload($record, $site, $type);
-            $this->queueUpsert($site, $record, $type, $payload, md5(json_encode($payload)));
+            return;
         }
+
+        $payload = $this->legacy->preparePayload($record, $site, $type);
+        $this->queueUpsert($site, $record, $type, $payload, md5(json_encode($payload)));
     }
 
     public function typeFor(Model $record): ?string
