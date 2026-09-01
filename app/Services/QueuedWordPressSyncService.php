@@ -33,7 +33,11 @@ class QueuedWordPressSyncService
 
             foreach ($class::cursor() as $record) {
                 if ($this->legacy->isFilteredOut($record, $site)) {
-                    if ($this->hasStatus($site, $type, $record->id)) {
+                    // A force sync is also a reconciliation pass. It retries deletions
+                    // for records that predate the sync-status table, so legacy posts
+                    // cannot remain published on WordPress after a master record is
+                    // unpublished or unassigned.
+                    if ($force || $this->hasStatus($site, $type, $record->id)) {
                         $this->queueDelete($site, $type, $record->id);
                         $queued++;
                     }
