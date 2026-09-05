@@ -19,12 +19,15 @@ class OrderedGalleryUpload extends SpatieMediaLibraryFileUpload
             ->appendFiles()
             ->maxParallelUploads(1)
             ->reorderable()
-            ->helperText('Drag images to fine-tune their order. After reversing, click Save to store the gallery together with all other form changes.')
+            ->extraAlpineAttributes([
+                'x-on:refresh-gallery-page.window' => 'window.location.reload()',
+            ])
+            ->helperText('The displayed order is saved. Drag images to fine-tune it, or reverse the whole gallery.')
             ->hintAction(
                 Action::make('reverseOrder')
                     ->label('Reverse order')
                     ->icon('heroicon-m-arrows-up-down')
-                    ->action(function (Forms\Set $set, $state, $component): void {
+                    ->action(function (Forms\Set $set, $state, $component, $livewire): void {
                         if (! $component instanceof Component || ! is_array($state) || count($state) < 2) {
                             return;
                         }
@@ -33,10 +36,11 @@ class OrderedGalleryUpload extends SpatieMediaLibraryFileUpload
                         // both the FilePond preview and Spatie's order_column values.
                         $set($component, array_reverse($state, true));
 
-                        // Do not call EditRecord::saveFormComponentOnly() here. This
-                        // gallery is nested in the custom_fields JSON column; saving
-                        // just this component overwrites price, year, and other
-                        // unsaved custom fields with an incomplete JSON payload.
+                        // saveUploadedFiles() runs the media component's native
+                        // reorder callback. It updates only Spatie's media
+                        // order_column and never writes the custom_fields JSON column.
+                        $component->saveUploadedFiles();
+                        $livewire->dispatch('refresh-gallery-page');
                     }),
             );
     }
