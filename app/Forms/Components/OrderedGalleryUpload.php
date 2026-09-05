@@ -19,15 +19,12 @@ class OrderedGalleryUpload extends SpatieMediaLibraryFileUpload
             ->appendFiles()
             ->maxParallelUploads(1)
             ->reorderable()
-            ->extraAlpineAttributes([
-                'x-on:refresh-gallery-page.window' => 'window.location.reload()',
-            ])
-            ->helperText('The displayed order is saved. Drag images to fine-tune it; Reverse order saves the gallery and refreshes this page.')
+            ->helperText('Drag images to fine-tune their order. After reversing, click Save to store the gallery together with all other form changes.')
             ->hintAction(
                 Action::make('reverseOrder')
                     ->label('Reverse order')
                     ->icon('heroicon-m-arrows-up-down')
-                    ->action(function (Forms\Set $set, $state, $component, $livewire): void {
+                    ->action(function (Forms\Set $set, $state, $component): void {
                         if (! $component instanceof Component || ! is_array($state) || count($state) < 2) {
                             return;
                         }
@@ -36,12 +33,10 @@ class OrderedGalleryUpload extends SpatieMediaLibraryFileUpload
                         // both the FilePond preview and Spatie's order_column values.
                         $set($component, array_reverse($state, true));
 
-                        // On edit pages save only this gallery, then reload so FilePond
-                        // is rebuilt from the newly persisted media order.
-                        if (method_exists($livewire, 'saveFormComponentOnly')) {
-                            $livewire->saveFormComponentOnly($component);
-                            $livewire->dispatch('refresh-gallery-page');
-                        }
+                        // Do not call EditRecord::saveFormComponentOnly() here. This
+                        // gallery is nested in the custom_fields JSON column; saving
+                        // just this component overwrites price, year, and other
+                        // unsaved custom fields with an incomplete JSON payload.
                     }),
             );
     }
