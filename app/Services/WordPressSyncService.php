@@ -354,8 +354,16 @@ class WordPressSyncService
             $payload['custom_fields'] = $this->extractCustomFields($record, 'news', $defaultLang);
 
         } elseif ($type === 'new_yacht' || $type === 'used_yacht' || $type === 'charter_yacht') {
-            $payload['title'] = $getTrans('name'); // WP Post Title
-            $payload['name'] = $getTrans('name');
+            // Yacht names are product designations. They deliberately stay in
+            // English for every WordPress language, even when a target site has
+            // a different default locale.
+            $yachtTitle = $record->getTranslation('name', 'en', false);
+            if (blank($yachtTitle)) {
+                $yachtTitle = $getTrans('name');
+            }
+
+            $payload['title'] = $yachtTitle; // WP Post Title
+            $payload['name'] = $yachtTitle;
             $payload['featured_image'] = $record->getFirstMediaUrl('featured_image'); // Collection name from Yacht.php
 
             // Basic Fields
@@ -379,8 +387,8 @@ class WordPressSyncService
                 $transFields = $this->extractCustomFields($record, $type, $lang, [], true);
 
                 $translations[$lang] = array_merge([
-                    'title' => $record->getTranslation('name', $lang, false),
-                    'name' => $record->getTranslation('name', $lang, false),
+                    'title' => $yachtTitle,
+                    'name' => $yachtTitle,
                 ], $transFields);
             }
             $payload['translations'] = $translations;

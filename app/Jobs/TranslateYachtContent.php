@@ -47,8 +47,9 @@ class TranslateYachtContent implements ShouldQueue
         $targetLanguages = $languages->where('id', '!=', $defaultLanguage->id);
         $updated = false;
 
-        // Standard translatable fields
-        $translatableFields = ['name', 'description'];
+        // Product names are shared across every locale. Only editorial content
+        // is sent to AI for translation.
+        $translatableFields = ['description'];
 
         // 1. Translate standard fields
         foreach ($translatableFields as $field) {

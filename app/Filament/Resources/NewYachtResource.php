@@ -63,45 +63,13 @@ class NewYachtResource extends Resource
                             Forms\Components\TextInput::make('slug')
                                 ->required(),
                         ]),
-                    Forms\Components\Tabs::make('Name')
-                        ->tabs(function () {
-                            $languages = \App\Models\Language::orderBy('is_default', 'desc')->get();
-                            $tabs = [];
-
-                            foreach ($languages as $language) {
-                                $isDefault = $language->is_default;
-                                $label = $language->name . ($isDefault ? ' (Default)' : '');
-
-                                $field = Forms\Components\TextInput::make("name.{$language->code}")
-                                    ->label('Name')
-                                    ->required($isDefault)
-                                    ->maxLength(255)
-                                    ->live(onBlur: true);
-
-                                // If this is the default language, auto-fill other languages when typing
-                                if ($isDefault) {
-                                    $field->afterStateUpdated(function (Forms\Set $set, $state, Forms\Get $get) use ($languages) {
-                                        // Update slug
-                                        $set('slug', \Illuminate\Support\Str::slug($state));
-
-                                        // Auto-fill other languages if they're empty
-                                        foreach ($languages as $lang) {
-                                            if (!$lang->is_default) {
-                                                $currentValue = $get("name.{$lang->code}");
-                                                if (empty($currentValue)) {
-                                                    $set("name.{$lang->code}", $state);
-                                                }
-                                            }
-                                        }
-                                    });
-                                }
-
-                                $tabs[] = Forms\Components\Tabs\Tab::make($label)
-                                    ->schema([$field]);
-                            }
-
-                            return $tabs;
-                        })
+                    Forms\Components\TextInput::make('name.en')
+                        ->label('Model Name (English)')
+                        ->helperText('The same product name is used automatically for every language.')
+                        ->required()
+                        ->maxLength(255)
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(fn (Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state)))
                         ->columnSpanFull(),
                     Forms\Components\TextInput::make('slug')
                         ->required()

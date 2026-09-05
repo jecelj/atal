@@ -50,35 +50,13 @@ class CharterYachtResource extends Resource
                                 ->required(),
                         ]),
 
-                    // Translatable Name
-                    Forms\Components\Tabs::make('Name')
-                        ->tabs(function () {
-                            $languages = \App\Models\Language::orderBy('is_default', 'desc')->get();
-                            $tabs = [];
-
-                            foreach ($languages as $language) {
-                                $isDefault = $language->is_default;
-                                $label = $language->name . ($isDefault ? ' (Default)' : '');
-
-                                $field = Forms\Components\TextInput::make("name.{$language->code}")
-                                    ->label('Model Name')
-                                    ->required($isDefault)
-                                    ->maxLength(255)
-                                    ->live(onBlur: true);
-
-                                // If this is the default language, auto-fill slug
-                                if ($isDefault) {
-                                    $field->afterStateUpdated(function (Forms\Set $set, $state) {
-                                        $set('slug', \Illuminate\Support\Str::slug($state));
-                                    });
-                                }
-
-                                $tabs[] = Forms\Components\Tabs\Tab::make($label)
-                                    ->schema([$field]);
-                            }
-
-                            return $tabs;
-                        })
+                    Forms\Components\TextInput::make('name.en')
+                        ->label('Model Name (English)')
+                        ->helperText('The same product name is used automatically for every language.')
+                        ->required()
+                        ->maxLength(255)
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(fn (Forms\Set $set, $state) => $set('slug', \Illuminate\Support\Str::slug($state)))
                         ->columnSpanFull(),
 
                     Forms\Components\TextInput::make('slug')

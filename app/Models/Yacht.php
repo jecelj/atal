@@ -45,6 +45,68 @@ class Yacht extends Model implements HasMedia
         'translation_status' => 'boolean',
     ];
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // A model name is a product designation, not marketing copy. Keep one
+        // canonical English value for every locale regardless of whether it was
+        // saved through Filament, an importer, or an AI translation job.
+        static::saving(function (self $yacht): void {
+            $yacht->synchronizeNameTranslations();
+        });
+    }
+
+    /**
+     * Copy the English yacht name to every configured and already stored locale.
+     *
+     * If a legacy record has no English value, its first non-empty existing name
+     * becomes the canonical English value so the record is not left untranslated.
+     *
+     * @param iterable<string>|null $locales Allows batch commands and tests to
+     *                                        provide an already loaded locale list.
+     */
+    public function synchronizeNameTranslations(?iterable $locales = null): bool
+    {
+        $existing = $this->getTranslations('name');
+        $englishName = trim((string) ($existing['en'] ?? ''));
+
+        if ($englishName === '') {
+            foreach ($existing as $name) {
+                $candidate = trim((string) $name);
+
+                if ($candidate !== '') {
+                    $englishName = $candidate;
+                    break;
+                }
+            }
+        }
+
+        if ($englishName === '') {
+            return false;
+        }
+
+        $localeCodes = $locales ?? Language::query()->pluck('code');
+        $localeCodes = array_values(array_unique(array_filter([
+            'en',
+            ...collect($localeCodes)->map(fn ($code) => trim((string) $code))->all(),
+            ...array_keys($existing),
+        ])));
+
+        $normalized = array_fill_keys($localeCodes, $englishName);
+
+        // Array key order is irrelevant for JSON translations. Avoid marking an
+        // otherwise identical title as dirty just because a legacy row stored
+        // locale keys in a different order.
+        if ($existing == $normalized) {
+            return false;
+        }
+
+        $this->setTranslations('name', $normalized);
+
+        return true;
+    }
+
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
