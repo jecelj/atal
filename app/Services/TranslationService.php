@@ -153,9 +153,9 @@ INSTRUCTION;
         $value = preg_replace('/<!--.*?-->/s', '', $value) ?? $value;
         $value = preg_replace('/<\s*div\b[^>]*>/i', '<p>', $value) ?? $value;
         $value = preg_replace('/<\s*\/\s*div\s*>/i', '</p>', $value) ?? $value;
-        $value = strip_tags($value, '<p><br><ul><ol><li><strong><em><u><b><i><h2><h3><h4>');
+        $value = strip_tags($value, '<p><br><ul><ol><li><strong><em><u><b><i><h2><h3><h4><table><caption><thead><tbody><tfoot><tr><th><td>');
         $value = preg_replace_callback(
-            '#<(/?)(p|br|ul|ol|li|strong|em|u|b|i|h[2-4])\b[^>]*>#i',
+            '#<(/?)(p|br|ul|ol|li|strong|em|u|b|i|h[2-4]|table|caption|thead|tbody|tfoot|tr|th|td)\b[^>]*>#i',
             fn (array $match) => '<' . $match[1] . strtolower($match[2]) . '>',
             $value,
         ) ?? $value;
@@ -228,6 +228,7 @@ INSTRUCTION;
 
             $directionInstruction = $this->translationDirectionInstruction($sourceLanguage, $targetLanguage);
             $systemPrompt .= "\n\n{$directionInstruction}";
+            $systemPrompt .= "\n\nIf the text contains HTML, preserve its tags and table structure. Translate only the human-readable text inside the elements.";
             $targetLanguageName = $this->languageName($targetLanguage);
 
             $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
