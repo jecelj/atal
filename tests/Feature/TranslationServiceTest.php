@@ -37,6 +37,7 @@ class TranslationServiceTest extends TestCase
 
             return str_contains($systemMessage, 'German (de)')
                 && str_contains($systemMessage, 'Slovenian is allowed only when the target language code is sl.')
+                && str_contains($systemMessage, 'CRITICAL HTML AND TABLE PRESERVATION:')
                 && str_contains($userMessage, 'German (de) only')
                 && ($payload['reasoning_effort'] ?? null) === 'none';
         });
@@ -97,10 +98,71 @@ class TranslationServiceTest extends TestCase
         Http::assertSent(function (Request $request): bool {
             $payload = $request->data();
             $userMessage = $payload['messages'][1]['content'] ?? '';
+            $systemMessage = $payload['messages'][0]['content'] ?? '';
 
             return str_contains($userMessage, '<table><tr><th>Specification</th><th>Value</th></tr>')
                 && str_contains($userMessage, '<tr><td>Length</td><td>6.1 m</td></tr>')
+                && str_contains($systemMessage, 'Never flatten a table into a paragraph')
                 && !str_contains($userMessage, 'clipboard');
         });
+    }
+
+    public function test_it_rejects_an_individual_translation_that_flattens_a_table(): void
+    {
+        $settings = Mockery::mock(OpenAiSettings::class);
+        $settings->openai_secret = 'test-key';
+        $settings->openai_context = 'Translate yacht specifications.';
+        $settings->translation_model = 'gpt-5.6-luna';
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'choices' => [['message' => ['content' => '<p>Dolzina6,1 m</p>']]],
+            ]),
+        ]);
+
+        $this->assertNull((new TranslationService($settings))->translate(
+            '<table><tr><td>Length</td><td>6.1 m</td></tr></table>', 'sl', 'en',
+        ));
+    }
+
+    public function test_it_accepts_an_individual_translation_that_preserves_table_structure(): void
+    {
+        $settings = Mockery::mock(OpenAiSettings::class);
+        $settings->openai_secret = 'test-key';
+        $settings->openai_context = 'Translate yacht specifications.';
+        $settings->translation_model = 'gpt-5.6-luna';
+        $translatedTable = '<table><tbody><tr><td>Dolzina</td><td>6,1 m</td></tr></tbody></table>';
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'choices' => [['message' => ['content' => $translatedTable]]],
+            ]),
+        ]);
+
+        $this->assertSame($translatedTable, (new TranslationService($settings))->translate(
+            '<table><tr><td>Length</td><td>6.1 m</td></tr></table>', 'sl', 'en',
+        ));
+    }
+
+    public function test_it_rejects_a_structured_translation_that_drops_table_cells(): void
+    {
+        $settings = Mockery::mock(OpenAiSettings::class);
+        $settings->openai_secret = 'test-key';
+        $settings->openai_context = 'Translate yacht specifications.';
+        $settings->translation_model = 'gpt-5.6-luna';
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'choices' => [[
+                    'message' => ['content' => json_encode([
+                        'custom:specifications' => '<table><tr><th>Podatek</th><th>Vrednost</th></tr><tr><td>6,1 m</td></tr></table>',
+                    ])],
+                ]],
+            ]),
+        ]);
+
+        $this->assertNull((new TranslationService($settings))->translateStructured([
+            'custom:specifications' => '<table><tr><th>Specification</th><th>Value</th></tr><tr><td>Length</td><td>6.1 m</td></tr></table>',
+        ], 'sl', 'en'));
     }
 }

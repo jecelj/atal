@@ -10,6 +10,14 @@ class TranslationService
 {
     private const TRANSLATION_TIMEOUT_SECONDS = 55;
     private const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini-2024-07-18';
+    private const HTML_TRANSLATION_INSTRUCTION = <<<'INSTRUCTION'
+CRITICAL HTML AND TABLE PRESERVATION:
+- Translate only human-readable text inside HTML elements.
+- Preserve every table, caption, thead, tbody, tfoot, tr, th and td element in its original order.
+- Keep the same number of tables, rows and cells, including empty cells and header cells.
+- Never flatten a table into a paragraph, concatenate its cells, or replace it with a list, Markdown or plain text.
+- Preserve numerical values, units and product names. Do not invent missing specifications.
+INSTRUCTION;
     private const LANGUAGE_NAMES = [
         'en' => 'English',
         'sl' => 'Slovenian',
@@ -132,7 +140,13 @@ INSTRUCTION;
 
         // If text is very long (> 4000 chars), split it
         if (strlen($text) > 4000) {
-            return $this->translateLargeText($text, $targetLanguage, $sourceLanguage, $context);
+            $translation = $this->translateLargeText($text, $targetLanguage, $sourceLanguage, $context);
+            if (!$this->preservesTableStructure($text, $translation)) {
+                Log::warning('OpenAI chunked translation changed HTML table structure', ['target' => $targetLanguage]);
+                return null;
+            }
+
+            return $translation;
         }
 
         return $this->performTranslation($text, $targetLanguage, $sourceLanguage, $context);
@@ -167,6 +181,36 @@ INSTRUCTION;
         $value = preg_replace('#<p>\s*</p>#i', '', $value) ?? $value;
 
         return trim($value);
+    }
+
+    protected function preservesTableStructure(string $source, string $translation): bool
+    {
+        if (stripos($source, '<table') === false) {
+            return true;
+        }
+
+        $structure = static function (string $html): array {
+            $document = new \DOMDocument();
+            $document->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new \DOMXPath($document);
+            $tables = [];
+
+            foreach ($xpath->query('//table') as $table) {
+                $rows = [];
+                foreach ($xpath->query('.//tr', $table) as $row) {
+                    $cells = [];
+                    foreach ($xpath->query('./th | ./td', $row) as $cell) {
+                        $cells[] = $cell->nodeName;
+                    }
+                    $rows[] = $cells;
+                }
+                $tables[] = $rows;
+            }
+
+            return $tables;
+        };
+
+        return $structure($source) === $structure($translation);
     }
 
     protected function translateLargeText(
@@ -228,7 +272,7 @@ INSTRUCTION;
 
             $directionInstruction = $this->translationDirectionInstruction($sourceLanguage, $targetLanguage);
             $systemPrompt .= "\n\n{$directionInstruction}";
-            $systemPrompt .= "\n\nIf the text contains HTML, preserve its tags and table structure. Translate only the human-readable text inside the elements.";
+            $systemPrompt .= "\n\n" . self::HTML_TRANSLATION_INSTRUCTION;
             $targetLanguageName = $this->languageName($targetLanguage);
 
             $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
@@ -256,7 +300,13 @@ INSTRUCTION;
             if ($response->successful()) {
                 $data = $response->json();
                 $this->logOpenAiUsage('translation', $model, $data);
-                return $data['choices'][0]['message']['content'] ?? null;
+                $translation = $data['choices'][0]['message']['content'] ?? null;
+                if (!is_string($translation) || !$this->preservesTableStructure($text, $translation)) {
+                    Log::warning('OpenAI translation changed HTML table structure', ['target' => $targetLanguage]);
+                    return null;
+                }
+
+                return $translation;
             }
 
             Log::error('OpenAI API error', [
@@ -333,6 +383,7 @@ INSTRUCTION;
             $targetLanguageName = $this->languageName($targetLanguage);
             $systemPrompt .= "\n\n{$directionInstruction}";
             $systemPrompt .= "\n\nYou must return valid JSON. Keys must remain unchanged. Translate string values into {$targetLanguageName} only. Do not translate specific brand names or technical terms that should remain in English. If a value contains HTML, preserve its tags exactly and translate only the human-readable text.";
+            $systemPrompt .= "\n\n" . self::HTML_TRANSLATION_INSTRUCTION;
 
             $model = $this->settings->translation_model ?: self::DEFAULT_LOW_COST_MODEL;
             $payload = [
@@ -369,7 +420,27 @@ INSTRUCTION;
                 $this->logOpenAiUsage('structured_translation', $model, $responseData);
                 $content = $responseData['choices'][0]['message']['content'] ?? null;
                 if ($content) {
-                    return json_decode($content, true);
+                    $translations = json_decode($content, true);
+                    if (!is_array($translations)) {
+                        return null;
+                    }
+
+                    foreach ($data as $key => $source) {
+                        if (!is_string($source) || stripos($source, '<table') === false) {
+                            continue;
+                        }
+
+                        $translation = $translations[$key] ?? null;
+                        if (!is_string($translation) || !$this->preservesTableStructure($source, $translation)) {
+                            Log::warning('OpenAI structured translation changed HTML table structure', [
+                                'target' => $targetLanguage,
+                                'field' => $key,
+                            ]);
+                            return null;
+                        }
+                    }
+
+                    return $translations;
                 }
             }
 
